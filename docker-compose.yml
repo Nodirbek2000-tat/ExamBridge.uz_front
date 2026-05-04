@@ -1,0 +1,54 @@
+version: '3.9'
+
+# ─── Frontend services for exambridge.uz ─────────────────────────────────────
+# This compose OWNS ports 80 and 443 and CREATES the shared exambridge_net.
+# It also handles SSL for BOTH domains via Certbot.
+#
+# Domains handled by nginx here:
+#   exambridge.uz       → React SPA (static files)
+#   nodir.exambridge.uz → Proxied to backend (web:8000) via shared network
+#
+# Start order:
+#   1. Run: bash init-letsencrypt.sh   (first time only — gets SSL certs)
+#   2. Then: docker-compose up -d --build
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── Nginx (entry point for all traffic) ─────────────────────────────────────
+  nginx:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - certbot_certs:/etc/letsencrypt:ro
+      - certbot_webroot:/var/www/certbot:ro
+    networks:
+      - exambridge_net
+    # Reload nginx every 6 hours to pick up renewed SSL certs
+    command: >
+      /bin/sh -c "while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g 'daemon off;'"
+
+  # ── Certbot (SSL auto-renewal) ───────────────────────────────────────────────
+  certbot:
+    image: certbot/certbot
+    restart: unless-stopped
+    volumes:
+      - certbot_certs:/etc/letsencrypt
+      - certbot_webroot:/var/www/certbot
+    # Check every 12 hours, renew if expiry < 30 days (Let's Encrypt standard)
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --quiet --webroot -w /var/www/certbot; sleep 12h & wait $${!}; done'"
+
+# ─── Shared network (backend joins this from its own compose) ─────────────────
+networks:
+  exambridge_net:
+    driver: bridge
+    name: exambridge_net   # explicit name so backend can find it as "external"
+
+# ─── SSL cert volumes ─────────────────────────────────────────────────────────
+volumes:
+  certbot_certs:
+  certbot_webroot:
