@@ -33,8 +33,14 @@ function renderMath(html) {
   out = out.replace(/\\\[([\s\S]*?)\\\]/g, (_, math) => {
     try { return katex.renderToString(math.trim(), { displayMode: true, throwOnError: false }) } catch { return '[math]' }
   })
+  out = out.replace(/\$\$([\s\S]*?)\$\$/g, (_, math) => {
+    try { return katex.renderToString(math.trim(), { displayMode: true, throwOnError: false }) } catch { return '[math]' }
+  })
   out = out.replace(/\\\(([\s\S]*?)\\\)/g, (_, math) => {
     try { return katex.renderToString(math.trim(), { throwOnError: false }) } catch { return '[math]' }
+  })
+  out = out.replace(/\$([^$\n]+?)\$/g, (_, math) => {
+    try { return katex.renderToString(math.trim(), { throwOnError: false }) } catch { return _ }
   })
   return out
 }

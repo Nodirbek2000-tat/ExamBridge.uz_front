@@ -2,6 +2,7 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from './store/authStore'
+import { useThemeStore, applyTheme } from './store/themeStore'
 
 // Layouts
 import MainLayout from './components/layout/MainLayout'
@@ -58,6 +59,9 @@ import CEFRListeningAttempt from './pages/cefr/CEFRListeningAttempt'
 import CEFRReadingResult from './pages/cefr/CEFRReadingResult'
 import CEFRListeningResult from './pages/cefr/CEFRListeningResult'
 import CEFRHistory from './pages/cefr/CEFRHistory'
+import CEFRSpeakingList from './pages/cefr/CEFRSpeakingList'
+import CEFRSpeakingAttempt from './pages/cefr/CEFRSpeakingAttempt'
+import CEFRSpeakingResult from './pages/cefr/CEFRSpeakingResult'
 
 // AI
 import AIChatPage from './pages/ai/AIChatPage'
@@ -87,6 +91,22 @@ import AdminCEFRSection from './pages/admin/AdminCEFRSection'
 import AdminSystem from './pages/admin/AdminSystem'
 import AdminAIStructures from './pages/admin/AdminAIStructures'
 import AdminReports from './pages/admin/AdminReports'
+import AdminTestmakonUsers from './pages/admin/AdminTestmakonUsers'
+import AdminCenters from './pages/admin/AdminCenters'
+import AdminCenterDetail from './pages/admin/AdminCenterDetail'
+
+// Center Portal
+import CenterLayout from './pages/center/CenterLayout'
+import CenterDashboard from './pages/center/CenterDashboard'
+import CenterMembers from './pages/center/CenterMembers'
+import CenterGroups from './pages/center/CenterGroups'
+import CenterTeacherDetail from './pages/center/CenterTeacherDetail'
+import CenterGroupDetail from './pages/center/CenterGroupDetail'
+import CenterMemberProfile from './pages/center/CenterMemberProfile'
+import CenterAssignments from './pages/center/CenterAssignments'
+import CenterNotifications from './pages/center/CenterNotifications'
+import MyCenters from './pages/center/MyCenters'
+import MyTasks from './pages/center/MyTasks'
 
 function PrivateRoute({ children }) {
   const user = useAuthStore((s) => s.user)
@@ -131,11 +151,23 @@ function RouteProgressBar() {
 export default function App() {
   const fetchUser = useAuthStore((s) => s.fetchUser)
   const user = useAuthStore((s) => s.user)
+  const theme = useThemeStore((s) => s.theme)
 
   // App ochilganda user ma'lumotlarini yangilash (is_staff, is_premium etc)
   useEffect(() => {
     if (user) fetchUser()
   }, [])
+
+  // Apply dark mode class to <html> whenever theme changes
+  useEffect(() => {
+    applyTheme(theme)
+    if (theme === 'system') {
+      const mq = window.matchMedia('(prefers-color-scheme: dark)')
+      const handler = () => applyTheme('system')
+      mq.addEventListener('change', handler)
+      return () => mq.removeEventListener('change', handler)
+    }
+  }, [theme])
 
   return (
     <>
@@ -181,7 +213,7 @@ export default function App() {
         <Route path="cefr/tests" element={<CEFRTestList />} />
         <Route path="cefr/reading" element={<CEFRReadingList />} />
         <Route path="cefr/listening" element={<CEFRListeningList />} />
-        <Route path="cefr/speaking" element={<CEFRTestList />} />
+        <Route path="cefr/speaking" element={<CEFRSpeakingList />} />
         <Route path="cefr/writing" element={<CEFRTestList />} />
         <Route path="cefr/history" element={<CEFRHistory />} />
 
@@ -196,16 +228,23 @@ export default function App() {
         <Route path="subscription" element={<SubscriptionPage />} />
         <Route path="universities" element={<UniversitiesPage />} />
         <Route path="vocabulary" element={<VocabularyPage />} />
+        <Route path="my-centers" element={<MyCenters />} />
+        <Route path="my-tasks" element={<MyTasks />} />
       </Route>
 
       {/* Exam mode — fullscreen, no sidebar */}
       <Route path="/exam" element={<PrivateRoute><ExamLayout /></PrivateRoute>}>
         <Route path="sat/:attemptId" element={<SATTestAttempt />} />
         <Route path="ielts/:attemptId" element={<IELTSAttempt />} />
+        <Route path="ielts/writing/result/:responseId" element={<IELTSWritingResult />} />
         <Route path="ielts/writing/result" element={<IELTSWritingResult />} />
         <Route path="ielts/writing/:attemptId" element={<IELTSWritingAttempt />} />
+        <Route path="ielts/speaking/result/:responseId" element={<IELTSSpeakingResult />} />
         <Route path="ielts/speaking/result" element={<IELTSSpeakingResult />} />
         <Route path="ielts/speaking/:taskId" element={<IELTSSpeakingAttempt />} />
+        <Route path="cefr/speaking/result/:responseId" element={<CEFRSpeakingResult />} />
+        <Route path="cefr/speaking/result" element={<CEFRSpeakingResult />} />
+        <Route path="cefr/speaking/:taskId" element={<CEFRSpeakingAttempt />} />
         <Route path="ielts/reading/:attemptId" element={<IELTSReadingAttempt />} />
         <Route path="ielts/reading/:attemptId/result" element={<IELTSReadingResult />} />
         <Route path="ielts/listening/:attemptId" element={<IELTSListeningAttempt />} />
@@ -249,9 +288,26 @@ export default function App() {
           <Route path="grammar"   element={<AdminCEFRSection section="grammar" />} />
           <Route path="all"       element={<AdminCEFR />} />
         </Route>
+        <Route path="testmakon-users" element={<AdminTestmakonUsers />} />
+        <Route path="centers" element={<AdminCenters />} />
+        <Route path="centers/:centerId" element={<AdminCenterDetail />} />
         <Route path="system" element={<AdminSystem />} />
         <Route path="ai-structures" element={<AdminAIStructures />} />
         <Route path="reports" element={<AdminReports />} />
+      </Route>
+
+      {/* Center Portal */}
+      <Route path="/center/:centerId" element={<PrivateRoute><CenterLayout /></PrivateRoute>}>
+        <Route path="dashboard" element={<CenterDashboard />} />
+        <Route path="students" element={<CenterMembers targetRole="student" />} />
+        <Route path="teachers" element={<CenterMembers targetRole="teacher" />} />
+        <Route path="teachers/:teacherId" element={<CenterTeacherDetail />} />
+        <Route path="admins" element={<CenterMembers targetRole="admin" />} />
+        <Route path="members/:userId/profile" element={<CenterMemberProfile />} />
+        <Route path="groups" element={<CenterGroups />} />
+        <Route path="groups/:groupId" element={<CenterGroupDetail />} />
+        <Route path="assignments" element={<CenterAssignments />} />
+        <Route path="notifications" element={<CenterNotifications />} />
       </Route>
 
       <Route path="*" element={<NotFoundPage />} />

@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import {
   Users, Crown, CheckCircle2, RefreshCw, Server, Cpu,
-  Database, AlertCircle, TrendingUp, UserPlus, Calendar, BarChart3,
+  Database, AlertCircle, TrendingUp, UserPlus, Calendar, BarChart3, DollarSign,
 } from 'lucide-react'
 import api from '../../api/client'
 
@@ -112,6 +112,12 @@ export default function AdminDashboard() {
     staleTime: 30_000,
   })
 
+  const { data: payStats } = useQuery({
+    queryKey: ['admin-payment-stats'],
+    queryFn: () => api.get('/payments/stats/').then(r => r.data),
+    staleTime: 60_000,
+  })
+
   const {
     data: health, isLoading: healthLoading, error: healthError,
     refetch: refetchHealth, isFetching: healthFetching,
@@ -133,12 +139,22 @@ export default function AdminDashboard() {
   }
 
   const statCards = [
-    { icon: Users,    label: 'Total Users',    value: stats?.total_users,   color: 'text-sky-600',    bg: 'bg-sky-50' },
-    { icon: Crown,    label: 'Premium Users',  value: stats?.premium_users, color: 'text-amber-600',  bg: 'bg-amber-50' },
-    { icon: UserPlus, label: 'New Today',      value: stats?.users_today,   color: 'text-emerald-600',bg: 'bg-emerald-50' },
-    { icon: Calendar, label: 'This Week',      value: stats?.users_week,    color: 'text-violet-600', bg: 'bg-violet-50', sub: 'new users (7d)' },
-    { icon: TrendingUp,label:'This Month',     value: stats?.users_month,   color: 'text-rose-600',   bg: 'bg-rose-50',   sub: 'new users (30d)' },
-    { icon: CheckCircle2,label:'Tests Done',   value: stats?.tests_completed,color:'text-blue-600',   bg: 'bg-blue-50',   sub: 'all sections' },
+    { icon: Users,      label: 'Total Users',    value: stats?.total_users,    color: 'text-sky-600',    bg: 'bg-sky-50' },
+    { icon: Crown,      label: 'Premium Users',  value: stats?.premium_users,  color: 'text-amber-600',  bg: 'bg-amber-50' },
+    { icon: UserPlus,   label: 'New Today',      value: stats?.users_today,    color: 'text-emerald-600',bg: 'bg-emerald-50' },
+    { icon: Calendar,   label: 'This Week',      value: stats?.users_week,     color: 'text-violet-600', bg: 'bg-violet-50', sub: 'new users (7d)' },
+    { icon: TrendingUp, label: 'This Month',     value: stats?.users_month,    color: 'text-rose-600',   bg: 'bg-rose-50',   sub: 'new users (30d)' },
+    { icon: CheckCircle2,label:'Tests Done',     value: stats?.tests_completed,color: 'text-blue-600',   bg: 'bg-blue-50',   sub: 'all sections' },
+    {
+      icon: DollarSign, label: 'Total Revenue',
+      value: payStats ? `$${payStats.total_revenue_usd}` : undefined,
+      color: 'text-emerald-700', bg: 'bg-emerald-50', sub: 'all time (Stripe)',
+    },
+    {
+      icon: DollarSign, label: 'This Month',
+      value: payStats ? `$${payStats.monthly_revenue_usd}` : undefined,
+      color: 'text-sky-700', bg: 'bg-sky-50', sub: 'revenue (30d)',
+    },
   ]
 
   return (
@@ -149,17 +165,43 @@ export default function AdminDashboard() {
         <h2 className="text-lg font-bold text-gray-900">Dashboard Overview</h2>
       </div>
 
-      {/* Stat cards — 6 cards */}
+      {/* Stat cards */}
       {error ? (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3 text-red-700 text-sm">
           <AlertCircle size={16} /> Failed to load stats: {error.message}
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-4 gap-3">
           {statCards.map((c, i) => (
-            <StatCard key={c.label} {...c} index={i} />
+            <StatCard key={c.label + i} {...c} index={i} />
           ))}
         </div>
+      )}
+
+      {/* Revenue plan breakdown */}
+      {payStats?.plan_breakdown?.length > 0 && (
+        <motion.div {...fade(3)} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-50 flex items-center gap-2">
+            <DollarSign size={15} className="text-emerald-500" />
+            <h3 className="font-bold text-gray-900 text-sm">Revenue by Plan</h3>
+          </div>
+          <div className="px-5 py-4 flex flex-wrap gap-4">
+            {payStats.plan_breakdown.map(pb => (
+              <div key={pb.plan_label} className="flex items-center gap-3 bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
+                <div>
+                  <p className="text-xs text-gray-400 font-medium">
+                    {pb.plan_label === '1month' ? '1-Month Plan'
+                      : pb.plan_label === '3month' ? '3-Month Plan'
+                      : pb.plan_label === '6month' ? '6-Month Plan'
+                      : pb.plan_label}
+                  </p>
+                  <p className="text-lg font-black text-gray-900">{pb.count} <span className="text-xs font-medium text-gray-400">subs</span></p>
+                  <p className="text-xs text-emerald-600 font-semibold">${(pb.revenue / 100).toFixed(2)} revenue</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
       )}
 
       {/* Section popularity + Mock leaderboard */}

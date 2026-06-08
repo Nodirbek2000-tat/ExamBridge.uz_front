@@ -40,7 +40,7 @@ function bandColor(b) {
   const n = parseFloat(b)
   if (n >= 7) return 'text-emerald-600 bg-emerald-50 border-emerald-200'
   if (n >= 5) return 'text-sky-600 bg-sky-50 border-sky-200'
-  return 'text-orange-500 bg-orange-50 border-orange-200'
+  return 'text-sky-500 bg-sky-50 border-sky-200'
 }
 
 function BandBadge({ band }) {
@@ -88,17 +88,14 @@ function Pagination({ page, totalPages, onChange }) {
   )
 }
 
-function MockCard({ item, onRetake, retakeLoading }) {
+function MockCard({ item, onRetake, onReview, retakeLoading }) {
   const timeStr = formatTime(item.time_spent)
   const hasReading = item.reading_total > 0
   const hasListening = item.listening_total > 0
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-      <div className="flex items-start gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 to-violet-400 flex items-center justify-center flex-shrink-0 mt-0.5">
-          <Trophy size={18} className="text-white" />
-        </div>
+      <div className="flex items-start gap-0">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <p className="font-bold text-gray-800 text-sm leading-tight truncate max-w-xs">
@@ -119,7 +116,7 @@ function MockCard({ item, onRetake, retakeLoading }) {
           <div className="mt-2 flex flex-wrap gap-3">
             {hasReading && (
               <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                <BookOpen size={12} className="text-blue-400" />
+                <BookOpen size={12} className="text-sky-400" />
                 <span className="font-medium">Reading:</span>
                 <CheckCircle2 size={11} className="text-emerald-400" />
                 {item.reading_correct}/{item.reading_total}
@@ -130,7 +127,7 @@ function MockCard({ item, onRetake, retakeLoading }) {
             )}
             {hasListening && (
               <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                <Headphones size={12} className="text-violet-400" />
+                <Headphones size={12} className="text-sky-400" />
                 <span className="font-medium">Listening:</span>
                 <CheckCircle2 size={11} className="text-emerald-400" />
                 {item.listening_correct}/{item.listening_total}
@@ -142,16 +139,22 @@ function MockCard({ item, onRetake, retakeLoading }) {
           </div>
         </div>
 
-        <div className="flex-shrink-0">
+        <div className="flex-shrink-0 ml-3">
           {item.overall_band != null && <BandBadge band={item.overall_band} />}
         </div>
       </div>
 
-      <div className="mt-3">
+      <div className="mt-3 flex gap-2">
+        <button
+          onClick={() => onReview(item)}
+          className="flex-1 h-9 rounded-xl bg-sky-50 border border-sky-200 text-sky-700 text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-sky-100 transition"
+        >
+          <Eye size={13} /> Review Answers
+        </button>
         <button
           onClick={() => onRetake(item)}
           disabled={retakeLoading}
-          className="w-full h-9 rounded-xl bg-gray-100 text-gray-700 text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-gray-200 disabled:opacity-60 transition"
+          className="flex-1 h-9 rounded-xl bg-sky-500 text-white text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-sky-600 disabled:opacity-60 transition"
         >
           {retakeLoading ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />}
           Retake Mock
@@ -161,26 +164,22 @@ function MockCard({ item, onRetake, retakeLoading }) {
   )
 }
 
-function ReadingListeningCard({ item, onReview, onRetake, reviewLoading, retakeLoading }) {
+function ReadingListeningCard({ item, onReview, onRetake, retakeLoading }) {
   const isReading = item.type === 'reading'
-  const Icon = isReading ? BookOpen : Headphones
-  const iconBg = isReading ? 'bg-blue-100' : 'bg-violet-100'
-  const iconColor = isReading ? 'text-blue-500' : 'text-violet-500'
+  const TypeIcon = isReading ? BookOpen : Headphones
   const timeStr = formatTime(item.time_spent)
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-      <div className="flex items-start gap-3">
-        <div className={`w-10 h-10 rounded-xl ${iconBg} flex items-center justify-center flex-shrink-0 mt-0.5`}>
-          <Icon size={18} className={iconColor} />
-        </div>
+      <div className="flex items-start gap-0">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
+            <TypeIcon size={13} className="text-sky-400 flex-shrink-0" />
             <p className="font-bold text-gray-800 text-sm leading-tight truncate max-w-xs">
               {item.title || `Attempt #${item.id}`}
             </p>
             {item.section_number != null && (
-              <span className="text-xs px-1.5 py-0.5 rounded bg-violet-100 text-violet-600 font-semibold flex-shrink-0">
+              <span className="text-xs px-1.5 py-0.5 rounded bg-sky-100 text-sky-600 font-semibold flex-shrink-0">
                 Part {item.section_number}
               </span>
             )}
@@ -196,13 +195,11 @@ function ReadingListeningCard({ item, onReview, onRetake, reviewLoading, retakeL
                 {item.correct}/{item.total} correct
               </span>
             )}
-            {timeStr && (
-              <span className="text-xs text-gray-400">{timeStr}</span>
-            )}
+            {timeStr && <span className="text-xs text-gray-400">{timeStr}</span>}
           </div>
         </div>
 
-        <div className="flex flex-col items-end gap-2 flex-shrink-0">
+        <div className="flex-shrink-0 ml-3">
           {item.band != null && <BandBadge band={item.band} />}
         </div>
       </div>
@@ -210,16 +207,14 @@ function ReadingListeningCard({ item, onReview, onRetake, reviewLoading, retakeL
       <div className="mt-3 flex gap-2">
         <button
           onClick={() => onReview(item)}
-          disabled={reviewLoading}
-          className="flex-1 h-9 rounded-xl bg-sky-50 border border-sky-200 text-sky-700 text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-sky-100 disabled:opacity-60 transition"
+          className="flex-1 h-9 rounded-xl bg-sky-50 border border-sky-200 text-sky-700 text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-sky-100 transition"
         >
-          {reviewLoading ? <Loader2 size={13} className="animate-spin" /> : <Eye size={13} />}
-          Review
+          <Eye size={13} /> Review Answers
         </button>
         <button
           onClick={() => onRetake(item)}
           disabled={retakeLoading}
-          className="flex-1 h-9 rounded-xl bg-gray-100 text-gray-700 text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-gray-200 disabled:opacity-60 transition"
+          className="flex-1 h-9 rounded-xl bg-sky-500 text-white text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-sky-600 disabled:opacity-60 transition"
         >
           {retakeLoading ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />}
           Retake
@@ -303,7 +298,6 @@ export default function IELTSHistory() {
   const navigate = useNavigate()
   const [tab, setTab] = useState('all')
   const [page, setPage] = useState(1)
-  const [reviewLoading, setReviewLoading] = useState(null)
   const [retakeLoading, setRetakeLoading] = useState(null)
 
   const { data: rlData = [], isLoading: rlLoading } = useQuery({
@@ -349,34 +343,29 @@ export default function IELTSHistory() {
 
   const handleTabChange = (t) => { setTab(t); setPage(1) }
 
-  const handleReadingReview = async (item) => {
-    setReviewLoading(item.id)
-    try {
-      const data = await api.get(`/ielts/attempt/${item.id}/reading-review/`).then(r => r.data)
-      navigate(
-        `/exam/ielts/reading/${item.id}?passage=${item.passage_id || 0}&title=${encodeURIComponent(item.title || 'Reading')}`,
-        { state: { reviewData: data } }
-      )
-    } catch {
-      // silent
-    } finally {
-      setReviewLoading(null)
+  // Direct navigation — no API prefetch; attempt pages load their own data
+  const handleMockReview = (item) => {
+    const title = encodeURIComponent(item.title || 'Mock Test')
+    if (item.listening_total > 0 && !item.reading_total) {
+      // Listening-only mock → use mode=review so the page fetches all sections
+      navigate(`/exam/ielts/listening/${item.id}?mode=review&title=${title}`)
+    } else {
+      // Reading mock → passage-based review (existing flow works fine)
+      navigate(`/exam/ielts/reading/${item.id}?passage=${item.passage_id || 0}&title=${title}`)
     }
   }
 
-  const handleListeningReview = async (item) => {
-    setReviewLoading(item.id)
-    try {
-      const data = await api.get(`/ielts/attempt/${item.id}/listening-review/`).then(r => r.data)
-      navigate(
-        `/exam/ielts/listening/${item.id}?section=${item.section_id || 0}&title=${encodeURIComponent(item.title || 'Listening')}`,
-        { state: { reviewData: data } }
-      )
-    } catch {
-      // silent
-    } finally {
-      setReviewLoading(null)
-    }
+  const handleReadingReview = (item) => {
+    navigate(
+      `/exam/ielts/reading/${item.id}?passage=${item.passage_id || 0}&title=${encodeURIComponent(item.title || 'Reading')}`
+    )
+  }
+
+  const handleListeningReview = (item) => {
+    // mode=review → listening attempt page fetches sections from review API
+    navigate(
+      `/exam/ielts/listening/${item.id}?mode=review&title=${encodeURIComponent(item.title || 'Listening')}`
+    )
   }
 
   const handleRetake = async (item) => {
@@ -410,6 +399,7 @@ export default function IELTSHistory() {
         <MockCard
           key={key}
           item={item}
+          onReview={handleMockReview}
           onRetake={handleRetake}
           retakeLoading={retakeLoading === item.id}
         />
@@ -421,8 +411,8 @@ export default function IELTSHistory() {
           key={key}
           item={item}
           onReview={item.type === 'speaking'
-            ? () => navigate(`/app/ielts/speaking/review/${item.id}`)
-            : () => navigate(`/app/ielts/writing/review/${item.id}`)
+            ? () => navigate(`/exam/ielts/speaking/result/${item.id}`)
+            : () => navigate(`/exam/ielts/writing/result/${item.id}`)
           }
         />
       )
@@ -433,7 +423,6 @@ export default function IELTSHistory() {
         item={item}
         onReview={item.type === 'reading' ? handleReadingReview : handleListeningReview}
         onRetake={handleRetake}
-        reviewLoading={reviewLoading === item.id}
         retakeLoading={retakeLoading === item.id}
       />
     )

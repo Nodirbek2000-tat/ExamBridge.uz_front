@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Search, Clock3, HelpCircle, Loader2, BookOpen, ChevronUp, ChevronDown, CheckCircle2, Lock } from 'lucide-react'
+import { Search, Clock3, HelpCircle, Loader2, BookOpen, ChevronUp, ChevronDown, CheckCircle2, Lock, RotateCcw } from 'lucide-react'
 import api from '../../api/client'
 import { useAuthStore } from '../../store/authStore'
 
@@ -205,7 +205,7 @@ export default function IELTSReadingList() {
                 <div
                   key={`${item.itemType}-${item.id}`}
                   className={`rounded-xl border px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 transition ${
-                    isLocked ? 'border-gray-100 bg-gray-50 opacity-70' : 'border-gray-200 bg-white'
+                    isLocked ? 'border-gray-200 bg-white' : 'border-gray-200 bg-white'
                   }`}
                 >
                   <div className="min-w-0 flex-1">
@@ -225,7 +225,14 @@ export default function IELTSReadingList() {
                       <DifficultyBadge difficulty={item.difficulty} />
                       <span className="inline-flex items-center gap-1 whitespace-nowrap"><Clock3 size={14} /> {item.duration || 60} minutes</span>
                       <span className="inline-flex items-center gap-1 whitespace-nowrap"><HelpCircle size={14} /> {item.questions || 40} questions</span>
-                      {!isLocked && <span className="text-gray-400 whitespace-nowrap">{attemptsCount} attempts</span>}
+                      {!isLocked && (
+                        <span className={`inline-flex items-center gap-1 whitespace-nowrap font-semibold ${
+                          attemptsCount > 0 ? 'text-gray-700' : 'text-gray-300'
+                        }`}>
+                          <RotateCcw size={12} />
+                          {attemptsCount} attempt{attemptsCount !== 1 ? 's' : ''}
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -236,21 +243,25 @@ export default function IELTSReadingList() {
                         Completed
                       </span>
                     )}
-                    <button
-                      onClick={() => handleStart(item)}
-                      disabled={isStarting}
-                      className={`w-full sm:w-auto px-5 h-10 rounded-lg text-sm font-bold transition disabled:opacity-60 ${
-                        isLocked
-                          ? 'bg-amber-400 hover:bg-amber-500 text-white'
-                          : 'bg-sky-500 hover:bg-sky-600 text-white'
-                      }`}
-                    >
-                      {isStarting
-                        ? <Loader2 size={15} className="animate-spin mx-auto" />
-                        : isLocked
-                          ? <span className="flex items-center gap-1.5 justify-center"><Lock size={13} /> Premium</span>
+                    {isLocked ? (
+                      <button
+                        type="button"
+                        onClick={() => navigate('/app/subscription')}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-sky-50 border border-sky-200 text-sky-600 text-xs font-semibold whitespace-nowrap transition-colors hover:bg-sky-100 hover:border-sky-300"
+                      >
+                        <Lock size={10} /> Premium
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleStart(item)}
+                        disabled={isStarting}
+                        className="w-full sm:w-auto px-5 h-10 rounded-lg text-sm font-bold transition disabled:opacity-60 bg-sky-500 hover:bg-sky-600 text-white"
+                      >
+                        {isStarting
+                          ? <Loader2 size={15} className="animate-spin mx-auto" />
                           : isCompleted ? 'Re-do test' : 'Start test'}
-                    </button>
+                      </button>
+                    )}
                   </div>
                 </div>
               )

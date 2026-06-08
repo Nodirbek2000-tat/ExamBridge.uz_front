@@ -2,7 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  BookOpen, Headphones, GraduationCap,
+  BookOpen, Headphones, GraduationCap, Layers, ChevronDown,
   Upload, X, AlertCircle, FileJson, Loader2, Check,
   Trash2, FileText, Music2, VolumeX, Eye, Crown, Clock, Search,
 } from 'lucide-react'
@@ -949,15 +949,15 @@ const EXAMPLES = { reading: READING_EXAMPLE, listening: LISTENING_EXAMPLE, gramm
 const SECTION_CONFIG = {
   reading: {
     label: 'Reading', icon: BookOpen, color: 'blue',
-    listEndpoint: '/cefr/reading/',
-    detailEndpoint: (pk) => `/cefr/reading/${pk}/`,
+    listEndpoint: '/admin/cefr/reading/',
+    detailEndpoint: (pk) => `/admin/cefr/reading/${pk}/detail/`,
     deleteEndpoint: (pk) => `/admin/cefr/reading/${pk}/`,
     importType: 'reading',
   },
   listening: {
     label: 'Listening', icon: Headphones, color: 'purple',
-    listEndpoint: '/cefr/listening/',
-    detailEndpoint: (pk) => `/cefr/listening/${pk}/`,
+    listEndpoint: '/admin/cefr/listening/',
+    detailEndpoint: (pk) => `/admin/cefr/listening/${pk}/detail/`,
     deleteEndpoint: (pk) => `/admin/cefr/listening/${pk}/`,
     audioEndpoint: (pk) => `/admin/cefr/listening/${pk}/audio/`,
     importType: 'listening',
@@ -1095,6 +1095,144 @@ function AudioUploadModal({ item, section, onClose, onSuccess }) {
   )
 }
 
+// ── Mock Group Row (IELTS uslubida) ──────────────────────────────────────────
+function MockGroupRow({ testId, testTitle, testIsPremium, parts, section, colors, onAudio, onDelete }) {
+  const [open, setOpen] = useState(true)
+  const totalQ = parts.reduce((s, p) => s + (p.question_count ?? 0), 0)
+  const partWord = section === 'listening' ? 'sections' : 'sections'
+  const pLabel = section === 'listening' ? 'S' : 'P'
+
+  return (
+    <div className="border-b border-gray-50 last:border-0">
+      {/* Group header */}
+      <button onClick={() => setOpen(p => !p)}
+        className="w-full flex items-center gap-4 px-5 py-3.5 hover:bg-violet-50/40 transition-colors text-left group">
+        <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center flex-shrink-0">
+          <Layers size={16} className="text-violet-600" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="font-bold text-gray-900 text-sm">{testTitle}</p>
+            <span className="text-[11px] px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 font-semibold">Mock Test</span>
+            {testIsPremium && (
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 font-semibold flex items-center gap-1">
+                <Crown size={9} /> Premium
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-gray-400 mt-0.5">{parts.length} {partWord}  ·  {totalQ} questions</p>
+        </div>
+        <span className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}>
+          <ChevronDown size={16} />
+        </span>
+      </button>
+
+      {/* Parts */}
+      <AnimatePresence>
+        {open && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.18 }} className="overflow-hidden">
+            {parts.map((item, idx) => {
+              const qCount = item.question_count ?? 0
+              const hasAudio = !!(item.has_audio || item.audio_file)
+              const lvl = item.level || ''
+              const partNum = item.section_number ?? item.passage_number ?? (idx + 1)
+              return (
+                <div key={item.id}
+                  className="flex items-center gap-4 pl-10 pr-5 py-3 hover:bg-sky-50/30 transition-colors border-t border-gray-50">
+                  {/* Part badge */}
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-[11px] font-bold border
+                    ${lvl ? LEVEL_COLORS[lvl] || 'bg-sky-100 text-sky-600 border-sky-200' : 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                    {pLabel}{partNum}
+                  </div>
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-800 truncate">{item.title}</p>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      {item.time_limit && <span className="flex items-center gap-1 text-[11px] text-gray-400"><Clock size={9} />{item.time_limit} min</span>}
+                      <span className="text-[11px] text-sky-600 font-medium">{qCount} Q</span>
+                      {item.difficulty && <span className="text-[11px] text-gray-400">{item.difficulty}</span>}
+                      <span className="text-[11px] px-1.5 py-0.5 rounded bg-violet-50 text-violet-600 font-medium">Mock Part</span>
+                      {section === 'listening' && (
+                        hasAudio
+                          ? <span className="flex items-center gap-1 text-[11px] text-green-600"><Music2 size={9} />Audio</span>
+                          : <span className="flex items-center gap-1 text-[11px] text-gray-400"><VolumeX size={9} />Audio yo'q</span>
+                      )}
+                    </div>
+                  </div>
+                  {/* Actions */}
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    {section === 'listening' && (
+                      <button onClick={() => onAudio(item)}
+                        className={`p-1.5 rounded-lg transition ${hasAudio ? 'text-green-500 hover:bg-green-50' : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50'}`}>
+                        <Music2 size={14} />
+                      </button>
+                    )}
+                    <button onClick={() => onDelete(item.id)}
+                      className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+// ── Standalone Row ────────────────────────────────────────────────────────────
+function StandaloneRow({ item, index, section, colors, onAudio, onDelete }) {
+  const lvl = item.level || ''
+  const qCount = item.question_count ?? 0
+  const hasAudio = !!(item.has_audio || item.audio_file)
+  return (
+    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.025 }}
+      className="flex items-center gap-4 px-5 py-4 hover:bg-sky-50/30 transition-colors border-b border-gray-50 last:border-0">
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xs font-bold border
+        ${lvl ? LEVEL_COLORS[lvl] || 'bg-sky-100 text-sky-600 border-sky-200' : `${colors.icon} ${colors.text} border-transparent`}`}>
+        {lvl || (index + 1)}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="font-semibold text-gray-800 text-sm truncate">{item.title}</p>
+          {item.is_premium && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-slate-50 text-slate-600 flex items-center gap-1">
+              <Crown size={9} /> Premium
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${colors.badge}`}>{qCount} savol</span>
+          {item.test_type && <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">{item.test_type}</span>}
+          {item.time_limit && <span className="flex items-center gap-1 text-xs text-gray-400"><Clock size={10} />{item.time_limit}m</span>}
+          {item.is_mock && <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">Mock</span>}
+          {section === 'listening' && (
+            hasAudio
+              ? <span className="flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full"><Music2 size={10} />Audio</span>
+              : <span className="flex items-center gap-1 text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full"><VolumeX size={10} />Audio yo'q</span>
+          )}
+        </div>
+      </div>
+      <div className="flex items-center gap-1 flex-shrink-0">
+        {section === 'listening' && (
+          <button onClick={() => onAudio(item)}
+            className={`p-2 rounded-lg transition ${hasAudio ? 'text-green-500 hover:bg-green-50' : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50'}`}>
+            <Music2 size={15} />
+          </button>
+        )}
+        <button onClick={() => onDelete(item.id)}
+          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition">
+          <Trash2 size={15} />
+        </button>
+      </div>
+    </motion.div>
+  )
+}
+
 // ── TAB 1: Content (Ro'yxat) ──────────────────────────────────────────────────
 function ContentTab({ items, section, config, colors, levelFilter, setLevelFilter, onAudio, onDelete, isLoading, error }) {
   const [search, setSearch] = useState('')
@@ -1102,23 +1240,51 @@ function ContentTab({ items, section, config, colors, levelFilter, setLevelFilte
 
   let filtered = items
   if (search.trim()) {
-    filtered = filtered.filter(it => it.title?.toLowerCase().includes(search.toLowerCase()))
+    filtered = filtered.filter(it =>
+      it.title?.toLowerCase().includes(search.toLowerCase()) ||
+      it.test_title?.toLowerCase().includes(search.toLowerCase())
+    )
   }
-  if (typeFilter === 'PRACTICE') filtered = filtered.filter(it => !it.is_mock)
-  if (typeFilter === 'MOCK')     filtered = filtered.filter(it => !!it.is_mock)
+  if (typeFilter === 'PRACTICE') filtered = filtered.filter(it => it.is_standalone)
+  if (typeFilter === 'MOCK')     filtered = filtered.filter(it => it.is_mock || !it.is_standalone)
+
+  // Group: items with test_id → mock groups; others → standalone
+  const { mockGroups, standalones } = (() => {
+    const groups = {}
+    const standalone = []
+    for (const item of filtered) {
+      if (item.test_id) {
+        if (!groups[item.test_id]) {
+          groups[item.test_id] = {
+            testId: item.test_id,
+            testTitle: item.test_title || `Mock Test #${item.test_id}`,
+            testIsPremium: item.test_is_premium || false,
+            parts: [],
+          }
+        }
+        groups[item.test_id].parts.push(item)
+      } else {
+        standalone.push(item)
+      }
+    }
+    Object.values(groups).forEach(g => {
+      g.parts.sort((a, b) => (a.section_number ?? a.passage_number ?? 0) - (b.section_number ?? b.passage_number ?? 0))
+    })
+    return { mockGroups: Object.values(groups), standalones: standalone }
+  })()
+
+  const isEmpty = !mockGroups.length && !standalones.length
 
   return (
     <div className="space-y-4">
       {/* Filter row */}
       <div className="flex items-center gap-3 flex-wrap">
-        {/* Search */}
         <div className="relative flex-1 min-w-[180px]">
           <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Sarlavha bo'yicha qidirish..."
             className="w-full pl-8 pr-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-sky-400 transition" />
         </div>
-        {/* Type filter */}
         <div className="flex gap-0.5 bg-white rounded-xl p-1 border border-gray-100 shadow-sm">
           {[['ALL', 'Hammasi'], ['PRACTICE', 'Practice'], ['MOCK', 'Mock']].map(([val, lbl]) => (
             <button key={val} onClick={() => setTypeFilter(val)}
@@ -1127,7 +1293,6 @@ function ContentTab({ items, section, config, colors, levelFilter, setLevelFilte
             </button>
           ))}
         </div>
-        {/* Level filter (grammar only) */}
         {config.hasLevelFilter && (
           <div className="flex gap-0.5 bg-white rounded-xl p-1 border border-gray-100 shadow-sm">
             {LEVELS.map(lv => (
@@ -1151,65 +1316,27 @@ function ContentTab({ items, section, config, colors, levelFilter, setLevelFilte
           <div className="p-6 space-y-3">
             {[...Array(5)].map((_, i) => <div key={i} className="h-16 bg-gray-50 rounded-lg animate-pulse" />)}
           </div>
-        ) : !filtered.length ? (
+        ) : isEmpty ? (
           <div className="p-16 text-center">
             <FileText size={40} className="text-gray-200 mx-auto mb-3" />
             <p className="text-sm text-gray-400">Hech narsa topilmadi.</p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-50">
-            {filtered.map((item, i) => {
-              const lvl = item.level || item.passage?.level || ''
-              const qCount = item.question_count ?? item.total_questions ?? item.questions?.length ?? 0
-              const hasAudio = !!(item.has_audio || item.audio_file || item.section?.audio_file)
-              return (
-                <motion.div key={item.id || i} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.025 }}
-                  className="flex items-center gap-4 px-5 py-4 hover:bg-sky-50/30 transition-colors">
-                  {/* Level / number */}
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xs font-bold border
-                    ${lvl ? LEVEL_COLORS[lvl] || 'bg-sky-100 text-sky-600 border-sky-200' : `${colors.icon} ${colors.text} border-transparent`}`}>
-                    {lvl || (i + 1)}
-                  </div>
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-semibold text-gray-800 text-sm truncate">{item.title}</p>
-                      {item.is_premium && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-slate-50 text-slate-600 flex items-center gap-1">
-                          <Crown size={9} /> Premium
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${colors.badge}`}>{qCount} savol</span>
-                      {item.test_type && <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">{item.test_type}</span>}
-                      {item.time_limit && <span className="flex items-center gap-1 text-xs text-gray-400"><Clock size={10} />{item.time_limit}m</span>}
-                      {item.is_mock && <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">Mock</span>}
-                      {section === 'listening' && (
-                        hasAudio
-                          ? <span className="flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full"><Music2 size={10} />Audio</span>
-                          : <span className="flex items-center gap-1 text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full"><VolumeX size={10} />Audio yo'q</span>
-                      )}
-                    </div>
-                  </div>
-                  {/* Actions */}
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    {section === 'listening' && (
-                      <button onClick={() => onAudio(item)}
-                        className={`p-2 rounded-lg transition ${hasAudio ? 'text-green-500 hover:bg-green-50' : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50'}`}
-                        title="Audio yuklash">
-                        <Music2 size={15} />
-                      </button>
-                    )}
-                    <button onClick={() => onDelete(item.id)}
-                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="O'chirish">
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
-                </motion.div>
-              )
-            })}
+          <div>
+            {mockGroups.map(g => (
+              <MockGroupRow
+                key={`mock-${g.testId}`}
+                testId={g.testId} testTitle={g.testTitle} testIsPremium={g.testIsPremium}
+                parts={g.parts} section={section} colors={colors}
+                onAudio={onAudio} onDelete={onDelete}
+              />
+            ))}
+            {standalones.map((item, i) => (
+              <StandaloneRow
+                key={item.id} item={item} index={i} section={section}
+                colors={colors} onAudio={onAudio} onDelete={onDelete}
+              />
+            ))}
           </div>
         )}
       </div>

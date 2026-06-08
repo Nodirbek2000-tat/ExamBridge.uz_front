@@ -19,9 +19,17 @@ function renderMath(html) {
     try { return katex.renderToString(math.trim(), { displayMode: true, throwOnError: false }) }
     catch { return `<span class="text-red-500 text-xs">[math]</span>` }
   })
+  out = out.replace(/\$\$([\s\S]*?)\$\$/g, (_, math) => {
+    try { return katex.renderToString(math.trim(), { displayMode: true, throwOnError: false }) }
+    catch { return `<span class="text-red-500 text-xs">[math]</span>` }
+  })
   out = out.replace(/\\\(([\s\S]*?)\\\)/g, (_, math) => {
     try { return katex.renderToString(math.trim(), { throwOnError: false }) }
     catch { return `<span class="text-red-500 text-xs">[math]</span>` }
+  })
+  out = out.replace(/\$([^$\n]+?)\$/g, (_, math) => {
+    try { return katex.renderToString(math.trim(), { throwOnError: false }) }
+    catch { return _ }
   })
   return out
 }
@@ -819,10 +827,14 @@ function QuestionPreviewModal({ ans, currentIndex, total, onPrev, onNext, onClos
   const questionBody = (
     <>
       {ans.math_equation && (
-        <div
-          className="text-center text-[15px] text-gray-900 mb-3"
-          dangerouslySetInnerHTML={{ __html: sanitizeHtml(renderMath(ans.math_equation)) }}
-        />
+        /^(https?:\/\/|\/media\/|\/static\/)/.test(ans.math_equation)
+          ? <div className="flex justify-center mb-3">
+              <img src={ans.math_equation} alt="equation" className="max-h-56 max-w-full object-contain border border-gray-100 rounded" />
+            </div>
+          : <div
+              className="text-center text-[15px] text-gray-900 mb-3"
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(renderMath(ans.math_equation)) }}
+            />
       )}
       <div
         className="text-gray-900 leading-[1.65] text-[15px] font-medium

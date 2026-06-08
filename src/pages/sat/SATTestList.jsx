@@ -76,9 +76,12 @@ export default function SATTestList() {
     ? tabTests
     : tabTests.filter((t) => t.year === Number(yearFilter))
 
-  const visibleTests = monthFilter === 'all'
-    ? yearFilteredTests
-    : yearFilteredTests.filter((t) => String(t.month_num) === monthFilter)
+  const visibleTests = useMemo(() => {
+    const list = monthFilter === 'all'
+      ? yearFilteredTests
+      : yearFilteredTests.filter((t) => String(t.month_num) === monthFilter)
+    return [...list.filter(t => !t.is_premium), ...list.filter(t => t.is_premium)]
+  }, [yearFilteredTests, monthFilter])
 
   const years = [...new Set(tabTests.map((t) => t.year))].sort((a, b) => b - a)
   const months = useMemo(() => {
@@ -142,8 +145,6 @@ export default function SATTestList() {
     })
     return out
       .filter((a) => !removedIndividualIds.includes(a.attempt_id))
-      // Hide incomplete/partial attempts (e.g. 0/1) from results cards
-      .filter((a) => Number(a.total || 0) > 1)
       .sort((a, b) => new Date(b.finished_at || 0) - new Date(a.finished_at || 0))
   }, [tab, tests, allIndividualQueries, removedIndividualIds])
 
@@ -220,7 +221,7 @@ export default function SATTestList() {
           />
         ) : (
           <div className="space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
               {visibleTests.map((test, i) => (
                 <TestCard
                   key={test.id}
@@ -314,7 +315,7 @@ function FullTestsList({ tests, attempts, individualAttempts = [], onPickModule,
           return (
             <div
               key={t.id}
-              className={`flex items-center justify-between gap-3 px-4 py-3.5 ${idx !== tests.length - 1 ? 'border-b border-gray-100' : ''} ${locked ? 'opacity-75 bg-amber-50/40' : ''}`}
+              className={`flex items-center justify-between gap-3 px-4 py-3.5 ${idx !== tests.length - 1 ? 'border-b border-gray-100' : ''}`}
             >
               <div className="min-w-0 flex items-center gap-2">
                 {locked && <Lock size={14} className="text-amber-500 flex-shrink-0" />}
@@ -333,9 +334,9 @@ function FullTestsList({ tests, attempts, individualAttempts = [], onPickModule,
                 {locked ? (
                   <Link
                     to="/app/subscription"
-                    className="rounded-full bg-amber-400 hover:bg-amber-500 px-4 py-2 text-sm font-bold text-white transition-colors flex items-center gap-1.5"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-sky-50 border border-sky-200 text-sky-600 text-xs font-semibold whitespace-nowrap transition-colors hover:bg-sky-100 hover:border-sky-300"
                   >
-                    <Lock size={12} /> Unlock Premium
+                    <Lock size={10} /> Premium
                   </Link>
                 ) : (
                   <>
@@ -827,7 +828,7 @@ function TestCard({ test, idx, tab, user, modules, modulesLoading, onStartFull, 
       transition={{ delay: idx * 0.06 }}
       className="flex flex-col rounded-2xl overflow-hidden bg-white border border-slate-200/90 shadow-lg hover:shadow-xl transition-shadow"
     >
-      <div className="bg-sky-500 text-white text-center py-4 px-3 relative">
+      <div className="bg-sky-500 text-white text-center py-3 px-3 relative">
         <span className="text-xl sm:text-2xl font-black tracking-wide">
           {test.year} · {test.form}
         </span>
@@ -842,7 +843,7 @@ function TestCard({ test, idx, tab, user, modules, modulesLoading, onStartFull, 
         SAT MOCK EXAM
       </div>
 
-      <div className="p-5 flex flex-col flex-1">
+      <div className="p-3.5 flex flex-col flex-1">
         {tab === 'full' && (
           <div className="text-center mb-4">
             <p className="text-[11px] font-bold text-slate-800 uppercase tracking-wide">Your total score</p>
@@ -853,7 +854,7 @@ function TestCard({ test, idx, tab, user, modules, modulesLoading, onStartFull, 
           </div>
         )}
 
-        <div className="space-y-4 flex-1 mb-5">
+        <div className="relative space-y-4 flex-1 mb-5">
           {tab === 'individual' ? (
             <IndividualModulesGrid mods={modules} testId={test.id} navigate={navigate} loading={modulesLoading} locked={locked} />
           ) : (
@@ -862,16 +863,23 @@ function TestCard({ test, idx, tab, user, modules, modulesLoading, onStartFull, 
               <SectionScore label="Math" score={test.math_score} hasScore={hasScore} />
             </>
           )}
+
+          {locked && (
+            <Link
+              to="/app/subscription"
+              className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-xl bg-white/80 backdrop-blur-[3px] group"
+            >
+              <div className="w-11 h-11 rounded-full bg-amber-100 flex items-center justify-center group-hover:bg-amber-200 transition-colors">
+                <Lock size={20} className="text-amber-500" />
+              </div>
+              <span className="text-sm font-semibold text-gray-600 group-hover:text-amber-600 transition-colors">
+                Unlock Premium
+              </span>
+            </Link>
+          )}
         </div>
 
-        {locked ? (
-          <Link
-            to="/app/subscription"
-            className="mt-auto w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl font-black text-sm bg-amber-400 hover:bg-amber-500 text-white transition-all"
-          >
-            <Lock size={15} /> Unlock Premium
-          </Link>
-        ) : test.has_questions === false ? (
+        {locked ? null : test.has_questions === false ? (
           <div className="mt-auto w-full py-3.5 px-4 rounded-xl text-center text-sm font-semibold text-gray-400 bg-gray-100 border border-gray-200">
             Coming soon
           </div>
@@ -933,10 +941,8 @@ function IndividualModulesGrid({ mods, testId, navigate, loading, locked }) {
     { section: 'MATH', module_number: 2, label: 'Math - M2' },
   ]
 
-  const hash = (section) => (section === 'ENGLISH' ? 'section-english' : 'section-math')
-
   return (
-    <div className="space-y-2 flex-1 relative">
+    <div className="space-y-1.5 flex-1 relative">
       {slots.map((slot) => {
         const candidates = list.filter((m) => m.section === slot.section && m.module_number === slot.module_number)
         const completed = candidates.filter((m) => m.best_correct != null)
@@ -945,30 +951,32 @@ function IndividualModulesGrid({ mods, testId, navigate, loading, locked }) {
         const isDone = !!best && !locked
         const isEnglish = slot.section === 'ENGLISH'
 
+        const firstModuleId = candidates[0]?.id
+
         return (
           <button
             key={slot.label}
-            onClick={() => !locked && hasMods && navigate(`/app/sat/modules/${testId}#${hash(slot.section)}`)}
+            onClick={() => !locked && hasMods && firstModuleId && navigate(`/app/sat/modules/${testId}?module_id=${firstModuleId}`)}
             disabled={!hasMods || loading || locked}
-            className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl border-2 text-left transition-all active:scale-[0.99] disabled:pointer-events-none ${
+            className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border-2 text-left transition-all active:scale-[0.99] disabled:pointer-events-none ${
               locked
                 ? 'border-gray-200 bg-gray-50 opacity-60'
                 : 'border-sky-200 bg-sky-50 hover:bg-sky-100/80 disabled:opacity-40'
             }`}
           >
             <div className="min-w-0">
-              <div className={`font-semibold ${locked ? 'text-gray-400' : 'text-sky-900'} ${isEnglish ? 'text-base sm:text-[17px]' : 'text-sm sm:text-[15px]'}`}>
+              <div className={`font-semibold ${locked ? 'text-gray-400' : 'text-sky-900'} ${isEnglish ? 'text-sm sm:text-[15px]' : 'text-sm sm:text-[13px]'}`}>
                 {slot.label}
               </div>
             </div>
 
             {isDone ? (
-              <span className="flex items-center gap-1.5 flex-shrink-0 text-[11px] font-black px-2.5 py-1 rounded-full bg-emerald-500 text-white">
-                <CheckCircle2 size={14} className="text-white" />
-                COMPLETE
+              <span className="flex items-center gap-1 flex-shrink-0 text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500 text-white">
+                <CheckCircle2 size={11} className="text-white" />
+                DONE
               </span>
             ) : locked ? (
-              <Lock size={14} className="text-gray-400 flex-shrink-0" />
+              <Lock size={13} className="text-gray-400 flex-shrink-0" />
             ) : null}
           </button>
         )

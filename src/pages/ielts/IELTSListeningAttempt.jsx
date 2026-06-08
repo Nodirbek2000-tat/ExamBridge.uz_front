@@ -462,18 +462,7 @@ export default function IELTSListeningAttempt() {
   const initialSectionId = searchParams.get('section')
   const sectionTitle = decodeURIComponent(searchParams.get('title') || 'Listening Section')
 
-  const partIds = useMemo(() => {
-    const ids = (searchParams.get('parts') || '')
-      .split(',').map(v => Number(v)).filter(v => Number.isFinite(v) && v > 0)
-    if (initialSectionId && !ids.includes(Number(initialSectionId))) ids.unshift(Number(initialSectionId))
-    return ids.length ? ids : (initialSectionId ? [Number(initialSectionId)] : [])
-  }, [searchParams, initialSectionId])
-
-  const isFull = partIds.length > 1
-  const [activePartIndex, setActivePartIndex] = useState(0)
-  const currentSectionId = String(partIds[activePartIndex] || initialSectionId || '')
-  const sectionId = currentSectionId
-
+  // Must come BEFORE partIds so partIds useMemo can depend on them
   const isReviewMode = searchParams.get('mode') === 'review'
 
   // Fetch review data from API when ?mode=review (URL-persistent, survives refresh)
@@ -487,6 +476,22 @@ export default function IELTSListeningAttempt() {
   const reviewData = fetchedReviewData || location.state?.reviewData || null
   const reviewMode = Boolean(reviewData) || isReviewMode
   const [showCorrectInReview, setShowCorrectInReview] = useState(true)
+
+  const partIds = useMemo(() => {
+    // In review mode: derive section IDs from review API response (all parts at once)
+    if (isReviewMode && fetchedReviewData?.sections?.length) {
+      return fetchedReviewData.sections.map(s => s.id)
+    }
+    const ids = (searchParams.get('parts') || '')
+      .split(',').map(v => Number(v)).filter(v => Number.isFinite(v) && v > 0)
+    if (initialSectionId && !ids.includes(Number(initialSectionId))) ids.unshift(Number(initialSectionId))
+    return ids.length ? ids : (initialSectionId ? [Number(initialSectionId)] : [])
+  }, [searchParams, initialSectionId, isReviewMode, fetchedReviewData])
+
+  const isFull = partIds.length > 1
+  const [activePartIndex, setActivePartIndex] = useState(0)
+  const currentSectionId = String(partIds[activePartIndex] || initialSectionId || '')
+  const sectionId = currentSectionId
 
   const [answersByPart, setAnswersByPart] = useState({})
   const answers = answersByPart[currentSectionId] || {}
@@ -523,8 +528,19 @@ export default function IELTSListeningAttempt() {
     })),
   })
 
-  const isLoading = sectionQueries.some(q => q.isLoading)
-  const allSectionsData = sectionQueries.map(q => q.data).filter(Boolean)
+  // In review mode: use sections directly from the review API (includes all parts + answers)
+  // In exam mode: use live section queries
+  const allSectionsData = useMemo(() => {
+    if (reviewMode && reviewData?.sections?.length) {
+      return reviewData.sections
+    }
+    return sectionQueries.map(q => q.data).filter(Boolean)
+  }, [reviewMode, reviewData, sectionQueries])
+
+  const isLoading = reviewMode
+    ? (isReviewMode && !fetchedReviewData)   // review mode: wait only for review API
+    : sectionQueries.some(q => q.isLoading)  // exam mode: wait for section queries
+
   const section = allSectionsData[activePartIndex] || null
   const questions = section?.questions || []
 
@@ -765,15 +781,21 @@ export default function IELTSListeningAttempt() {
       handleSubmitRef.current?.()
       return
     }
-    const nextIdx = audioPartIndex + 1
-    if (nextIdx < partIds.length) {
+    // Find next part that has audio
+    let nextIdx = audioPartIndex + 1
+    while (nextIdx < partIds.length && !allSectionsData[nextIdx]?.audio_url) {
+      nextIdx++
+    }
+    if (nextIdx < partIds.length && allSectionsData[nextIdx]?.audio_url) {
+      // Advance view + audio to next part
       setAudioPartIndex(nextIdx)
       setActivePartIndex(nextIdx)
       setActiveQ(0)
     } else {
+      // No more parts with audio → submit everything
       handleSubmitRef.current?.()
     }
-  }, [isUnifiedAudio, audioPartIndex, partIds.length])
+  }, [isUnifiedAudio, audioPartIndex, partIds.length, allSectionsData])
 
   const handleSwitchPart = (idx) => {
     setActivePartIndex(idx)
@@ -1552,7 +1574,7 @@ function MatchGridBlock({ questions, answers, onAnswer, dark, reviewMode, review
   )
 }
 
-// -- MFEAT Block ? Legend list + per-question dropdown ------------------------
+// -- MFEAT Block — Legend list + per-question dropdown (dropdown LEFT of text) --
 function MFeatBlock({ questions, answers, onAnswer, dark, reviewMode, reviewMap, showCorrectInReview, bookmarkedIds, bookmarkLoading, toggleBookmark }) {
   const D = dark
   const choices = questions[0]?.choices || []
@@ -1594,20 +1616,10 @@ function MFeatBlock({ questions, answers, onAnswer, dark, reviewMode, reviewMap,
           const isBookmarked = bookmarkedIds?.has(q.id)
           return (
             <div key={q.id} id={`q-${q.id}`}
-              className={`flex items-center gap-3 px-4 py-3 group ${idx < questions.length - 1 ? (D ? 'border-b border-gray-700' : 'border-b border-gray-200') : ''}`}>
-              <span className={`font-bold flex-shrink-0 w-7 text-sm ${D ? 'text-gray-200' : 'text-gray-900'}`}>{q.number}.</span>
-              <span className={`flex-1 text-sm leading-snug ${D ? 'text-gray-200' : 'text-gray-800'}`}>
-                {q.content}
-                {rr && !rr.is_correct && <span className="ml-2 text-xs font-semibold text-red-500">? {'>'} {rr.correct_answer}</span>}
-                {rr?.is_correct && <span className="ml-2 text-xs font-semibold text-green-500">?</span>}
-              </span>
-              {!reviewMode && (
-                <button type="button" onClick={(e) => toggleBookmark(q.id, e)} disabled={bmLoading}
-                  className={`flex-shrink-0 transition ${bmLoading ? 'opacity-40' : ''} ${isBookmarked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                  <Bookmark size={15} className={isBookmarked ? 'fill-slate-400 text-slate-400' : D ? 'text-gray-500' : 'text-gray-400'} />
-                </button>
-              )}
-              <div className="relative flex-shrink-0 w-28" ref={(el) => { dropdownRefs.current[q.id] = el }}>
+              className={`flex items-center gap-2.5 px-3 py-2.5 group ${idx < questions.length - 1 ? (D ? 'border-b border-gray-700' : 'border-b border-gray-200') : ''}`}>
+
+              {/* ── Dropdown FIRST (left side) ── */}
+              <div className="relative flex-shrink-0 w-24" ref={(el) => { dropdownRefs.current[q.id] = el }}>
                 <button
                   type="button"
                   disabled={reviewMode}
@@ -1615,11 +1627,11 @@ function MFeatBlock({ questions, answers, onAnswer, dark, reviewMode, reviewMap,
                   className={`w-full px-2 py-1.5 rounded-lg border text-sm font-semibold transition flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-sky-400 ${
                     val
                       ? D ? 'bg-sky-900/40 border-sky-500 text-sky-200' : 'bg-sky-50 border-sky-400 text-sky-800'
-                      : D ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-white border-gray-300 text-gray-600'
+                      : D ? 'bg-gray-700 border-gray-600 text-gray-400' : 'bg-white border-gray-300 text-gray-400'
                   } ${reviewMode ? 'cursor-default opacity-80' : 'cursor-pointer'}`}
                 >
-                  <span>{val || `Q${q.number}`}</span>
-                  <ChevronDown size={14} className={`transition-transform ${openId === q.id ? 'rotate-180' : ''}`} />
+                  <span className={val ? '' : 'text-xs'}>{val || '—'}</span>
+                  <ChevronDown size={13} className={`transition-transform flex-shrink-0 ml-1 ${openId === q.id ? 'rotate-180' : ''}`} />
                 </button>
                 <AnimatePresence>
                   {openId === q.id && !reviewMode && (
@@ -1628,23 +1640,23 @@ function MFeatBlock({ questions, answers, onAnswer, dark, reviewMode, reviewMap,
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 6, scale: 0.97 }}
                       transition={{ duration: 0.16, ease: 'easeOut' }}
-                      className={`absolute right-0 z-40 mt-1 w-full rounded-lg border shadow-lg overflow-hidden ${
+                      className={`absolute left-0 z-40 mt-1 w-28 rounded-lg border shadow-lg overflow-hidden ${
                         D ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'
                       }`}
                     >
                       <button
                         type="button"
                         onClick={() => { onAnswer(q.id, ''); setOpenId(null) }}
-                        className={`w-full px-3 py-2 text-sm text-left transition ${D ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'}`}
+                        className={`w-full px-3 py-2 text-sm text-left transition ${D ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-400 hover:bg-gray-50'}`}
                       >
-                        --
+                        —
                       </button>
                       {choices.map(c => (
                         <button
                           key={c.option}
                           type="button"
                           onClick={() => { onAnswer(q.id, c.option); setOpenId(null) }}
-                          className={`w-full px-3 py-2 text-sm text-left transition ${
+                          className={`w-full px-3 py-2 text-sm text-left font-semibold transition ${
                             val === c.option
                               ? D ? 'bg-sky-900/40 text-sky-200' : 'bg-sky-50 text-sky-700'
                               : D ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'
@@ -1657,6 +1669,24 @@ function MFeatBlock({ questions, answers, onAnswer, dark, reviewMode, reviewMap,
                   )}
                 </AnimatePresence>
               </div>
+
+              {/* ── Question number ── */}
+              <span className={`font-bold flex-shrink-0 w-6 text-sm ${D ? 'text-gray-400' : 'text-gray-500'}`}>{q.number}.</span>
+
+              {/* ── Content ── */}
+              <span className={`flex-1 text-sm leading-snug ${D ? 'text-gray-200' : 'text-gray-800'}`}>
+                {q.content}
+                {rr && !rr.is_correct && <span className="ml-2 text-xs font-semibold text-red-500">✗ {rr.correct_answer}</span>}
+                {rr?.is_correct && <span className="ml-2 text-xs font-semibold text-green-500">✓</span>}
+              </span>
+
+              {/* ── Bookmark ── */}
+              {!reviewMode && (
+                <button type="button" onClick={(e) => toggleBookmark(q.id, e)} disabled={bmLoading}
+                  className={`flex-shrink-0 transition ${bmLoading ? 'opacity-40' : ''} ${isBookmarked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                  <Bookmark size={14} className={isBookmarked ? 'fill-slate-400 text-slate-400' : D ? 'text-gray-500' : 'text-gray-400'} />
+                </button>
+              )}
             </div>
           )
         })}
@@ -1665,7 +1695,7 @@ function MFeatBlock({ questions, answers, onAnswer, dark, reviewMode, reviewMap,
   )
 }
 
-// -- MINFO Block ? each question + paragraph letter buttons -------------------
+// -- MINFO Block — accordion: collapsed=1 row, expanded=letter buttons shown --
 function MInfoBlock({ questions, answers, onAnswer, dark, reviewMode, reviewMap, showCorrectInReview, bookmarkedIds, bookmarkLoading, toggleBookmark }) {
   const D = dark
   const choices = questions[0]?.choices?.length
@@ -1673,6 +1703,7 @@ function MInfoBlock({ questions, answers, onAnswer, dark, reviewMode, reviewMap,
     : 'ABCDEFGH'.split('').map(l => ({ option: l, text: `Paragraph ${l}` }))
   const gi = questions[0]?.group_instruction || ''
   const bmLoading = bookmarkLoading
+  const [openId, setOpenId] = useState(null)
 
   return (
     <div className="mb-2">
@@ -1683,44 +1714,91 @@ function MInfoBlock({ questions, answers, onAnswer, dark, reviewMode, reviewMap,
           const rr = reviewMode && showCorrectInReview
             ? (reviewMap?.[String(q.id)] || reviewMap?.[`n-${q.number}`]) : null
           const isBookmarked = bookmarkedIds?.has(q.id)
+          const isOpen = openId === q.id
+
           return (
             <div key={q.id} id={`q-${q.id}`}
-              className={`px-4 py-3 group ${idx < questions.length - 1 ? (D ? 'border-b border-gray-700' : 'border-b border-gray-200') : ''}`}>
-              <div className="flex items-start gap-2 mb-2">
-                <span className={`font-bold flex-shrink-0 w-7 text-sm ${D ? 'text-gray-200' : 'text-gray-900'}`}>{q.number}.</span>
-                <span className={`flex-1 text-sm leading-snug ${D ? 'text-gray-200' : 'text-gray-800'}`}>
+              className={`group ${idx < questions.length - 1 ? (D ? 'border-b border-gray-700' : 'border-b border-gray-200') : ''}`}>
+
+              {/* ── Collapsed row (always visible, 1 line) ── */}
+              <div
+                className={`flex items-center gap-2.5 px-3 py-2.5 cursor-pointer select-none transition-colors ${
+                  isOpen
+                    ? D ? 'bg-gray-700/50' : 'bg-sky-50/60'
+                    : D ? 'hover:bg-gray-700/30' : 'hover:bg-gray-50'
+                }`}
+                onClick={() => !reviewMode && setOpenId(isOpen ? null : q.id)}
+              >
+                {/* Number */}
+                <span className={`font-bold flex-shrink-0 w-6 text-sm ${D ? 'text-gray-400' : 'text-gray-500'}`}>{q.number}.</span>
+
+                {/* Content */}
+                <span className={`flex-1 text-sm leading-snug truncate ${D ? 'text-gray-200' : 'text-gray-800'}`}>
                   {q.content}
-                  {rr && !rr.is_correct && <span className="ml-2 text-xs font-semibold text-red-500">? {'>'} {rr.correct_answer}</span>}
-                  {rr?.is_correct && <span className="ml-2 text-xs font-semibold text-green-500">?</span>}
+                  {rr && !rr.is_correct && <span className="ml-2 text-xs font-semibold text-red-500">✗ {rr.correct_answer}</span>}
+                  {rr?.is_correct && <span className="ml-2 text-xs font-semibold text-green-500">✓</span>}
                 </span>
+
+                {/* Selected value chip */}
+                {val ? (
+                  <span className={`flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-lg text-sm font-bold border ${
+                    D ? 'bg-sky-900/40 border-sky-500 text-sky-200' : 'bg-sky-50 border-sky-400 text-sky-700'
+                  }`}>{val}</span>
+                ) : (
+                  <span className={`flex-shrink-0 text-xs ${D ? 'text-gray-600' : 'text-gray-300'}`}>—</span>
+                )}
+
+                {/* Expand chevron */}
                 {!reviewMode && (
-                  <button type="button" onClick={e => { e.stopPropagation(); toggleBookmark(q.id, e) }}
+                  <ChevronDown size={14} className={`flex-shrink-0 transition-transform duration-200 ${
+                    isOpen ? 'rotate-180' : ''
+                  } ${D ? 'text-gray-500' : 'text-gray-400'}`} />
+                )}
+
+                {/* Bookmark */}
+                {!reviewMode && (
+                  <button type="button"
+                    onClick={e => { e.stopPropagation(); toggleBookmark(q.id, e) }}
                     disabled={!!bmLoading?.has?.(q.id)}
                     className={`flex-shrink-0 transition ${bmLoading?.has?.(q.id) ? 'opacity-40' : ''} ${isBookmarked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                    <Bookmark size={15} className={isBookmarked ? 'fill-slate-400 text-slate-400' : D ? 'text-gray-500' : 'text-gray-400'} />
+                    <Bookmark size={14} className={isBookmarked ? 'fill-slate-400 text-slate-400' : D ? 'text-gray-500' : 'text-gray-400'} />
                   </button>
                 )}
               </div>
-              <div className="flex flex-wrap gap-1.5 pl-7">
-                {choices.map(c => {
-                  const selected = val === c.option
-                  return (
-                    <button key={c.option} type="button" disabled={reviewMode}
-                      title={c.text}
-                      onClick={() => { if (!reviewMode) onAnswer(q.id, selected ? '' : c.option) }}
-                      className={`w-9 h-9 rounded-xl font-bold text-sm border transition ${
-                        selected
-                          ? 'bg-sky-500 text-white border-sky-500 shadow-sm'
-                          : reviewMode
-                            ? D ? 'bg-gray-700 border-gray-600 text-gray-500 cursor-default' : 'bg-gray-100 border-gray-200 text-gray-400 cursor-default'
-                            : D ? 'bg-gray-700 border-gray-600 text-gray-300 hover:border-sky-400 hover:text-sky-300'
-                                 : 'bg-white border-gray-200 text-gray-600 hover:border-sky-300 hover:text-sky-600 hover:bg-sky-50'
-                      }`}>
-                      {c.option}
-                    </button>
-                  )
-                })}
-              </div>
+
+              {/* ── Expanded: letter buttons ── */}
+              <AnimatePresence>
+                {(isOpen || reviewMode) && (
+                  <motion.div
+                    initial={reviewMode ? false : { height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.18, ease: 'easeOut' }}
+                    className="overflow-hidden"
+                  >
+                    <div className={`flex flex-wrap gap-1.5 px-4 pb-3 pt-1 ${D ? 'bg-gray-700/30' : 'bg-sky-50/40'}`}>
+                      {choices.map(c => {
+                        const selected = val === c.option
+                        return (
+                          <button key={c.option} type="button" disabled={reviewMode}
+                            title={c.text}
+                            onClick={e => { e.stopPropagation(); if (!reviewMode) { onAnswer(q.id, selected ? '' : c.option); if (!selected) setOpenId(null) } }}
+                            className={`w-9 h-9 rounded-xl font-bold text-sm border transition ${
+                              selected
+                                ? 'bg-sky-500 text-white border-sky-500 shadow-sm scale-105'
+                                : reviewMode
+                                  ? D ? 'bg-gray-700 border-gray-600 text-gray-500 cursor-default' : 'bg-gray-100 border-gray-200 text-gray-400 cursor-default'
+                                  : D ? 'bg-gray-700 border-gray-600 text-gray-300 hover:border-sky-400 hover:text-sky-300'
+                                       : 'bg-white border-gray-200 text-gray-600 hover:border-sky-300 hover:text-sky-600 hover:bg-sky-50'
+                            }`}>
+                            {c.option}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           )
         })}

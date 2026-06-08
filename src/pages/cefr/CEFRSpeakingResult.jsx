@@ -32,7 +32,6 @@ const ICONS = {
   pronunciation: Mic,
 }
 
-// ── Collect all error quotes from all criteria ────────────────────────────────
 function collectErrorQuotes(result) {
   const quotes = []
   const keys = ['fluency_coherence', 'lexical_resource', 'grammatical_range', 'pronunciation']
@@ -45,7 +44,6 @@ function collectErrorQuotes(result) {
   return quotes
 }
 
-// ── Highlight error quotes in red inside transcript ───────────────────────────
 function splitWithHighlights(text, errorQuotes) {
   if (!text || !errorQuotes.length) return [{ t: text || '', err: false }]
   let parts = [{ t: text, err: false }]
@@ -78,7 +76,6 @@ function TranscriptText({ text, errorQuotes }) {
   )
 }
 
-// ── Inline audio player ───────────────────────────────────────────────────────
 function AudioPlayer({ src, label }) {
   const [audio] = useState(() => new Audio(src))
   const [playing, setPlaying] = useState(false)
@@ -102,37 +99,36 @@ function AudioPlayer({ src, label }) {
   const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
 
   return (
-    <div className="flex items-center gap-3 bg-sky-50 border border-sky-100 rounded-xl px-3 py-2">
+    <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2">
       <button type="button" onClick={toggle}
-        className="w-8 h-8 rounded-full bg-sky-500 flex items-center justify-center flex-shrink-0 hover:bg-sky-600 transition">
+        className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0 hover:bg-emerald-600 transition">
         {playing ? <Pause size={13} className="text-white" /> : <Play size={13} className="text-white ml-0.5" />}
       </button>
       <div className="flex-1 min-w-0">
-        <p className="text-[10px] font-bold text-sky-700 uppercase tracking-wide mb-1">{label || 'Audio javob'}</p>
-        <div className="relative h-1.5 bg-sky-100 rounded-full overflow-hidden cursor-pointer"
+        <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wide mb-1">{label || 'Audio javob'}</p>
+        <div className="relative h-1.5 bg-emerald-100 rounded-full overflow-hidden cursor-pointer"
           onClick={e => {
             if (!duration) return
             const rect = e.currentTarget.getBoundingClientRect()
             audio.currentTime = ((e.clientX - rect.left) / rect.width) * duration
           }}>
-          <div className="h-full bg-sky-400 rounded-full transition-all"
+          <div className="h-full bg-emerald-400 rounded-full transition-all"
             style={{ width: duration ? `${(progress / duration) * 100}%` : '0%' }} />
         </div>
       </div>
-      <span className="text-[10px] text-sky-500 font-mono flex-shrink-0">
+      <span className="text-[10px] text-emerald-500 font-mono flex-shrink-0">
         {duration ? fmt(playing ? progress : duration) : '--:--'}
       </span>
       {playing && (
         <button type="button" onClick={stop}
-          className="w-6 h-6 rounded-full bg-sky-100 flex items-center justify-center hover:bg-sky-200 transition">
-          <Square size={10} className="text-sky-600" fill="currentColor" />
+          className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center hover:bg-emerald-200 transition">
+          <Square size={10} className="text-emerald-600" fill="currentColor" />
         </button>
       )}
     </div>
   )
 }
 
-// ── Criterion card ────────────────────────────────────────────────────────────
 function CriterionCard({ keyName, data, delay }) {
   const [open, setOpen] = useState(true)
   const c = bandColor(data.band)
@@ -199,22 +195,20 @@ function CriterionCard({ keyName, data, delay }) {
   )
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
-export default function IELTSSpeakingResult() {
+export default function CEFRSpeakingResult() {
   const { responseId } = useParams()
   const location = useLocation()
   const navigate = useNavigate()
 
-  const [result, setResult]       = useState(null)
+  const [result, setResult]         = useState(null)
   const [reviewData, setReviewData] = useState(null)
   const [transcripts, setTranscripts] = useState([])
-  const [loading, setLoading]     = useState(true)
-  const [error, setError]         = useState(null)
-  const [taskInfo, setTaskInfo]   = useState(null)
+  const [loading, setLoading]       = useState(true)
+  const [error, setError]           = useState(null)
+  const [taskInfo, setTaskInfo]     = useState(null)
 
   const CRITERIA = ['fluency_coherence', 'lexical_resource', 'grammatical_range', 'pronunciation']
 
-  // ── Run AI analysis ─────────────────────────────────────────────────────────
   const runAnalysis = useCallback(async (txs, task, respId) => {
     setLoading(true)
     setError(null)
@@ -234,14 +228,12 @@ export default function IELTSSpeakingResult() {
     }
   }, [])
 
-  // ── Load data ────────────────────────────────────────────────────────────────
   useEffect(() => {
     const id = responseId
 
-    // Fallback mode: no real responseId (test without account)
     if (!id || id === '0') {
       const state = location.state || {}
-      const { transcripts: txs = [], task, persona } = state
+      const { transcripts: txs = [], task } = state
       setTranscripts(txs)
       setTaskInfo(task)
       if (!txs.length) { setLoading(false); return }
@@ -249,7 +241,6 @@ export default function IELTSSpeakingResult() {
       return
     }
 
-    // Primary mode: fetch from DB
     ;(async () => {
       try {
         const data = await api.get(`/ielts/speaking/review/${id}/`).then(r => r.data)
@@ -263,7 +254,6 @@ export default function IELTSSpeakingResult() {
         })
 
         if (data.ai_band) {
-          // Already analyzed — build result from stored criteria
           const criteria = data.ai_criteria || {}
           setResult({
             overall_band: parseFloat(data.ai_band),
@@ -275,7 +265,6 @@ export default function IELTSSpeakingResult() {
           })
           setLoading(false)
         } else {
-          // Not yet analyzed — run AI with stored transcripts
           runAnalysis(data.transcripts || [], data, id)
         }
       } catch {
@@ -286,9 +275,6 @@ export default function IELTSSpeakingResult() {
   }, [responseId])
 
   const errorQuotes = result ? collectErrorQuotes(result) : []
-  const backPath = taskInfo?.id
-    ? `/app/ielts/speaking`
-    : '/app/ielts/speaking'
 
   if (!transcripts.length && !loading && !result) {
     return (
@@ -296,8 +282,8 @@ export default function IELTSSpeakingResult() {
         <div className="text-center space-y-3">
           <AlertCircle size={36} className="text-gray-300 mx-auto" />
           <p className="text-gray-400 text-sm">Natija topilmadi</p>
-          <button onClick={() => navigate('/app/ielts/speaking')}
-            className="px-4 py-2 bg-slate-500 text-white rounded-xl text-sm font-semibold">
+          <button onClick={() => navigate('/app/cefr/speaking')}
+            className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold">
             Speakingga qayt
           </button>
         </div>
@@ -308,17 +294,17 @@ export default function IELTSSpeakingResult() {
   return (
     <div className="h-full min-h-0 flex flex-col bg-white">
       {/* Header */}
-      <div className="flex-shrink-0 glass border-b border-sky-100 px-5 h-14 flex items-center gap-3 shadow-sm">
-        <button onClick={() => navigate(backPath)}
+      <div className="flex-shrink-0 glass border-b border-emerald-100 px-5 h-14 flex items-center gap-3 shadow-sm">
+        <button onClick={() => navigate('/app/cefr/speaking')}
           className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-50 transition">
           <ArrowLeft size={14} /> Ro'yxat
         </button>
         <div className="flex-1 text-sm font-semibold text-gray-800 truncate">
-          {taskInfo?.title || 'Speaking Result'}
+          {taskInfo?.title || 'CEFR Speaking Result'}
         </div>
         {taskInfo?.id && (
-          <button onClick={() => navigate(`/exam/ielts/speaking/${taskInfo.id}`, { replace: true })}
-            className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-50 transition">
+          <button onClick={() => navigate(`/exam/cefr/speaking/${taskInfo.id}`, { replace: true })}
+            className="flex items-center gap-1.5 px-3 py-1.5 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-semibold hover:bg-emerald-50 transition">
             <RotateCcw size={13} /> Redo
           </button>
         )}
@@ -332,8 +318,8 @@ export default function IELTSSpeakingResult() {
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
               className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 sm:p-10 flex flex-col items-center gap-4">
               <div className="relative">
-                <div className="w-16 h-16 rounded-full border-4 border-slate-100 border-t-slate-500 animate-spin" />
-                <Sparkles size={20} className="text-slate-500 absolute inset-0 m-auto" />
+                <div className="w-16 h-16 rounded-full border-4 border-emerald-100 border-t-emerald-500 animate-spin" />
+                <Sparkles size={20} className="text-emerald-500 absolute inset-0 m-auto" />
               </div>
               <p className="font-bold text-gray-800">AI tahlil qilmoqda...</p>
               <p className="text-sm text-gray-400">4 mezon bo'yicha baholanmoqda</p>
@@ -361,16 +347,16 @@ export default function IELTSSpeakingResult() {
                 className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 sm:p-8">
                 <div className="inline-flex items-center gap-1.5 w-fit px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold mb-4">
                   <Leaf size={14} className="text-emerald-600 shrink-0" />
-                  Results analysis
+                  CEFR Speaking Results
                 </div>
                 <div className="flex items-center gap-5">
-                  <div className="w-24 h-24 rounded-full border-8 border-slate-100 flex items-center justify-center">
+                  <div className="w-24 h-24 rounded-full border-8 border-emerald-100 flex items-center justify-center">
                     <span className={`font-black text-3xl ${bandColor(result.overall_band).text}`}>
                       {result.overall_band}
                     </span>
                   </div>
                   <div className="flex-1">
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Umumiy Ball</p>
+                    <p className="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-1">Umumiy Ball</p>
                     <p className="text-2xl font-black text-gray-900">{bandLabel(result.overall_band)}</p>
                     <p className="text-sm text-gray-400 mt-0.5">{taskInfo?.title}</p>
                     <div className="flex gap-3 mt-3 flex-wrap">
@@ -399,7 +385,7 @@ export default function IELTSSpeakingResult() {
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
                 className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
                 <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
-                  <Wand2 size={14} className="text-slate-500" />
+                  <Wand2 size={14} className="text-emerald-500" />
                   <p className="text-sm font-bold text-gray-700">Javoblar, audio va tuzatishlar</p>
                 </div>
                 <div className="divide-y divide-gray-50">
@@ -409,18 +395,15 @@ export default function IELTSSpeakingResult() {
                       <div key={i} className="px-5 py-4 space-y-3">
                         <p className="text-xs font-semibold text-slate-600">Q{i + 1}: {t.question}</p>
 
-                        {/* Audio */}
                         {t.audio_url && (
                           <AudioPlayer src={t.audio_url} label="Yozib olingan javob" />
                         )}
 
-                        {/* Transcript with error highlights */}
                         <div className="bg-gray-50 rounded-xl p-3">
                           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Matn transkripti</p>
                           <TranscriptText text={t.transcript || '(yozilmadi)'} errorQuotes={errorQuotes} />
                         </div>
 
-                        {/* AI correction */}
                         {correction?.corrected && (
                           <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 space-y-1.5">
                             <div className="flex items-center gap-1.5">
@@ -442,13 +425,13 @@ export default function IELTSSpeakingResult() {
               {/* Actions */}
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
                 className="flex gap-3">
-                <button onClick={() => navigate('/app/ielts/speaking')}
+                <button onClick={() => navigate('/app/cefr/speaking')}
                   className="flex-1 py-3 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">
                   Ro'yxatga qayt
                 </button>
                 {taskInfo?.id && (
-                  <button onClick={() => navigate(`/exam/ielts/speaking/${taskInfo.id}`)}
-                    className="flex-1 flex items-center justify-center gap-2 py-3 bg-slate-500 text-white rounded-xl text-sm font-semibold hover:bg-slate-600 transition">
+                  <button onClick={() => navigate(`/exam/cefr/speaking/${taskInfo.id}`)}
+                    className="flex-1 flex items-center justify-center gap-2 py-3 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 transition">
                     <RotateCcw size={14} /> Redo Test
                   </button>
                 )}

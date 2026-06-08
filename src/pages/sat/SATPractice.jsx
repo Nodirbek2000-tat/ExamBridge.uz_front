@@ -184,7 +184,7 @@ function TopicProgressRing({
   const p = Math.max(0, Math.min(100, pct));
   const offset = c * (1 - p / 100);
   return (
-    <svg width="88" height="88" viewBox="0 0 100 100" className="flex-shrink-0">
+    <svg width="70" height="70" viewBox="0 0 100 100" className="flex-shrink-0">
       <circle
         cx="50"
         cy="50"
@@ -227,7 +227,7 @@ function TopicStatBadge({ variant, children }) {
       : 'bg-red-500 text-white shadow-[0_3px_0_0_#991b1b] active:shadow-[0_2px_0_0_#991b1b]';
   return (
     <span
-      className={`relative inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-transform active:translate-y-px ${cls}`}
+      className={`relative inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-transform active:translate-y-px ${cls}`}
     >
       {children}
     </span>
@@ -732,6 +732,7 @@ function QuestionBankSidebar({
   page,
   total,
   qMaxTimeMap,
+  onPageChange,
 }) {
   const [tab, setTab] = useState('bank');
 
@@ -867,11 +868,38 @@ function QuestionBankSidebar({
     </div>
   );
 
+  const totalPages = Math.ceil(total / 20);
+
   const footer = (
     <div className="flex shrink-0 items-center justify-between border-t border-gray-200 bg-gray-50/80 px-4 py-2">
       <span className="text-[12px] font-semibold text-gray-700">
         {currentGlobalIdx} of {total}
       </span>
+      {totalPages > 1 && onPageChange && (
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => onPageChange(page - 1)}
+            disabled={page <= 1}
+            className="flex h-7 w-7 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-900 disabled:opacity-30 disabled:cursor-not-allowed"
+            aria-label="Previous page"
+          >
+            <ChevronLeft size={14} strokeWidth={2.5} />
+          </button>
+          <span className="text-[11px] font-semibold text-gray-600 tabular-nums">
+            {page}/{totalPages}
+          </span>
+          <button
+            type="button"
+            onClick={() => onPageChange(page + 1)}
+            disabled={page >= totalPages}
+            className="flex h-7 w-7 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-900 disabled:opacity-30 disabled:cursor-not-allowed"
+            aria-label="Next page"
+          >
+            <ChevronRight size={14} strokeWidth={2.5} />
+          </button>
+        </div>
+      )}
       <button
         type="button"
         onClick={onClose}
@@ -2518,7 +2546,7 @@ export default function SATPractice() {
                               transition={{ delay: i * 0.03 }}
                               className="relative flex flex-col sm:flex-row rounded-xl border border-slate-200 bg-white shadow-md hover:shadow-lg transition-shadow overflow-hidden"
                             >
-                              <div className="relative flex-1 min-w-0 overflow-hidden min-h-[128px]">
+                              <div className="relative flex-1 min-w-0 overflow-hidden min-h-[100px]">
                                 <div
                                   className="pointer-events-none absolute inset-0 overflow-hidden"
                                   aria-hidden
@@ -2536,8 +2564,8 @@ export default function SATPractice() {
                                   className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white/15 via-white/45 to-white/78"
                                   aria-hidden
                                 />
-                                <div className="relative z-[1] px-4 py-4 flex flex-col justify-between h-full min-h-[128px]">
-                                  <h3 className="font-extrabold text-slate-800 text-base sm:text-lg leading-snug line-clamp-3 pr-1">
+                                <div className="relative z-[1] px-4 py-3 flex flex-col justify-between h-full min-h-[100px]">
+                                  <h3 className="font-extrabold text-slate-800 text-sm sm:text-base leading-snug line-clamp-3 pr-1">
                                     {t.topic_label || t.topic || '—'}
                                   </h3>
                                   <div className="mt-3 flex items-center justify-between text-sm text-slate-600">
@@ -2551,43 +2579,43 @@ export default function SATPractice() {
                                   </div>
                                 </div>
                               </div>
-                              <div className="flex sm:flex-col items-center gap-2 sm:gap-2.5 px-3 py-3 sm:w-[152px] shrink-0 bg-white border-t sm:border-t-0 sm:border-l border-slate-200 shadow-[inset_4px_0_0_0_rgba(248,250,252,0.9)]">
+                              <div className="flex sm:flex-col items-center gap-1.5 sm:gap-2 px-2.5 py-2.5 sm:w-[128px] shrink-0 bg-white border-t sm:border-t-0 sm:border-l border-slate-200 shadow-[inset_4px_0_0_0_rgba(248,250,252,0.9)]">
                                 <TopicProgressRing
                                   pct={pct}
                                   pctClass="fill-emerald-600"
                                 />
-                                <div className="flex w-full items-center justify-center gap-3 px-0.5">
-                                  <span className="inline-flex items-center gap-1.5">
+                                <div className="flex w-full items-center justify-center gap-2.5 px-0.5">
+                                  <span className="inline-flex items-center gap-1">
                                     <TopicStatBadge variant="ok">
                                       <Check
-                                        className="h-[16px] w-[16px]"
+                                        className="h-[13px] w-[13px]"
                                         strokeWidth={3}
                                       />
                                     </TopicStatBadge>
-                                    <span className="text-base font-bold tabular-nums text-emerald-600">
+                                    <span className="text-sm font-bold tabular-nums text-emerald-600">
                                       {cor}
                                     </span>
                                   </span>
-                                  <span className="inline-flex items-center gap-1.5">
+                                  <span className="inline-flex items-center gap-1">
                                     <TopicStatBadge variant="bad">
                                       <X
-                                        className="h-[16px] w-[16px]"
+                                        className="h-[13px] w-[13px]"
                                         strokeWidth={3}
                                       />
                                     </TopicStatBadge>
-                                    <span className="text-base font-bold tabular-nums text-red-600">
+                                    <span className="text-sm font-bold tabular-nums text-red-600">
                                       {wr}
                                     </span>
                                   </span>
                                 </div>
-                                <div className="w-full border-t border-slate-200/90 pt-2 text-center text-sm font-bold tabular-nums">
+                                <div className="w-full border-t border-slate-200/90 pt-1.5 text-center text-sm font-bold tabular-nums">
                                   <span className="text-sky-600">{done}</span>
                                   <span className="text-slate-400">/{tot}</span>
                                 </div>
                                 <button
                                   type="button"
                                   onClick={() => selectTopic(catKey, t.topic)}
-                                  className="mt-auto w-full min-h-[44px] flex items-center justify-center gap-2 rounded-xl border-0 px-2 py-2.5 text-[11px] font-black uppercase tracking-[0.18em] bg-sky-500 text-white shadow-[0_4px_0_0_#075985] transition-all hover:bg-sky-600 active:translate-y-[2px] active:shadow-[0_2px_0_0_#075985]"
+                                  className="mt-auto w-full min-h-[36px] flex items-center justify-center gap-1.5 rounded-xl border-0 px-2 py-2 text-[10px] font-black uppercase tracking-[0.16em] bg-sky-500 text-white shadow-[0_3px_0_0_#075985] transition-all hover:bg-sky-600 active:translate-y-[2px] active:shadow-[0_1px_0_0_#075985]"
                                 >
                                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white/30 bg-white/15">
                                     <ChevronRight
@@ -2975,6 +3003,15 @@ export default function SATPractice() {
             page={page}
             total={total}
             qMaxTimeMap={qMaxTimeMap}
+            onPageChange={(newPage) => {
+              setSearchParams((p) => {
+                const n = new URLSearchParams(p);
+                n.set('page', String(newPage));
+                n.set('idx', '0');
+                n.delete('qid');
+                return n;
+              });
+            }}
           />
 
           <AnimatePresence>

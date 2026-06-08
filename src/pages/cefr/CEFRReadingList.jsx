@@ -1,12 +1,11 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Search, Clock3, HelpCircle, Loader2, BookOpen, ChevronUp, ChevronDown } from 'lucide-react'
+import { Search, Clock3, HelpCircle, Loader2, BookOpen, ChevronUp, ChevronDown, Layers } from 'lucide-react'
 import api from '../../api/client'
 
 const LEVELS = ['ALL', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2']
 
-/** CEFR darajasi — IELTS DifficultyBadge uslubida */
 function LevelBadge({ level }) {
   const tone =
     level === 'A1' || level === 'A2'
@@ -46,19 +45,40 @@ export default function CEFRReadingList() {
     staleTime: 60_000,
   })
 
-  const items = useMemo(() => {
-    return (data || []).filter((p) => {
+  const { passages, fullMocks } = useMemo(() => {
+    const filtered = (data || []).filter((p) => {
       const matchSearch = (p.title || '').toLowerCase().includes(search.toLowerCase())
       const matchLevel = level === 'ALL' || p.level === level
       return matchSearch && matchLevel
     })
+    return {
+      passages: filtered.filter((p) => p.item_type !== 'full_mock'),
+      fullMocks: filtered.filter((p) => p.item_type === 'full_mock'),
+    }
   }, [data, search, level])
 
-  const handleStart = async (passage) => {
+  const allItems = [...fullMocks, ...passages]
+
+  const handleStartPassage = async (passage) => {
     setStarting(passage.id)
     try {
       const res = await api.post(`/cefr/reading/${passage.id}/start/`)
       navigate(`/exam/cefr/reading/${res.data.attempt_id}?passage=${passage.id}&title=${encodeURIComponent(passage.title)}`)
+    } catch (e) {
+      alert('Could not start: ' + (e.response?.data?.detail || e.message))
+    } finally {
+      setStarting(null)
+    }
+  }
+
+  const handleStartFullMock = async (mock) => {
+    setStarting(`mock-${mock.id}`)
+    try {
+      const res = await api.post(`/cefr/reading/full-mock/${mock.id}/start/`)
+      const partsParam = res.data.passage_ids.join(',')
+      navigate(
+        `/exam/cefr/reading/${res.data.attempt_id}?parts=${partsParam}&title=${encodeURIComponent(mock.title)}`
+      )
     } catch (e) {
       alert('Could not start: ' + (e.response?.data?.detail || e.message))
     } finally {
@@ -102,7 +122,9 @@ export default function CEFRReadingList() {
             <h3 className="text-2xl font-black text-gray-900 leading-none">Choose a test</h3>
             <p className="text-sm text-gray-500 mt-2">
               <span className="font-semibold text-gray-900">CEFR Reading</span>
-              <span className="ml-2">{isLoading ? '...' : `${items.length} passages`}</span>
+              <span className="ml-2">
+                {isLoading ? '...' : `${fullMocks.length} full mock${fullMocks.length !== 1 ? 's' : ''}, ${passages.length} passage${passages.length !== 1 ? 's' : ''}`}
+              </span>
             </p>
           </div>
           {expanded ? <ChevronUp size={18} className="text-gray-500" /> : <ChevronDown size={18} className="text-gray-500" />}
@@ -113,68 +135,65 @@ export default function CEFRReadingList() {
             {isLoading &&
               [...Array(6)].map((_, i) => <div key={i} className="h-24 rounded-xl border border-gray-100 bg-gray-50 animate-pulse" />)}
 
-            {!isLoading &&
-              items.map((passage) => {
-                const isStarting = starting === passage.id
-                const attemptsCount =
-                  passage.attempts_count ??
-                  passage.attempt_count ??
-                  passage.total_attempts ??
-                  passage.last_attempt?.count ??
-                  0
-                const isCompleted = Boolean(
-                  Number(attemptsCount) > 0 ||
-                  passage.last_attempt ||
-                  passage.is_completed ||
-                  passage.status === 'completed' ||
-                  passage.completed_at ||
-                  passage.last_attempt?.is_completed ||
-                  passage.last_attempt?.status === 'completed' ||
-                  passage.last_attempt?.completed_at
-                )
-                return (
-                  <div
-                    key={passage.id}
-                    className="relative rounded-xl border border-gray-200 px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
-                  >
-                    {isCompleted && (
-                      <span className="absolute -top-2 left-3 text-[11px] px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 font-bold border border-blue-200">
-                        Completed
-                      </span>
-                    )}
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className="font-bold text-gray-900">{passage.title}</h4>
-                        {passage.is_mock && (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 font-semibold">Mock</span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-4 text-sm text-gray-500 mt-2 flex-wrap">
-                        <LevelBadge level={passage.level || 'B1'} />
-                        <span className="text-gray-500">1 part</span>
-                        <span className="inline-flex items-center gap-1">
-                          <Clock3 size={14} /> {passage.time_limit ?? 20} min
+            {!isLoading && allItems.map((item) => {
+              const isFullMock = item.item_type === 'full_mock'
+              const startingKey = isFullMock ? `mock-${item.id}` : item.id
+              const isStarting = starting === startingKey
+              const attemptsCount = item.attempts_count ?? 0
+              const isCompleted = attemptsCount > 0
+
+              return (
+                <div
+                  key={isFullMock ? `mock-${item.id}` : `p-${item.id}`}
+                  className="relative rounded-xl border border-gray-200 px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+                >
+                  {isCompleted && (
+                    <span className="absolute -top-2 left-3 text-[11px] px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 font-bold border border-blue-200">
+                      Completed
+                    </span>
+                  )}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="font-bold text-gray-900">{item.title}</h4>
+                      {item.is_mock && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 font-semibold">Mock</span>
+                      )}
+                      {isFullMock && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 font-semibold flex items-center gap-1">
+                          <Layers size={10} /> Full Mock
                         </span>
-                        <span className="inline-flex items-center gap-1">
-                          <HelpCircle size={14} /> {passage.question_count ?? '—'} questions
-                        </span>
-                        <span className="text-gray-400">{attemptsCount} attempts</span>
-                      </div>
+                      )}
                     </div>
-
-                    <button
-                      type="button"
-                      onClick={() => handleStart(passage)}
-                      disabled={isStarting}
-                      className="px-5 h-10 rounded-lg bg-sky-500 text-white text-sm font-bold hover:bg-sky-600 transition disabled:opacity-60 shrink-0"
-                    >
-                      {isStarting ? <Loader2 size={15} className="animate-spin mx-auto" /> : isCompleted ? 'Re-do test' : 'Start test'}
-                    </button>
+                    <div className="flex items-center gap-4 text-sm text-gray-500 mt-2 flex-wrap">
+                      <LevelBadge level={item.level || 'B1'} />
+                      {isFullMock ? (
+                        <span className="text-gray-500">{item.part_count} parts</span>
+                      ) : (
+                        <span className="text-gray-500">1 part</span>
+                      )}
+                      <span className="inline-flex items-center gap-1">
+                        <Clock3 size={14} /> {item.time_limit ?? 20} min
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        <HelpCircle size={14} /> {item.question_count ?? '—'} questions
+                      </span>
+                      <span className="text-gray-400">{attemptsCount} attempts</span>
+                    </div>
                   </div>
-                )
-              })}
 
-            {!isLoading && !items.length && (
+                  <button
+                    type="button"
+                    onClick={() => isFullMock ? handleStartFullMock(item) : handleStartPassage(item)}
+                    disabled={isStarting}
+                    className="px-5 h-10 rounded-lg bg-sky-500 text-white text-sm font-bold hover:bg-sky-600 transition disabled:opacity-60 shrink-0"
+                  >
+                    {isStarting ? <Loader2 size={15} className="animate-spin mx-auto" /> : isCompleted ? 'Re-do test' : 'Start test'}
+                  </button>
+                </div>
+              )
+            })}
+
+            {!isLoading && !allItems.length && (
               <div className="py-16 text-center text-gray-400">
                 <BookOpen size={34} className="mx-auto mb-2 text-gray-300" />
                 No passages found
@@ -186,4 +205,3 @@ export default function CEFRReadingList() {
     </div>
   )
 }
-

@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Mic, Loader2, ChevronLeft, Leaf, Clock, Layers, Star,
-  History, Play, Pause, Square, ChevronDown, ChevronUp, CheckCircle2,
+  History, Play, Pause, Square, ChevronDown, ChevronUp, CheckCircle2, Lock,
 } from 'lucide-react'
 import api from '../../api/client'
 import { useAuthStore } from '../../store/authStore'
@@ -179,9 +179,10 @@ export default function IELTSSpeakingList() {
   })
 
   const filtered = useMemo(() => {
-    if (filter === 'all') return data
-    if (filter === 'mock') return data.filter((t) => t.test_type === 'MOCK')
-    return data.filter((t) => t.part === Number(filter))
+    let list = data
+    if (filter === 'mock') list = data.filter((t) => t.test_type === 'MOCK')
+    else if (filter !== 'all') list = data.filter((t) => t.part === Number(filter))
+    return [...list.filter(t => !t.is_premium), ...list.filter(t => t.is_premium)]
   }, [data, filter])
 
   const handleStart = async (task) => {
@@ -267,7 +268,7 @@ export default function IELTSSpeakingList() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.04 }}
                 className={`relative flex flex-col rounded-2xl border bg-white p-6 sm:p-8 shadow-md hover:shadow-lg transition-shadow ${
-                  locked ? 'opacity-75 border-gray-100' : 'border-gray-100'
+                  locked ? 'border-gray-100' : 'border-gray-100'
                 }`}
               >
                 {(isCompleted || task.is_premium) && (
@@ -310,26 +311,32 @@ export default function IELTSSpeakingList() {
                   </span>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => handleStart(task)}
-                  disabled={locked || isStarting}
-                  className={`mt-6 w-full py-3.5 rounded-2xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-glow ${
-                    locked
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
-                      : 'gradient-primary text-white hover:opacity-95'
-                  }`}
-                >
-                  {isStarting ? (
-                    <Loader2 size={18} className="animate-spin" />
-                  ) : locked ? (
-                    'Locked'
-                  ) : isCompleted ? (
-                    'Restart Test'
-                  ) : (
-                    'Start Test'
-                  )}
-                </button>
+                {locked ? (
+                  <div className="mt-6 flex justify-center">
+                    <button
+                      type="button"
+                      onClick={() => navigate('/app/subscription')}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-sky-50 border border-sky-200 text-sky-600 text-xs font-semibold transition-colors hover:bg-sky-100 hover:border-sky-300"
+                    >
+                      <Lock size={10} /> Premium
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleStart(task)}
+                    disabled={isStarting}
+                    className="mt-6 w-full py-3.5 rounded-2xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-glow gradient-primary text-white hover:opacity-95 disabled:opacity-60"
+                  >
+                    {isStarting ? (
+                      <Loader2 size={18} className="animate-spin" />
+                    ) : isCompleted ? (
+                      'Restart Test'
+                    ) : (
+                      'Start Test'
+                    )}
+                  </button>
+                )}
               </motion.article>
             )
           })}

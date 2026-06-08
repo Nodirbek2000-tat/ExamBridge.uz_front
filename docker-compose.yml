@@ -17,7 +17,10 @@ services:
 
   # ── Nginx (entry point for all traffic) ─────────────────────────────────────
   nginx:
-    build: .
+    build:
+      context: .
+      args:
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID}
     restart: unless-stopped
     ports:
       - "80:80"

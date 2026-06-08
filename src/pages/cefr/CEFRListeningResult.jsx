@@ -31,8 +31,9 @@ export default function CEFRListeningResult() {
     const correct = result.correct ?? 0
     const total = result.total ?? 0
     const scorePercent = result.score_percent ?? (total ? Math.round((correct / total) * 100) : 0)
+    const cefrScore = result.cefr_score ?? null
     const cefrLevel = result.cefr_level ?? '—'
-    return { correct, total, scorePercent, cefrLevel, results: result.results ?? [] }
+    return { correct, total, scorePercent, cefrScore, cefrLevel, results: result.results ?? [] }
   }, [result])
 
   if (!summary) {
@@ -66,7 +67,9 @@ export default function CEFRListeningResult() {
     )
   }
 
-  const scoreColor = 'text-red-600'
+  const scoreColor = summary.cefrLevel === 'C1' ? 'text-indigo-600' : summary.cefrLevel === 'B2' ? 'text-emerald-600' : 'text-sky-600'
+  const bandBg = summary.cefrLevel === 'C1' ? 'bg-indigo-50 border-indigo-100' : summary.cefrLevel === 'B2' ? 'bg-emerald-50 border-emerald-100' : 'bg-sky-50 border-sky-100'
+  const iconBg = summary.cefrLevel === 'C1' ? 'bg-indigo-100 text-indigo-500' : summary.cefrLevel === 'B2' ? 'bg-emerald-100 text-emerald-500' : 'bg-sky-100 text-sky-500'
 
   const handleTryAgain = async () => {
     if (!sectionId) return
@@ -109,25 +112,42 @@ export default function CEFRListeningResult() {
 
       <div className="flex-1 overflow-y-auto p-4">
         <div className="max-w-3xl mx-auto w-full space-y-4">
-          <div className="bg-white border border-red-100 rounded-2xl p-6">
+          <div className={`bg-white border rounded-2xl p-6 ${bandBg}`}>
             <div className="text-center">
-              <div className="w-14 h-14 rounded-full bg-red-100 mx-auto flex items-center justify-center">
-                <CheckCircle2 size={28} className="text-red-500" />
+              <div className={`w-14 h-14 rounded-full mx-auto flex items-center justify-center ${iconBg}`}>
+                <CheckCircle2 size={28} />
               </div>
               <h2 className="text-3xl font-black text-gray-900 mt-3">Test Complete!</h2>
-              <p className="text-sm text-gray-400">Here are your results</p>
+              <p className="text-sm text-gray-400">Here are your CEFR Listening results</p>
             </div>
 
-            <div className="mt-6 rounded-xl border border-red-100 bg-red-50/40 px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <p className="text-gray-600 font-medium">Your Score:</p>
-              <div className="text-right">
-                <p className={`text-5xl font-black ${scoreColor}`}>
-                  {summary.correct} / {summary.total}
-                </p>
-                <p className="text-base text-gray-600 mt-1">
-                  CEFR {summary.cefrLevel} • {summary.scorePercent}%
-                </p>
+            <div className={`mt-6 rounded-xl border px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 ${bandBg}`}>
+              <div>
+                <p className="text-gray-600 font-medium">Your Score</p>
+                <p className={`text-sm mt-0.5 ${scoreColor}`}>{summary.correct} correct of {summary.total}</p>
               </div>
+              <div className="text-right">
+                {summary.cefrScore != null && (
+                  <p className={`text-6xl font-black ${scoreColor}`}>{summary.cefrScore}</p>
+                )}
+                <p className={`text-2xl font-black mt-1 ${scoreColor}`}>
+                  CEFR {summary.cefrLevel}
+                </p>
+                <p className="text-sm text-gray-400 mt-0.5">{summary.scorePercent}%</p>
+              </div>
+            </div>
+
+            <div className="mt-3 grid grid-cols-3 gap-3">
+              {[
+                { label: 'CEFR Score', value: summary.cefrScore ?? '—', color: scoreColor },
+                { label: 'Level', value: `CEFR ${summary.cefrLevel}`, color: scoreColor },
+                { label: 'Correct', value: `${summary.correct}/${summary.total}`, color: 'text-gray-700' },
+              ].map((s, i) => (
+                <div key={i} className="bg-white/70 rounded-xl py-3 text-center border border-white">
+                  <p className={`text-xl font-black ${s.color}`}>{s.value}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{s.label}</p>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -182,7 +202,7 @@ export default function CEFRListeningResult() {
               type="button"
               onClick={handleFeedbackSubmit}
               disabled={!feedbackText.trim()}
-              className="mt-3 w-full py-3 rounded-xl bg-red-500 hover:bg-red-600 disabled:bg-red-200 text-white font-bold transition"
+              className="mt-3 w-full py-3 rounded-xl bg-sky-500 hover:bg-sky-600 disabled:bg-sky-200 text-white font-bold transition"
             >
               {feedbackSent ? 'Feedback Sent' : 'Submit Feedback'}
             </button>
@@ -210,7 +230,7 @@ export default function CEFRListeningResult() {
                   state: { reviewData: result },
                 })
               }
-              className="h-14 rounded-xl bg-gray-100 text-gray-700 font-semibold flex items-center justify-center gap-2 hover:bg-gray-200 transition"
+              className="h-14 rounded-xl bg-sky-50 text-sky-700 border border-sky-200 font-semibold flex items-center justify-center gap-2 hover:bg-sky-100 transition"
             >
               <ListChecks size={16} /> Review Test
             </button>
@@ -218,7 +238,7 @@ export default function CEFRListeningResult() {
               type="button"
               onClick={handleTryAgain}
               disabled={retrying}
-              className="h-14 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold flex items-center justify-center gap-2 disabled:opacity-60 transition"
+              className="h-14 rounded-xl bg-sky-500 hover:bg-sky-600 text-white font-semibold flex items-center justify-center gap-2 disabled:opacity-60 transition"
             >
               <RotateCcw size={16} /> {retrying ? 'Loading...' : 'Try Again'}
             </button>

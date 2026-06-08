@@ -13,6 +13,7 @@ import {
   Leaf,
   FileText,
   CheckCircle2,
+  Lock,
 } from 'lucide-react'
 import api from '../../api/client'
 import { useAuthStore } from '../../store/authStore'
@@ -47,11 +48,12 @@ export default function IELTSWritingList() {
   })
 
   const tasks = useMemo(() => {
-    return (data || []).filter((t) => {
+    const filtered = (data || []).filter((t) => {
       if (activeTask !== 'ALL' && String(t.task_type) !== activeTask) return false
       if (activeDiff !== 'ALL' && t.difficulty !== activeDiff) return false
       return true
     })
+    return [...filtered.filter(t => !t.is_premium), ...filtered.filter(t => t.is_premium)]
   }, [data, activeTask, activeDiff])
 
   const handleStart = async (task) => {
@@ -163,7 +165,7 @@ export default function IELTSWritingList() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.04 }}
                 className={`relative flex flex-col rounded-2xl border bg-white p-5 shadow-sm hover:shadow-md transition-shadow ${
-                  locked ? 'opacity-75 border-gray-100' : 'border-gray-200'
+                  locked ? 'border-gray-200' : 'border-gray-200'
                 }`}
               >
                 {(isCompleted || task.is_premium) && (
@@ -203,26 +205,32 @@ export default function IELTSWritingList() {
                   </span>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => handleStart(task)}
-                  disabled={locked || isStarting}
-                  className={`mt-5 w-full py-3 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 ${
-                    locked
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'gradient-primary text-white shadow-glow hover:opacity-95'
-                  }`}
-                >
-                  {isStarting ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : locked ? (
-                    'Locked'
-                  ) : isCompleted ? (
-                    'Restart Test'
-                  ) : (
-                    'Start Test'
-                  )}
-                </button>
+                {locked ? (
+                  <div className="mt-5 flex justify-center">
+                    <button
+                      type="button"
+                      onClick={() => navigate('/app/subscription')}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-sky-50 border border-sky-200 text-sky-600 text-xs font-semibold transition-colors hover:bg-sky-100 hover:border-sky-300"
+                    >
+                      <Lock size={10} /> Premium
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleStart(task)}
+                    disabled={isStarting}
+                    className="mt-5 w-full py-3 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 gradient-primary text-white shadow-glow hover:opacity-95 disabled:opacity-60"
+                  >
+                    {isStarting ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : isCompleted ? (
+                      'Restart Test'
+                    ) : (
+                      'Start Test'
+                    )}
+                  </button>
+                )}
               </motion.article>
             )
           })}

@@ -1461,49 +1461,91 @@ export default function CEFRListeningAttempt() {
       )}
 
       {/* Body */}
-      <div className={`flex-1 overflow-y-auto p-4 w-full space-y-4 pb-40 ${fontCls}`} style={{ zoom: questionZoom }}>
-        {reviewMode && (
-          <div className={`rounded-xl border p-3 mb-2 ${D ? 'bg-gray-800/80 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
-            <p className={`text-sm font-semibold mb-2 ${textMain}`}>Review audio</p>
-            <ReviewAudioPlayer audioUrl={section?.audio_url} dark={D} />
-            {section?.transcript && (
-              <div className={`mt-3 rounded-lg p-3 border ${D ? 'border-gray-600' : 'border-gray-200'}`}>
-                <TranscriptWithEvidence
-                  text={section.transcript}
-                  dark={D}
-                  evidenceItems={showCorrectInReview ? evidenceItems : []}
-                />
+      {/* Part 4 with image: split layout (image left, questions right) */}
+      {section?.image && section?.section_number === 4 ? (
+        <div className="flex flex-1 overflow-hidden flex-col md:flex-row">
+          {/* Image panel */}
+          <div className={`overflow-y-auto border-b md:border-b-0 md:border-r flex-shrink-0 ${divider}`}
+            style={{ flexBasis: '45%' }}>
+            <div className="p-4">
+              <img
+                src={section.image}
+                alt="Part 4"
+                className="w-full rounded-xl object-contain border border-gray-200"
+              />
+            </div>
+          </div>
+          {/* Questions panel */}
+          <div className={`flex-1 overflow-y-auto p-4 space-y-4 pb-40 ${fontCls}`} style={{ zoom: questionZoom }}>
+            <HiddenExamAudio src={!reviewMode && audioStarted ? section?.audio_url : null} active={!reviewMode && audioStarted} />
+            {!reviewMode && (
+              <div className={`rounded-lg px-3 py-2 text-sm mb-2 ${D ? 'bg-gray-800/50 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>
+                Listen and answer all questions. Audio plays in the background (player hidden).
               </div>
             )}
+            <QuestionList
+              questions={questions}
+              answers={answers}
+              setAnswer={setAnswer}
+              activeQ={activeQ}
+              setActiveQ={setActiveQ}
+              qCard={qCard}
+              D={D}
+              textMain={textMain}
+              toggleBookmark={toggleBookmark}
+              bookmarkedIds={bookmarkedIds}
+              bookmarkLoading={bookmarkLoading}
+              reviewMode={reviewMode}
+              showCorrectInReview={showCorrectInReview}
+              reviewMap={reviewMap}
+              questionRefs={questionRefs}
+            />
           </div>
-        )}
-        <HiddenExamAudio src={!reviewMode && audioStarted ? section?.audio_url : null} active={!reviewMode && audioStarted} />
-        {!reviewMode && (
-          <div className={`rounded-lg px-3 py-2 text-sm mb-2 ${D ? 'bg-gray-800/50 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>
-            Listen and answer all questions. Audio plays in the background (player hidden).
-          </div>
-        )}
+        </div>
+      ) : (
+        <div className={`flex-1 overflow-y-auto p-4 w-full space-y-4 pb-40 ${fontCls}`} style={{ zoom: questionZoom }}>
+          {reviewMode && (
+            <div className={`rounded-xl border p-3 mb-2 ${D ? 'bg-gray-800/80 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+              <p className={`text-sm font-semibold mb-2 ${textMain}`}>Review audio</p>
+              <ReviewAudioPlayer audioUrl={section?.audio_url} dark={D} />
+              {section?.transcript && (
+                <div className={`mt-3 rounded-lg p-3 border ${D ? 'border-gray-600' : 'border-gray-200'}`}>
+                  <TranscriptWithEvidence
+                    text={section.transcript}
+                    dark={D}
+                    evidenceItems={showCorrectInReview ? evidenceItems : []}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+          <HiddenExamAudio src={!reviewMode && audioStarted ? section?.audio_url : null} active={!reviewMode && audioStarted} />
+          {!reviewMode && (
+            <div className={`rounded-lg px-3 py-2 text-sm mb-2 ${D ? 'bg-gray-800/50 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>
+              Listen and answer all questions. Audio plays in the background (player hidden).
+            </div>
+          )}
 
-        {/* Questions */}
-        <QuestionList
-          questions={questions}
-          answers={answers}
-          setAnswer={setAnswer}
-          activeQ={activeQ}
-          setActiveQ={setActiveQ}
-          qCard={qCard}
-          D={D}
-          textMain={textMain}
-          toggleBookmark={toggleBookmark}
-          bookmarkedIds={bookmarkedIds}
-          bookmarkLoading={bookmarkLoading}
-          reviewMode={reviewMode}
-          showCorrectInReview={showCorrectInReview}
-          reviewMap={reviewMap}
-          questionRefs={questionRefs}
-        />
-
-      </div>
+          {/* Questions */}
+          <QuestionList
+            questions={questions}
+            answers={answers}
+            setAnswer={setAnswer}
+            activeQ={activeQ}
+            setActiveQ={setActiveQ}
+            qCard={qCard}
+            D={D}
+            textMain={textMain}
+            toggleBookmark={toggleBookmark}
+            bookmarkedIds={bookmarkedIds}
+            bookmarkLoading={bookmarkLoading}
+            reviewMode={reviewMode}
+            showCorrectInReview={showCorrectInReview}
+            reviewMap={reviewMap}
+            questionRefs={questionRefs}
+          />
+        </div>
+      )}
 
       <div className={`fixed bottom-2 md:bottom-3 left-2 right-2 md:left-4 md:right-4 z-30 rounded-2xl border ${divider} ${D ? 'bg-gray-900/95' : 'bg-white/95'} backdrop-blur shadow-lg`}>
         <div className="flex items-center gap-2 px-3 py-2 max-w-screen-lg mx-auto">

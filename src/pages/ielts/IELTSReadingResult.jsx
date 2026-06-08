@@ -91,12 +91,12 @@ export default function IELTSReadingResult() {
     <div className="h-full flex flex-col bg-gray-50">
       {/* Header */}
       <div className="h-14 px-4 flex items-center gap-3 bg-white border-b border-sky-100">
-        <button onClick={() => navigate('/app/ielts/reading')}
+        <button onClick={() => navigate(-1)}
           className="flex items-center gap-1 text-sm text-gray-500 hover:text-sky-600 transition">
           <ChevronLeft size={16} /> Back
         </button>
         <p className="flex-1 font-semibold text-sm truncate">{title}</p>
-        <button onClick={() => navigate('/app/ielts/reading')}
+        <button onClick={() => navigate('/app/ielts/history')}
           className="px-3 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">
           Close
         </button>

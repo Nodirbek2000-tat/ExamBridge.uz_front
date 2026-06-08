@@ -15,15 +15,23 @@ import { sanitizeHtml } from '../../utils/sanitizeHtml';
 function renderMath(html) {
   if (!html) return ''
   let out = String(html)
-  // Block math: \[...\]
+  // Block math: \[...\] and $$...$$
   out = out.replace(/\\\[([\s\S]*?)\\\]/g, (_, math) => {
     try { return katex.renderToString(math.trim(), { displayMode: true, throwOnError: false }) }
     catch { return `<span class="text-red-500 text-xs">[math]</span>` }
   })
-  // Inline math: \(...\)
+  out = out.replace(/\$\$([\s\S]*?)\$\$/g, (_, math) => {
+    try { return katex.renderToString(math.trim(), { displayMode: true, throwOnError: false }) }
+    catch { return `<span class="text-red-500 text-xs">[math]</span>` }
+  })
+  // Inline math: \(...\) and $...$
   out = out.replace(/\\\(([\s\S]*?)\\\)/g, (_, math) => {
     try { return katex.renderToString(math.trim(), { throwOnError: false }) }
     catch { return `<span class="text-red-500 text-xs">[math]</span>` }
+  })
+  out = out.replace(/\$([^$\n]+?)\$/g, (_, math) => {
+    try { return katex.renderToString(math.trim(), { throwOnError: false }) }
+    catch { return _ }
   })
   return out
 }
@@ -1472,10 +1480,14 @@ function QuestionView({ question, answer, onAnswer, section, splitMode = false,
 
       {/* Math equation — shown centered above content */}
       {question.math_equation && (
-        <div
-          className="text-center text-[17px] text-gray-900 mb-4"
-          dangerouslySetInnerHTML={{ __html: sanitizeHtml(renderMath(question.math_equation)) }}
-        />
+        /^(https?:\/\/|\/media\/|\/static\/)/.test(question.math_equation)
+          ? <div className="flex justify-center mb-4">
+              <img src={question.math_equation} alt="equation" className="max-h-64 max-w-full object-contain border border-gray-100 rounded" />
+            </div>
+          : <div
+              className="text-center text-[17px] text-gray-900 mb-4"
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(renderMath(question.math_equation)) }}
+            />
       )}
 
       {/* Content */}
@@ -1527,7 +1539,7 @@ function MCQChoices({ question, answer, onAnswer, eliminatedMap, onToggleElimina
         return (
           <div
             key={choice.option}
-            className={`flex items-stretch gap-0 transition-transform duration-100 ${selected ? 'scale-[1.012]' : ''}`}
+            className={`flex items-stretch gap-0 transition-transform duration-100 rounded-lg overflow-hidden ${selected ? 'scale-[1.012]' : ''}`}
           >
             {/* ── Main choice card ── */}
             <button
@@ -1542,7 +1554,7 @@ function MCQChoices({ question, answer, onAnswer, eliminatedMap, onToggleElimina
               }`}
             >
               {/* Letter box */}
-              <span className={`flex-shrink-0 w-7 h-7 border-2 flex items-center justify-center text-[13px] font-bold transition-colors ${
+              <span className={`flex-shrink-0 w-7 h-7 border-2 rounded flex items-center justify-center text-[13px] font-bold transition-colors ${
                 selected
                   ? 'border-white/60 bg-white/20 text-white'
                   : eliminated

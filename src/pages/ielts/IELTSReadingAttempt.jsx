@@ -337,6 +337,7 @@ function injectPassageHighlights(html, items) {
       mark.appendChild(document.createTextNode(matched))
 
       const parent = tn.node.parentNode
+      if (!parent) continue   // node detached by a previous iteration — skip
       if (before) parent.insertBefore(document.createTextNode(before), tn.node)
       parent.insertBefore(mark, tn.node)
       if (after) parent.insertBefore(document.createTextNode(after), tn.node)
@@ -355,6 +356,7 @@ function injectPassageHighlights(html, items) {
       // Insert mark just before the first overlapping text node's element
       let insertAnchor = firstTN.node
       while (insertAnchor.parentNode !== para && insertAnchor.parentNode) insertAnchor = insertAnchor.parentNode
+      if (!para || !insertAnchor.parentNode) continue   // detached — skip
       para.insertBefore(mark, insertAnchor)
 
       for (const tn of overlapping) {
@@ -1686,7 +1688,8 @@ export default function IELTSReadingAttempt() {
   })
 
   const isLoading = passageQueries.some(q => q.isLoading && !q.data)
-  const allPassagesData = passageQueries.map(q => q.data).filter(Boolean)
+  // Keep null entries so indices stay aligned with partIds — do NOT filter(Boolean)
+  const allPassagesData = passageQueries.map(q => q.data || null)
   const passage = allPassagesData[activePartIndex] || null
   const questions = passage?.questions || []
 
@@ -2223,7 +2226,7 @@ export default function IELTSReadingAttempt() {
       <div className={`relative flex items-center gap-2 px-4 md:px-5 h-[72px] border-b flex-shrink-0 ${topbar}`}>
         {/* Back */}
         <button
-          onClick={() => (reviewMode ? navigate(-1) : setShowExitConfirm(true))}
+          onClick={() => (reviewMode ? navigate('/app/ielts/reading') : setShowExitConfirm(true))}
           className={`flex items-center gap-2 text-[14px] font-semibold transition flex-shrink-0 px-3 py-2.5 rounded-xl border ${
             D ? 'border-gray-700 text-gray-200 hover:bg-gray-800' : 'border-sky-100 text-gray-600 hover:bg-white'
           }`}
@@ -2306,7 +2309,7 @@ export default function IELTSReadingAttempt() {
               Re-Do
             </button>
             <button
-              onClick={() => navigate(-1)}
+              onClick={() => navigate(`/exam/ielts/reading/${attemptId}/result`)}
               className="px-2 py-2 rounded-xl border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 text-xs font-semibold inline-flex items-center gap-1"
             >
               <Lock size={14} />

@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
+import { useParams, useLocation, useNavigate } from 'react-router-dom'
+import api from '../../api/client'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   CheckCircle2, AlertCircle, ChevronDown, ChevronUp,
@@ -187,31 +188,67 @@ function handleDownloadResult({ task, text, wordCount, result, ownTitle }) {
 }
 
 export default function IELTSWritingResult() {
+  const { responseId } = useParams()
   const location = useLocation()
   const navigate = useNavigate()
-  const { task, text, wordCount, ownTitle } = location.state || {}
+
+  // State-based values (fallback: own writing or failed submit)
+  const stateData = location.state || {}
+
+  const [task, setTask] = useState(stateData.task || null)
+  const [text, setText] = useState(stateData.text || '')
+  const [wordCount, setWordCount] = useState(stateData.wordCount || 0)
+  const [ownTitle] = useState(stateData.ownTitle || '')
 
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-
-  useEffect(() => {
-    if (!text) return
-    setLoading(true)
-    analyzeWriting({ text, task, wordCount, ownTitle })
-      .then((r) => {
-        setResult(r)
-        setLoading(false)
-      })
-      .catch((e) => {
-        setError(e.message)
-        setLoading(false)
-      })
-  }, [])
+  const pollRef = useRef(null)
 
   const CRITERIA_ORDER = ['task_achievement', 'coherence_cohesion', 'lexical_resource', 'grammatical_range']
 
-  if (!text) {
+  // ── DB-based mode: poll until ready ─────────────────────────────────────────
+  useEffect(() => {
+    const id = responseId
+    if (!id || id === '0') {
+      // Fallback mode: run frontend analysis
+      if (!stateData.text) { setLoading(false); return }
+      analyzeWriting({ text: stateData.text, task: stateData.task, wordCount: stateData.wordCount, ownTitle: stateData.ownTitle })
+        .then(r => { setResult(r); setLoading(false) })
+        .catch(e => { setError(e.message); setLoading(false) })
+      return
+    }
+
+    // Primary mode: fetch from DB, poll until ready
+    const poll = async () => {
+      try {
+        const data = await api.get(`/ielts/writing/result/${id}/`).then(r => r.data)
+        setTask({ title: data.task_title, task_type: data.task_type, prompt: data.task_prompt })
+        setText(data.response_text || '')
+        setWordCount(data.word_count || 0)
+
+        if (data.status === 'ready' && data.ai_band) {
+          clearInterval(pollRef.current)
+          setResult({
+            overall_band: parseFloat(data.ai_band),
+            ...data.ai_criteria,
+          })
+          setLoading(false)
+        }
+        // else keep polling
+      } catch {
+        clearInterval(pollRef.current)
+        setError('Natija topilmadi')
+        setLoading(false)
+      }
+    }
+
+    poll()
+    pollRef.current = setInterval(poll, 3000)
+    return () => clearInterval(pollRef.current)
+  }, [responseId])
+
+  if ((!responseId || responseId === '0') && !stateData.text) {
     return (
       <div className="flex flex-1 min-h-0 flex-col items-center justify-center overflow-y-auto bg-white p-6 relative">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -307,7 +344,7 @@ export default function IELTSWritingResult() {
               onClick={() => {
                 setError(null)
                 setLoading(true)
-                analyzeWriting({ text, task, wordCount })
+                analyzeWriting({ text, task, wordCount, ownTitle })
                   .then((r) => {
                     setResult(r)
                     setLoading(false)

@@ -390,7 +390,7 @@ function OwnWritingMode() {
           <button
             type="button"
             onClick={() =>
-              navigate('/exam/ielts/writing/result', {
+              navigate('/exam/ielts/writing/result/0', {
                 state: { task: null, text, wordCount: words, ownTitle: title },
               })
             }
@@ -463,17 +463,18 @@ export default function IELTSWritingAttempt() {
     setShowConfirm(false)
     timer.pause()
     try {
-      await api.post(`/ielts/writing/${attemptId}/submit/`, {
+      const resp = await api.post(`/ielts/writing/${attemptId}/submit/`, {
         task_id: Number(taskId),
         text,
       })
+      navigate(`/exam/ielts/writing/result/${resp.data.id}`, { replace: true })
     } catch {
-      // ignore submit errors, still go to result
+      // Fallback: pass via state if submit failed
+      navigate('/exam/ielts/writing/result/0', {
+        state: { task, text, wordCount: words },
+        replace: true,
+      })
     }
-    navigate('/exam/ielts/writing/result', {
-      state: { task, text, wordCount: words },
-      replace: true,
-    })
   }
 
   useEffect(() => {

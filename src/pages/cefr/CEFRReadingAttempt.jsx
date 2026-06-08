@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useParams, useSearchParams, useNavigate, useLocation } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueries } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Clock, ChevronLeft, Send, CheckCircle2, AlertTriangle,
@@ -1105,12 +1105,15 @@ function groupIntoSegments(questions) {
     const gi = q.group_instruction
 
     // MEND / MINFO / MFEAT / MATCH with choices → MatchGrid (radio matrix)
+    // Exception: MFEAT/MEND with many choices (>6) use dropdown cards instead of grid
     const GRID_TYPES = ['MEND','M.END','MINFO','M.INFO','MFEAT','M.FEAT','MATCH']
-    if (GRID_TYPES.includes(qt) && q.choices?.length > 0) {
+    const isDropdownFallback = ['MFEAT','M.FEAT','MEND','M.END'].includes(qt) && (q.choices?.length || 0) > 6
+    if (GRID_TYPES.includes(qt) && q.choices?.length > 0 && !isDropdownFallback) {
       const grp = [q]; let j = i + 1
       while (j < questions.length &&
         questions[j].group_instruction === gi &&
-        GRID_TYPES.includes(questions[j].question_type)) {
+        GRID_TYPES.includes(questions[j].question_type) &&
+        !(['MFEAT','M.FEAT','MEND','M.END'].includes(questions[j].question_type) && (questions[j].choices?.length || 0) > 6)) {
         grp.push(questions[j]); j++
       }
       segments.push({ type: 'grid', questions: grp, group_instruction: gi }); i = j; continue
@@ -1181,10 +1184,19 @@ export default function CEFRReadingAttempt() {
   const user = useAuthStore((s) => s.user)
 
   const passageId = searchParams.get('passage')
+  const partsParam = searchParams.get('parts')
   const passageTitle = decodeURIComponent(searchParams.get('title') || 'Reading')
   const reviewData = location.state?.reviewData || null
   const reviewMode = Boolean(reviewData)
   const [showCorrectInReview, setShowCorrectInReview] = useState(true)
+
+  // Multi-passage support (full mock)
+  const passageIds = useMemo(() => {
+    if (partsParam) return partsParam.split(',').map(Number).filter(Boolean)
+    if (passageId) return [Number(passageId)]
+    return []
+  }, [partsParam, passageId])
+  const [activePart, setActivePart] = useState(0)
 
   const [answers, setAnswers] = useState({})
   const [activeQ, setActiveQ] = useState(0)
@@ -1232,11 +1244,17 @@ export default function CEFRReadingAttempt() {
     }
   }, [handleMouseMove, handleMouseUp])
 
-  const { data: passage, isLoading } = useQuery({
-    queryKey: ['cefr-reading-passage', passageId],
-    queryFn: () => api.get(`/cefr/reading/${passageId}/`).then(r => r.data),
-    enabled: !!passageId,
+  const passageQueries = useQueries({
+    queries: passageIds.map(pid => ({
+      queryKey: ['cefr-reading-passage', pid],
+      queryFn: () => api.get(`/cefr/reading/${pid}/`).then(r => r.data),
+      enabled: !!pid,
+    }))
   })
+  const allPassagesData = passageIds.length ? passageQueries.map(q => q.data || null) : []
+  const isLoading = passageQueries.some(q => q.isLoading) || passageIds.length === 0
+  // Active passage
+  const passage = allPassagesData[activePart] || null
 
   const timerStorageKey = `cefr-reading-timer-${attemptId}-${passageId || 'x'}`
   const timer = useTimer((passage?.time_limit || 20) * 60, reviewMode ? null : timerStorageKey, reviewMode)
@@ -1316,6 +1334,10 @@ export default function CEFRReadingAttempt() {
     setAnswers((prev) => ({ ...prev, [String(qId)]: val }))
   }
   const answeredCount = Object.values(answers).filter(Boolean).length
+  // Total questions across all loaded parts (for full mock display)
+  const totalQuestionsAll = passageIds.length > 1
+    ? allPassagesData.reduce((acc, p) => acc + (p?.questions?.length || 0), 0)
+    : questions.length
 
   const handleSubmit = async () => {
     if (reviewMode) return
@@ -1325,13 +1347,31 @@ export default function CEFRReadingAttempt() {
     setShowExitConfirm(false)
     setSubmitting(true)
     try {
-      const res = await api.post(`/cefr/reading/${passageId}/submit/`, {
-        attempt_id: parseInt(attemptId, 10),
-        answers,
-      })
+      const validPassages = allPassagesData.filter(Boolean)
+      let allResults = []
+      let lastRes = null
+
+      for (let i = 0; i < validPassages.length; i++) {
+        const p = validPassages[i]
+        const isLast = i === validPassages.length - 1
+        const res = await api.post(`/cefr/reading/${p.id}/submit/`, {
+          attempt_id: parseInt(attemptId, 10),
+          answers,
+          partial: !isLast,
+        })
+        allResults = [...allResults, ...(res.data.results || [])]
+        if (isLast) lastRes = res.data
+      }
+
+      // For the last passage, backend already recalculates totals across all parts
+      const combinedResult = {
+        ...(lastRes || {}),
+        results: allResults,
+      }
+
       allowLeaveRef.current = true
       navigate(`/exam/cefr/reading/${attemptId}/result?passage=${passageId}&title=${encodeURIComponent(passageTitle)}`, {
-        state: { result: res.data }, replace: true,
+        state: { result: combinedResult }, replace: true,
       })
     } catch (e) {
       alert('Error: ' + (e.response?.data?.detail || e.message))
@@ -1358,6 +1398,9 @@ export default function CEFRReadingAttempt() {
   }
 
   const D = darkMode
+  const passageNum = passage?.passage_number || 0
+  // Parts 1-3: vertical (passage on top, questions below). Parts 4-5: split layout.
+  const isVerticalLayout = passageNum >= 1 && passageNum <= 3
   const textSizeClass = textSize === 'extra_large' ? 'text-[1.3rem]' : textSize === 'large' ? 'text-[1.18rem]' : 'text-[1.08rem]'
   const questionTextSizeClass = textSize === 'extra_large' ? 'text-[1.28rem]' : textSize === 'large' ? 'text-[1.14rem]' : 'text-[1.05rem]'
   const questionZoom = textSize === 'extra_large' ? 1.18 : textSize === 'large' ? 1.1 : 1
@@ -1407,7 +1450,7 @@ export default function CEFRReadingAttempt() {
 
         {!reviewMode && (
           <span className={`text-base font-semibold hidden sm:block ${textSub}`}>
-            {answeredCount}/{questions.length}
+            {answeredCount}/{totalQuestionsAll}
           </span>
         )}
 
@@ -1530,270 +1573,249 @@ export default function CEFRReadingAttempt() {
         </div>
       )}
 
-      {/* Body: split layout */}
-      <div className="flex flex-1 overflow-hidden relative flex-col md:flex-row">
-        {/* Left: Passage */}
-        <div className={`overflow-y-auto border-b md:border-b-0 md:border-r flex-shrink-0 pb-44 ${divider}`}
-          style={{ flexBasis: `${splitRatio}%` }}>
-          {passage?.image && (
-            <div className="px-5 pt-5">
-              <img src={passage.image} alt="Passage" className="w-full rounded-xl object-contain max-h-64 border border-gray-200" />
+      {/* Body: Parts 1-3 = single scroll, Parts 4-5 = split */}
+      {isVerticalLayout ? (
+        /* ── Single scroll: passage on top, questions below (parts 1-3) ── */
+        <div className="flex-1 overflow-y-auto pb-44">
+          {/* Passage */}
+          {passage?.content && (
+            <div className={`p-5 border-b ${divider}`}>
+              <div className="max-w-4xl mx-auto">
+                {passage?.image && (
+                  <img src={passage.image} alt="Passage" className="w-full rounded-xl object-contain max-h-64 border border-gray-200 mb-4" />
+                )}
+                <PassageContent content={passage.content} dark={D} textSizeClass={textSizeClass} evidenceItems={evidenceItems} />
+              </div>
             </div>
           )}
-          <div className={`p-5 text-lg select-text pb-48`}>
-            <PassageContent
-              content={passage?.content}
-              dark={D}
-              textSizeClass={textSizeClass}
-              evidenceItems={evidenceItems}
-            />
-          </div>
-        </div>
-
-        {/* Mobile drag handle */}
-        <div onPointerDown={e => { e.preventDefault(); dragging.current = true; e.currentTarget.setPointerCapture?.(e.pointerId) }}
-          className={`md:hidden h-3 flex-shrink-0 cursor-row-resize flex items-center justify-center ${D ? 'bg-gray-800' : 'bg-sky-50'}`}
-          style={{ touchAction: 'none' }}>
-          <ChevronUp size={12} className={D ? 'text-gray-500' : 'text-gray-400'} />
-          <ChevronDown size={12} className={D ? 'text-gray-500' : 'text-gray-400'} />
-        </div>
-
-        {/* Desktop drag handle */}
-        <div onPointerDown={e => { e.preventDefault(); dragging.current = true; e.currentTarget.setPointerCapture?.(e.pointerId) }}
-          className={`hidden md:flex w-2 flex-shrink-0 cursor-col-resize items-center justify-center ${D ? 'bg-gray-800' : 'bg-sky-50'}`}
-          style={{ touchAction: 'none' }}>
-          <div className={`w-0.5 h-16 rounded-full ${D ? 'bg-gray-600' : 'bg-sky-200'}`} />
-        </div>
-
-        {/* Right: Questions — zoom scales rem-based UI (inputs, tables) together */}
-        <div className="flex-1 overflow-y-auto min-w-0 pb-44 text-base leading-relaxed">
+          {/* Questions */}
           <div className="p-4" style={{ zoom: questionZoom }}>
-          <div className="space-y-3">
-            {groupIntoSegments(questions).map((seg, si) => {
-              if (seg.type === 'grid') {
-                // MEND/MINFO/MFEAT/MATCH → MatchGridBlock always
-                return (
+            <div className="max-w-4xl mx-auto">
+            <div className="space-y-3">
+              {groupIntoSegments(questions).map((seg, si) => {
+                if (seg.type === 'grid') return (
                   <div key={`grid-${si}`} ref={el => { seg.questions.forEach(q => { questionRefs.current[q.id] = el }) }}>
-                    <MatchGridBlock
-                      questions={seg.questions}
-                      answers={answers}
-                      onAnswer={(qId, val) => setAnswer(qId, val)}
-                      dark={D}
-                      reviewMode={reviewMode}
-                      reviewMap={reviewMap}
-                      showCorrectInReview={showCorrectInReview}
-                      bookmarkedIds={bookmarkedIds}
-                      toggleBookmark={toggleBookmark}
-                    />
+                    <MatchGridBlock questions={seg.questions} answers={answers} onAnswer={(qId, val) => setAnswer(qId, val)} dark={D} reviewMode={reviewMode} reviewMap={reviewMap} showCorrectInReview={showCorrectInReview} bookmarkedIds={bookmarkedIds} toggleBookmark={toggleBookmark} />
                   </div>
                 )
-              }
-              if (seg.type === 'inline') {
-                // NOTE/SUMM with [N] markers → InlineGapBlock
-                return (
+                if (seg.type === 'inline') return (
                   <div key={`inline-${si}`} ref={el => { seg.questions.forEach(q => { questionRefs.current[q.id] = el }) }}>
-                    <InlineGapBlock
-                      questions={seg.questions}
-                      answers={answers}
-                      onAnswer={(qId, val) => setAnswer(qId, val)}
-                      dark={D}
-                      reviewMode={reviewMode}
-                      reviewMap={reviewMap}
-                      showCorrectInReview={showCorrectInReview}
-                    />
+                    <InlineGapBlock questions={seg.questions} answers={answers} onAnswer={(qId, val) => setAnswer(qId, val)} dark={D} reviewMode={reviewMode} reviewMap={reviewMap} showCorrectInReview={showCorrectInReview} />
                   </div>
                 )
-              }
-              if (seg.type === 'table') {
-                return (
+                if (seg.type === 'table') return (
                   <div key={`seg-table-${si}`} ref={el => { seg.questions.forEach(q => { questionRefs.current[q.id] = el }) }}>
-                    <TableGapBlock
-                      questions={seg.questions}
-                      answers={answers}
-                      onAnswer={(qId, val) => setAnswer(qId, val)}
-                      dark={D}
-                      reviewMode={reviewMode}
-                      reviewMap={reviewMap}
-                      showCorrectInReview={showCorrectInReview}
-                    />
+                    <TableGapBlock questions={seg.questions} answers={answers} onAnswer={(qId, val) => setAnswer(qId, val)} dark={D} reviewMode={reviewMode} reviewMap={reviewMap} showCorrectInReview={showCorrectInReview} />
                   </div>
                 )
-              }
-              if (seg.type === 'flow') {
-                return (
+                if (seg.type === 'flow') return (
                   <div key={`seg-flow-${si}`} ref={el => { seg.questions.forEach(q => { questionRefs.current[q.id] = el }) }}>
-                    <FlowBlock
-                      questions={seg.questions}
-                      answers={answers}
-                      onAnswer={(qId, val) => setAnswer(qId, val)}
-                      dark={D}
-                      reviewMode={reviewMode}
-                      reviewMap={reviewMap}
-                      showCorrectInReview={showCorrectInReview}
-                      bookmarkedIds={bookmarkedIds}
-                      toggleBookmark={toggleBookmark}
-                    />
+                    <FlowBlock questions={seg.questions} answers={answers} onAnswer={(qId, val) => setAnswer(qId, val)} dark={D} reviewMode={reviewMode} reviewMap={reviewMap} showCorrectInReview={showCorrectInReview} bookmarkedIds={bookmarkedIds} toggleBookmark={toggleBookmark} />
                   </div>
                 )
-              }
-              // Single question card
-              const q = seg.q
-              const i = questions.indexOf(q)
-              const showGroup = q.group_instruction && (i === 0 || questions[i - 1]?.group_instruction !== q.group_instruction)
-              const showChoicesLegend = showGroup &&
-                ['MFEAT','M.FEAT','MEND','M.END','MATCH'].includes(q.question_type) &&
-                q.choices?.length > 0
-              const isBookmarked = bookmarkedIds.has(q.id)
-              const bmLoading = bookmarkLoading.has(q.id)
-              // Get word bank: from question field or from group (first question with word_bank)
-              const wb = q.word_bank?.length ? q.word_bank
-                : questions.find(x => x.group_instruction === q.group_instruction && x.word_bank?.length)?.word_bank || []
-              return (
-                <div key={q.id}>
-                  {showGroup && (
-                    <GroupInstruction text={q.group_instruction} dark={D} />
-                  )}
-                  {showChoicesLegend && (
-                    <ChoicesLegend choices={q.choices} dark={D} />
-                  )}
-                  {showGroup && q.group_list?.length > 0 && <GroupList items={q.group_list} dark={D} />}
-                  <div id={`cq-${q.id}`} ref={el => { questionRefs.current[q.id] = el }}
-                    onClick={() => setActiveQ(i)}
-                    className={`group relative p-4 rounded-2xl border cursor-pointer transition ${qCard(activeQ === i, !!answers[String(q.id)])}`}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className={`inline-flex items-center justify-center w-7 h-7 rounded-lg border text-sm font-black ${
-                        D ? 'border-gray-600 bg-gray-700 text-gray-100' : 'border-gray-300 bg-white text-gray-800'
-                      }`}>
-                        {q.number}
-                      </span>
-                      <span className={`text-xs font-medium px-1.5 py-0.5 rounded-md ${D ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-500'}`}>
-                        {q.question_type_display || q.question_type}
-                      </span>
-                      <div className="ml-auto flex items-center gap-1.5">
-                        {answers[String(q.id)] && <CheckCircle2 size={13} className="text-green-500" />}
-                        {!reviewMode && (
-                          <button onClick={e => toggleBookmark(q.id, e)} disabled={bmLoading}
-                            className={`p-1 rounded-lg transition ${bmLoading ? 'opacity-40' : ''} ${isBookmarked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                            <Bookmark size={13} className={isBookmarked ? 'fill-red-500 text-red-500' : D ? 'text-gray-500' : 'text-gray-400'} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Question image */}
-                    {q.image && (
-                      <img src={q.image} alt={`Q${q.number}`} className="w-full rounded-xl object-contain max-h-48 mb-2 border border-gray-200" />
-                    )}
-
-                    {/* Content */}
-                    {['GAP','SENT','SUMM','NOTE','TABLE','FLOW','MAP'].includes(q.question_type)
-                      ? <ContentWithBlank content={q.content} dark={D} textMain={textMain} textSizeClass={questionTextSizeClass} />
-                      : <p className={`${questionTextSizeClass} leading-snug ${textMain}`}>{q.content}</p>
-                    }
-
-                    {/* Review result + answer_review evidence */}
-                    {reviewMode && showCorrectInReview && (() => {
-                      const rr = reviewMap[String(q.id)] || reviewMap[`n-${q.number}`]
-                      if (!rr) return null
-                      return (
-                        <div className="mt-2 space-y-1.5">
-                          <div className={`text-sm rounded-lg px-3 py-2 border ${
-                            rr.is_correct ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'
-                          }`}>
-                            <span className="font-semibold">Your: </span>{String(rr.user_answer ?? '').trim() || 'N/A'}
-                            {!rr.is_correct && (
-                              <><span className="mx-2">|</span>
-                              <span className="font-semibold text-emerald-700">Correct: {rr.correct_answer}</span></>
-                            )}
-                          </div>
-                          {q.answer_review && (
-                            <div className="text-xs rounded-lg px-3 py-2 border border-yellow-200 bg-yellow-50 text-yellow-800 leading-relaxed">
-                              <span className="font-semibold block mb-0.5">Q{q.number} — Evidence:</span>
-                              {q.answer_review}
-                            </div>
-                          )}
+                const q = seg.q
+                const i = questions.indexOf(q)
+                const showGroup = q.group_instruction && (i === 0 || questions[i - 1]?.group_instruction !== q.group_instruction)
+                const showChoicesLegend = showGroup && ['MFEAT','M.FEAT','MEND','M.END','MATCH'].includes(q.question_type) && q.choices?.length > 0
+                const isBookmarked = bookmarkedIds.has(q.id)
+                const bmLoading = bookmarkLoading.has(q.id)
+                const wb = q.word_bank?.length ? q.word_bank : questions.find(x => x.group_instruction === q.group_instruction && x.word_bank?.length)?.word_bank || []
+                return (
+                  <div key={q.id}>
+                    {showGroup && <GroupInstruction text={q.group_instruction} dark={D} />}
+                    {showChoicesLegend && <ChoicesLegend choices={q.choices} dark={D} />}
+                    {showGroup && q.group_list?.length > 0 && <GroupList items={q.group_list} dark={D} />}
+                    <div id={`cq-${q.id}`} ref={el => { questionRefs.current[q.id] = el }}
+                      onClick={() => setActiveQ(i)}
+                      className={`group relative p-4 rounded-2xl border cursor-pointer transition ${qCard(activeQ === i, !!answers[String(q.id)])}`}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className={`inline-flex items-center justify-center w-7 h-7 rounded-lg border text-sm font-black ${D ? 'border-gray-600 bg-gray-700 text-gray-100' : 'border-gray-300 bg-white text-gray-800'}`}>{q.number}</span>
+                        <span className={`text-xs font-medium px-1.5 py-0.5 rounded-md ${D ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-500'}`}>{q.question_type_display || q.question_type}</span>
+                        <div className="ml-auto flex items-center gap-1.5">
+                          {answers[String(q.id)] && <CheckCircle2 size={13} className="text-green-500" />}
+                          {!reviewMode && <button onClick={e => toggleBookmark(q.id, e)} disabled={bmLoading} className={`p-1 rounded-lg transition ${bmLoading ? 'opacity-40' : ''} ${isBookmarked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}><Bookmark size={13} className={isBookmarked ? 'fill-red-500 text-red-500' : D ? 'text-gray-500' : 'text-gray-400'} /></button>}
                         </div>
-                      )
-                    })()}
-
-                    {/* TFNG */}
-                    {q.question_type === 'TFNG' && (
-                      <TFNGInput value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v)}
-                        options={['TRUE', 'FALSE', 'NOT GIVEN']} dark={D} />
-                    )}
-                    {/* YNNG */}
-                    {q.question_type === 'YNNG' && (
-                      <TFNGInput value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v)}
-                        options={['YES', 'NO', 'NOT GIVEN']} dark={D} />
-                    )}
-                    {/* MCQ */}
-                    {q.question_type === 'MCQ' && q.choices?.length > 0 && (
-                      <MCQInput value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v)} choices={q.choices} dark={D} />
-                    )}
-                    {/* Multi-select */}
-                    {q.question_type === 'MULTI' && q.choices?.length > 0 && (
-                      <MultiSelectInput value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v)}
-                        choices={q.choices} maxSelections={q.max_selections || 2} dark={D} />
-                    )}
-                    {/* SUMM: word bank + text input */}
-                    {q.question_type === 'SUMM' && wb.length > 0 && (
-                      <SummWordBankInput value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v)} wordBank={wb} dark={D} />
-                    )}
-                    {q.question_type === 'SUMM' && !wb.length && (
-                      <TextInput value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v)} placeholder="Write your answer..." dark={D} />
-                    )}
-                    {/* GAP, SENT, NOTE, FLOW, MAP, TABLE (single) */}
-                    {['GAP', 'SENT', 'NOTE', 'TABLE', 'FLOW', 'MAP'].includes(q.question_type) && (
-                      <TextInput value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v)} placeholder="Write your answer..." dark={D} />
-                    )}
-                    {/* SHORT */}
-                    {q.question_type === 'SHORT' && (
-                      <TextInput value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v)} placeholder="Short answer (max 3 words)..." dark={D} />
-                    )}
-                    {/* MATCH headings: dropdown when choices, text input otherwise */}
-                    {q.question_type === 'MATCH' && q.choices?.length > 0 && (
-                      <MFEATInput value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v)}
-                        choices={q.choices} dark={D} />
-                    )}
-                    {q.question_type === 'MATCH' && !q.choices?.length && (
-                      <TextInput value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v.toLowerCase())}
-                        placeholder="Heading number (i, ii, iii...)" dark={D} />
-                    )}
-                    {/* MINFO — letter grid */}
-                    {['MINFO', 'M.INFO'].includes(q.question_type) && (
-                      <LetterGrid
-                        value={answers[String(q.id)] || ''}
-                        onChange={v => setAnswer(q.id, v)}
-                        choices={q.choices}
-                        dark={D}
-                      />
-                    )}
-                    {/* MFEAT — dropdown per question */}
-                    {['MFEAT', 'M.FEAT'].includes(q.question_type) && (
-                      <MFEATInput value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v)}
-                        choices={q.choices?.length ? q.choices : []} dark={D} />
-                    )}
-                    {/* MEND — dropdown per question */}
-                    {['MEND', 'M.END'].includes(q.question_type) && (
-                      <MFEATInput value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v)}
-                        choices={q.choices?.length ? q.choices : []} dark={D} />
-                    )}
+                      </div>
+                      {q.image && <img src={q.image} alt={`Q${q.number}`} className="w-full rounded-xl object-contain max-h-48 mb-2 border border-gray-200" />}
+                      {['GAP','SENT','SUMM','NOTE','TABLE','FLOW','MAP'].includes(q.question_type) ? <ContentWithBlank content={q.content} dark={D} textMain={textMain} textSizeClass={questionTextSizeClass} /> : <p className={`${questionTextSizeClass} leading-snug ${textMain}`}>{q.content}</p>}
+                      {reviewMode && showCorrectInReview && (() => {
+                        const rr = reviewMap[String(q.id)] || reviewMap[`n-${q.number}`]
+                        if (!rr) return null
+                        return (<div className="mt-2 space-y-1.5"><div className={`text-sm rounded-lg px-3 py-2 border ${rr.is_correct ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`}><span className="font-semibold">Your: </span>{String(rr.user_answer ?? '').trim() || 'N/A'}{!rr.is_correct && <><span className="mx-2">|</span><span className="font-semibold text-emerald-700">Correct: {rr.correct_answer}</span></>}</div>{q.answer_review && <div className="text-xs rounded-lg px-3 py-2 border border-yellow-200 bg-yellow-50 text-yellow-800 leading-relaxed"><span className="font-semibold block mb-0.5">Q{q.number} — Evidence:</span>{q.answer_review}</div>}</div>)
+                      })()}
+                      {q.question_type === 'TFNG' && <TFNGInput value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v)} options={['TRUE', 'FALSE', 'NOT GIVEN']} dark={D} />}
+                      {q.question_type === 'YNNG' && <TFNGInput value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v)} options={['YES', 'NO', 'NOT GIVEN']} dark={D} />}
+                      {q.question_type === 'MCQ' && q.choices?.length > 0 && <MCQInput value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v)} choices={q.choices} dark={D} />}
+                      {q.question_type === 'MULTI' && q.choices?.length > 0 && <MultiSelectInput value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v)} choices={q.choices} maxSelections={q.max_selections || 2} dark={D} />}
+                      {q.question_type === 'SUMM' && wb.length > 0 && <SummWordBankInput value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v)} wordBank={wb} dark={D} />}
+                      {q.question_type === 'SUMM' && !wb.length && <TextInput value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v)} placeholder="Write your answer..." dark={D} />}
+                      {['GAP','SENT','NOTE','TABLE','FLOW','MAP'].includes(q.question_type) && <TextInput value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v)} placeholder="Write your answer..." dark={D} />}
+                      {q.question_type === 'SHORT' && <TextInput value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v)} placeholder="Short answer (max 3 words)..." dark={D} />}
+                      {q.question_type === 'MATCH' && q.choices?.length > 0 && <MFEATInput value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v)} choices={q.choices} dark={D} />}
+                      {q.question_type === 'MATCH' && !q.choices?.length && <TextInput value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v.toLowerCase())} placeholder="Heading number (i, ii, iii...)" dark={D} />}
+                      {['MINFO','M.INFO'].includes(q.question_type) && <LetterGrid value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v)} choices={q.choices} dark={D} />}
+                      {['MFEAT','M.FEAT'].includes(q.question_type) && <MFEATInput value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v)} choices={q.choices?.length ? q.choices : []} dark={D} />}
+                      {['MEND','M.END'].includes(q.question_type) && <MFEATInput value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v)} choices={q.choices?.length ? q.choices : []} dark={D} />}
+                    </div>
                   </div>
-                </div>
-              )
-            })}
-          </div>
+                )
+              })}
+            </div>
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        /* ── Split layout (parts 4-5): passage left, questions right ── */
+        <div className="flex flex-1 overflow-hidden relative flex-col md:flex-row">
+          {/* Passage panel */}
+          <div className={`overflow-y-auto border-b md:border-b-0 md:border-r flex-shrink-0 pb-44 ${divider}`}
+            style={{ flexBasis: `${splitRatio}%` }}>
+            {passage?.image && (
+              <div className="px-5 pt-5">
+                <img src={passage.image} alt="Passage" className="w-full rounded-xl object-contain max-h-64 border border-gray-200" />
+              </div>
+            )}
+            <div className="p-5 text-lg select-text pb-48">
+              <div className="max-w-2xl mx-auto">
+                <PassageContent content={passage?.content} dark={D} textSizeClass={textSizeClass} evidenceItems={evidenceItems} />
+              </div>
+            </div>
+          </div>
+          {/* Mobile drag */}
+          <div onPointerDown={e => { e.preventDefault(); dragging.current = true; e.currentTarget.setPointerCapture?.(e.pointerId) }}
+            className={`md:hidden h-3 flex-shrink-0 cursor-row-resize flex items-center justify-center ${D ? 'bg-gray-800' : 'bg-sky-50'}`}
+            style={{ touchAction: 'none' }}>
+            <ChevronUp size={12} className={D ? 'text-gray-500' : 'text-gray-400'} />
+            <ChevronDown size={12} className={D ? 'text-gray-500' : 'text-gray-400'} />
+          </div>
+          {/* Desktop drag */}
+          <div onPointerDown={e => { e.preventDefault(); dragging.current = true; e.currentTarget.setPointerCapture?.(e.pointerId) }}
+            className={`hidden md:flex w-2 flex-shrink-0 cursor-col-resize items-center justify-center ${D ? 'bg-gray-800' : 'bg-sky-50'}`}
+            style={{ touchAction: 'none' }}>
+            <div className={`w-0.5 h-16 rounded-full ${D ? 'bg-gray-600' : 'bg-sky-200'}`} />
+          </div>
+          {/* Questions panel */}
+          <div className="flex-1 overflow-y-auto min-w-0 pb-44 text-base leading-relaxed">
+            <div className="p-4" style={{ zoom: questionZoom }}>
+            <div className="max-w-2xl mx-auto">
+            <div className="space-y-3">
+              {groupIntoSegments(questions).map((seg, si) => {
+                if (seg.type === 'grid') return (
+                  <div key={`grid-${si}`} ref={el => { seg.questions.forEach(q => { questionRefs.current[q.id] = el }) }}>
+                    <MatchGridBlock questions={seg.questions} answers={answers} onAnswer={(qId, val) => setAnswer(qId, val)} dark={D} reviewMode={reviewMode} reviewMap={reviewMap} showCorrectInReview={showCorrectInReview} bookmarkedIds={bookmarkedIds} toggleBookmark={toggleBookmark} />
+                  </div>
+                )
+                if (seg.type === 'inline') return (
+                  <div key={`inline-${si}`} ref={el => { seg.questions.forEach(q => { questionRefs.current[q.id] = el }) }}>
+                    <InlineGapBlock questions={seg.questions} answers={answers} onAnswer={(qId, val) => setAnswer(qId, val)} dark={D} reviewMode={reviewMode} reviewMap={reviewMap} showCorrectInReview={showCorrectInReview} />
+                  </div>
+                )
+                if (seg.type === 'table') return (
+                  <div key={`seg-table-${si}`} ref={el => { seg.questions.forEach(q => { questionRefs.current[q.id] = el }) }}>
+                    <TableGapBlock questions={seg.questions} answers={answers} onAnswer={(qId, val) => setAnswer(qId, val)} dark={D} reviewMode={reviewMode} reviewMap={reviewMap} showCorrectInReview={showCorrectInReview} />
+                  </div>
+                )
+                if (seg.type === 'flow') return (
+                  <div key={`seg-flow-${si}`} ref={el => { seg.questions.forEach(q => { questionRefs.current[q.id] = el }) }}>
+                    <FlowBlock questions={seg.questions} answers={answers} onAnswer={(qId, val) => setAnswer(qId, val)} dark={D} reviewMode={reviewMode} reviewMap={reviewMap} showCorrectInReview={showCorrectInReview} bookmarkedIds={bookmarkedIds} toggleBookmark={toggleBookmark} />
+                  </div>
+                )
+                const q = seg.q
+                const i = questions.indexOf(q)
+                const showGroup = q.group_instruction && (i === 0 || questions[i - 1]?.group_instruction !== q.group_instruction)
+                const showChoicesLegend = showGroup && ['MFEAT','M.FEAT','MEND','M.END','MATCH'].includes(q.question_type) && q.choices?.length > 0
+                const isBookmarked = bookmarkedIds.has(q.id)
+                const bmLoading = bookmarkLoading.has(q.id)
+                const wb = q.word_bank?.length ? q.word_bank : questions.find(x => x.group_instruction === q.group_instruction && x.word_bank?.length)?.word_bank || []
+                return (
+                  <div key={q.id}>
+                    {showGroup && <GroupInstruction text={q.group_instruction} dark={D} />}
+                    {showChoicesLegend && <ChoicesLegend choices={q.choices} dark={D} />}
+                    {showGroup && q.group_list?.length > 0 && <GroupList items={q.group_list} dark={D} />}
+                    <div id={`cq-${q.id}`} ref={el => { questionRefs.current[q.id] = el }}
+                      onClick={() => setActiveQ(i)}
+                      className={`group relative p-4 rounded-2xl border cursor-pointer transition ${qCard(activeQ === i, !!answers[String(q.id)])}`}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className={`inline-flex items-center justify-center w-7 h-7 rounded-lg border text-sm font-black ${D ? 'border-gray-600 bg-gray-700 text-gray-100' : 'border-gray-300 bg-white text-gray-800'}`}>{q.number}</span>
+                        <span className={`text-xs font-medium px-1.5 py-0.5 rounded-md ${D ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-500'}`}>{q.question_type_display || q.question_type}</span>
+                        <div className="ml-auto flex items-center gap-1.5">
+                          {answers[String(q.id)] && <CheckCircle2 size={13} className="text-green-500" />}
+                          {!reviewMode && <button onClick={e => toggleBookmark(q.id, e)} disabled={bmLoading} className={`p-1 rounded-lg transition ${bmLoading ? 'opacity-40' : ''} ${isBookmarked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}><Bookmark size={13} className={isBookmarked ? 'fill-red-500 text-red-500' : D ? 'text-gray-500' : 'text-gray-400'} /></button>}
+                        </div>
+                      </div>
+                      {q.image && <img src={q.image} alt={`Q${q.number}`} className="w-full rounded-xl object-contain max-h-48 mb-2 border border-gray-200" />}
+                      {['GAP','SENT','SUMM','NOTE','TABLE','FLOW','MAP'].includes(q.question_type) ? <ContentWithBlank content={q.content} dark={D} textMain={textMain} textSizeClass={questionTextSizeClass} /> : <p className={`${questionTextSizeClass} leading-snug ${textMain}`}>{q.content}</p>}
+                      {reviewMode && showCorrectInReview && (() => {
+                        const rr = reviewMap[String(q.id)] || reviewMap[`n-${q.number}`]
+                        if (!rr) return null
+                        return (<div className="mt-2 space-y-1.5"><div className={`text-sm rounded-lg px-3 py-2 border ${rr.is_correct ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`}><span className="font-semibold">Your: </span>{String(rr.user_answer ?? '').trim() || 'N/A'}{!rr.is_correct && <><span className="mx-2">|</span><span className="font-semibold text-emerald-700">Correct: {rr.correct_answer}</span></>}</div>{q.answer_review && <div className="text-xs rounded-lg px-3 py-2 border border-yellow-200 bg-yellow-50 text-yellow-800 leading-relaxed"><span className="font-semibold block mb-0.5">Q{q.number} — Evidence:</span>{q.answer_review}</div>}</div>)
+                      })()}
+                      {q.question_type === 'TFNG' && <TFNGInput value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v)} options={['TRUE', 'FALSE', 'NOT GIVEN']} dark={D} />}
+                      {q.question_type === 'YNNG' && <TFNGInput value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v)} options={['YES', 'NO', 'NOT GIVEN']} dark={D} />}
+                      {q.question_type === 'MCQ' && q.choices?.length > 0 && <MCQInput value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v)} choices={q.choices} dark={D} />}
+                      {q.question_type === 'MULTI' && q.choices?.length > 0 && <MultiSelectInput value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v)} choices={q.choices} maxSelections={q.max_selections || 2} dark={D} />}
+                      {q.question_type === 'SUMM' && wb.length > 0 && <SummWordBankInput value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v)} wordBank={wb} dark={D} />}
+                      {q.question_type === 'SUMM' && !wb.length && <TextInput value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v)} placeholder="Write your answer..." dark={D} />}
+                      {['GAP','SENT','NOTE','TABLE','FLOW','MAP'].includes(q.question_type) && <TextInput value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v)} placeholder="Write your answer..." dark={D} />}
+                      {q.question_type === 'SHORT' && <TextInput value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v)} placeholder="Short answer (max 3 words)..." dark={D} />}
+                      {q.question_type === 'MATCH' && q.choices?.length > 0 && <MFEATInput value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v)} choices={q.choices} dark={D} />}
+                      {q.question_type === 'MATCH' && !q.choices?.length && <TextInput value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v.toLowerCase())} placeholder="Heading number (i, ii, iii...)" dark={D} />}
+                      {['MINFO','M.INFO'].includes(q.question_type) && <LetterGrid value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v)} choices={q.choices} dark={D} />}
+                      {['MFEAT','M.FEAT'].includes(q.question_type) && <MFEATInput value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v)} choices={q.choices?.length ? q.choices : []} dark={D} />}
+                      {['MEND','M.END'].includes(q.question_type) && <MFEATInput value={answers[String(q.id)] || ''} onChange={v => setAnswer(q.id, v)} choices={q.choices?.length ? q.choices : []} dark={D} />}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bottom nav */}
       <div className={`fixed bottom-2 md:bottom-3 left-2 right-2 md:left-4 md:right-4 z-30 rounded-2xl border ${divider} ${D ? 'bg-gray-900/95' : 'bg-white/95'} backdrop-blur shadow-lg`}>
+        {/* Part tabs row – only when multiple parts loaded */}
+        {passageIds.length > 1 && (
+          <div className={`flex items-center gap-1 px-3 pt-2 pb-1 border-b ${divider} overflow-x-auto [&::-webkit-scrollbar]:hidden`} style={{ scrollbarWidth: 'none' }}>
+            {passageIds.map((pid, idx) => {
+              const pData = allPassagesData[idx]
+              // count how many questions in this part are answered
+              const pQs = pData?.questions || []
+              const pAnswered = pQs.filter(q => answers[String(q.id)]).length
+              const isActive = idx === activePart
+              return (
+                <button
+                  key={pid}
+                  type="button"
+                  onClick={() => setActivePart(idx)}
+                  className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition border-2 ${
+                    isActive
+                      ? 'border-sky-500 bg-sky-500 text-white'
+                      : pAnswered === pQs.length && pQs.length > 0
+                        ? D ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400' : 'border-emerald-500 bg-emerald-50 text-emerald-600'
+                        : D ? 'border-gray-700 bg-gray-800 text-gray-400' : 'border-gray-200 bg-white text-gray-500'
+                  }`}
+                >
+                  <span>P{idx + 1}</span>
+                  {pQs.length > 0 && (
+                    <span className={`text-[10px] font-medium ${isActive ? 'text-sky-100' : pAnswered === pQs.length ? 'text-emerald-400' : D ? 'text-gray-500' : 'text-gray-400'}`}>
+                      {pAnswered}/{pQs.length}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        )}
         <div className="flex items-center gap-2 px-3 py-2 max-w-screen-xl mx-auto">
           <div className="flex-1 overflow-x-auto [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
             <div className="flex items-center gap-2 min-w-max">
               <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 border-sky-500 ${D ? 'bg-gray-800' : 'bg-white'}`}>
-                <span className="text-xs font-black text-sky-500 mr-0.5 whitespace-nowrap">Part 1</span>
+                <span className="text-xs font-black text-sky-500 mr-0.5 whitespace-nowrap">
+                  {passageIds.length > 1 ? `P${activePart + 1}` : 'Part 1'}
+                </span>
                 {questions.map((q, i) => (
                   <button key={q.id} onClick={() => goToQ(i)}
                     className={`w-7 h-7 rounded-full text-[11px] font-bold transition flex items-center justify-center flex-shrink-0 ${
@@ -1886,9 +1908,9 @@ export default function CEFRReadingAttempt() {
               </div>
               <h3 className="font-bold text-center text-lg mb-1">Submit test?</h3>
               <p className={`text-sm text-center mb-4 ${D ? 'text-gray-400' : 'text-gray-500'}`}>
-                {answeredCount} of {questions.length} answered
-                {questions.length - answeredCount > 0 && (
-                  <span className="text-red-500"> ({questions.length - answeredCount} unanswered)</span>
+                {answeredCount} of {totalQuestionsAll} answered
+                {totalQuestionsAll - answeredCount > 0 && (
+                  <span className="text-red-500"> ({totalQuestionsAll - answeredCount} unanswered)</span>
                 )}
               </p>
               <div className="flex gap-3">
@@ -1916,7 +1938,7 @@ export default function CEFRReadingAttempt() {
               </div>
               <h3 className="font-bold text-center text-lg mb-1">Chiqish yoki topshirish?</h3>
               <p className={`text-sm text-center mb-4 ${D ? 'text-gray-400' : 'text-gray-500'}`}>
-                {answeredCount} / {questions.length} javob
+                {answeredCount} / {totalQuestionsAll} javob
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <button

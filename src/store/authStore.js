@@ -75,6 +75,25 @@ export const useAuthStore = create(
           set({ user: null })
         }
       },
+
+      updateProfile: async (payload) => {
+        try {
+          const { data } = await api.patch('/auth/profile/', payload)
+          set({ user: data })
+          return { success: true }
+        } catch (err) {
+          return { success: false, error: err.response?.data?.detail || 'Update failed' }
+        }
+      },
+
+      changePassword: async (oldPassword, newPassword) => {
+        try {
+          await api.post('/auth/change-password/', { old_password: oldPassword, new_password: newPassword })
+          return { success: true }
+        } catch (err) {
+          return { success: false, error: err.response?.data?.detail || 'Failed to change password' }
+        }
+      },
     }),
     { name: 'auth-store', partialize: (s) => ({ user: s.user }) }
   )

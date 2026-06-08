@@ -32,7 +32,7 @@ export default function RegisterPage() {
           required
           value={form[name]}
           onChange={(e) => setForm({ ...form, [name]: e.target.value })}
-          className="w-full px-4 py-3 rounded-xl border border-sky-100 bg-sky-50/30 focus:outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 transition-all text-sm pr-11"
+          className="w-full px-4 py-3 rounded-xl border border-sky-100 bg-sky-50/30 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 transition-all text-sm pr-11"
           placeholder={placeholder}
         />
         {type === 'password' && (
@@ -66,7 +66,7 @@ export default function RegisterPage() {
             <Link to="/" className="inline-flex items-center mb-6">
               <Logo className="h-10 w-auto" />
             </Link>
-            <h1 className="text-2xl font-black">Create account</h1>
+            <h1 className="text-2xl font-black text-gray-900">Create account</h1>
             <p className="text-gray-500 text-sm mt-1">Start your exam journey today</p>
           </div>
 
