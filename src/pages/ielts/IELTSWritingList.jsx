@@ -14,6 +14,7 @@ import {
   FileText,
   CheckCircle2,
   Lock,
+  RotateCcw,
 } from 'lucide-react'
 import api from '../../api/client'
 import { useAuthStore } from '../../store/authStore'
@@ -153,85 +154,67 @@ export default function IELTSWritingList() {
           <p className="font-medium">No tasks match your filters</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {tasks.map((task, i) => {
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          {tasks.map((task) => {
             const locked = task.is_premium && !user?.is_premium
             const isStarting = starting === task.id
-            const isCompleted = Boolean(task.attempted)
+            const attemptsCount = task.attempts_count ?? 0
+            const isCompleted = !locked && Boolean(task.attempted || attemptsCount > 0)
             return (
-              <motion.article
+              <div
                 key={task.id}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.04 }}
-                className={`relative flex flex-col rounded-2xl border bg-white p-5 shadow-sm hover:shadow-md transition-shadow ${
-                  locked ? 'border-gray-200' : 'border-gray-200'
-                }`}
+                className="rounded-xl border border-gray-200 bg-white px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
               >
-                {(isCompleted || task.is_premium) && (
-                  <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-1.5">
-                    {isCompleted && (
-                      <span className="inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold border border-emerald-200 shadow-sm">
-                        <CheckCircle2 size={12} className="text-emerald-600 shrink-0" strokeWidth={2.25} />
-                        Completed
-                      </span>
-                    )}
-                    {task.is_premium && (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full bg-slate-50 text-slate-700 border border-slate-200">
-                        <Star size={10} className="fill-slate-500 text-slate-500" />
-                        Premium
-                      </span>
-                    )}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {locked && <Lock size={14} className="text-amber-500 flex-shrink-0" />}
+                    <h4 className={`font-bold ${locked ? 'text-gray-500' : 'text-gray-900'}`}>{task.title}</h4>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+                      task.is_premium ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'
+                    }`}>
+                      {task.is_premium ? 'Premium' : 'Free'}
+                    </span>
                   </div>
-                )}
-
-                <div className="inline-flex items-center gap-1.5 w-fit px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold mb-3">
-                  <Leaf size={14} className="text-emerald-600" />
-                  Task {task.task_type}
+                  <p className="text-sm text-gray-500 mt-1">Task {task.task_type} · Writing</p>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-500 mt-2">
+                    <DifficultyBadge difficulty={task.difficulty} />
+                    <span className="inline-flex items-center gap-1 whitespace-nowrap"><Clock size={14} /> {task.time_limit ?? 40} min</span>
+                    <span className="inline-flex items-center gap-1 whitespace-nowrap"><FileText size={14} /> Min {task.min_words ?? 150} words</span>
+                    <span className={`inline-flex items-center gap-1 whitespace-nowrap font-semibold ${attemptsCount > 0 ? 'text-gray-700' : 'text-gray-300'}`}>
+                      <RotateCcw size={12} /> {attemptsCount} attempt{attemptsCount !== 1 ? 's' : ''}
+                    </span>
+                  </div>
                 </div>
 
-                <h3 className="font-bold text-gray-900 text-base leading-snug pr-16 min-h-[3rem]">{task.title}</h3>
-                <p className="text-sm text-gray-500 mt-2 line-clamp-2 flex-1">Complete the writing task as described.</p>
-
-                <div className="flex flex-wrap items-center gap-3 mt-4 text-xs text-gray-500">
-                  <DifficultyBadge difficulty={task.difficulty} />
-                  <span className="inline-flex items-center gap-1">
-                    <Clock size={12} className="text-gray-400" />
-                    {task.time_limit ?? 40} min
-                  </span>
-                  <span className="inline-flex items-center gap-1">
-                    <FileText size={12} className="text-gray-400" />
-                    Min {task.min_words ?? 150} words
-                  </span>
-                </div>
-
-                {locked ? (
-                  <div className="mt-5 flex justify-center">
+                <div className="flex flex-col gap-0 w-full sm:w-auto sm:items-end shrink-0">
+                  {isCompleted && (
+                    <span className="inline-flex items-center gap-1 -translate-y-1.5 mb-2 text-[11px] font-semibold text-emerald-700 leading-none">
+                      <CheckCircle2 size={14} className="text-emerald-600 shrink-0" strokeWidth={2.25} />
+                      Completed
+                    </span>
+                  )}
+                  {locked ? (
                     <button
                       type="button"
                       onClick={() => navigate('/app/subscription')}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-sky-50 border border-sky-200 text-sky-600 text-xs font-semibold transition-colors hover:bg-sky-100 hover:border-sky-300"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-sky-50 border border-sky-200 text-sky-600 text-xs font-semibold whitespace-nowrap transition-colors hover:bg-sky-100 hover:border-sky-300"
                     >
                       <Lock size={10} /> Premium
                     </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => handleStart(task)}
-                    disabled={isStarting}
-                    className="mt-5 w-full py-3 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 gradient-primary text-white shadow-glow hover:opacity-95 disabled:opacity-60"
-                  >
-                    {isStarting ? (
-                      <Loader2 size={16} className="animate-spin" />
-                    ) : isCompleted ? (
-                      'Restart Test'
-                    ) : (
-                      'Start Test'
-                    )}
-                  </button>
-                )}
-              </motion.article>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleStart(task)}
+                      disabled={isStarting}
+                      className="w-full sm:w-auto px-5 h-10 rounded-lg text-sm font-bold transition disabled:opacity-60 bg-sky-500 hover:bg-sky-600 text-white"
+                    >
+                      {isStarting
+                        ? <Loader2 size={15} className="animate-spin mx-auto" />
+                        : isCompleted ? 'Re-do test' : 'Start test'}
+                    </button>
+                  )}
+                </div>
+              </div>
             )
           })}
         </div>

@@ -14,7 +14,7 @@ import { sanitizeHtml } from '../../utils/sanitizeHtml';
 function LatexText({ text }) {
   if (!text) return null
   const parts = []
-  const re = /(\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\)|\$\$[\s\S]*?\$\$|\$[^$\n]*?\$)/g
+  const re = /(\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\)|\$\$[\s\S]*?\$\$|\$[^$\n]*?\$|\\[a-zA-Z]+(?:\s*\{[^{}]*\}|\s*\^\{[^{}]*\}|\s*\^[^\s{}]+|\s*_\{[^{}]*\}|\s*_[^\s{}]+|\s+[A-Za-z]\b)*)/g
   let lastIndex = 0, i = 0, match
   while ((match = re.exec(text)) !== null) {
     if (match.index > lastIndex)
@@ -24,9 +24,12 @@ function LatexText({ text }) {
       if (raw.startsWith('\\[') || raw.startsWith('$$')) {
         const inner = raw.startsWith('\\[') ? raw.slice(2, -2) : raw.slice(2, -2)
         parts.push(<BlockMath key={i++} math={inner.trim()} />)
-      } else {
+      } else if (raw.startsWith('\\(') || raw.startsWith('$')) {
         const inner = raw.startsWith('\\(') ? raw.slice(2, -2) : raw.slice(1, -1)
         parts.push(<InlineMath key={i++} math={inner.trim()} />)
+      } else {
+        // chegarasiz (delimiter'siz) LaTeX — "\cos B", "\frac{1}{24}"
+        parts.push(<InlineMath key={i++} math={raw.trim()} />)
       }
     } catch { parts.push(<span key={i++}>{raw}</span>) }
     lastIndex = match.index + raw.length

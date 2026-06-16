@@ -31,6 +31,14 @@ function renderMath(html) {
     try { return katex.renderToString(math.trim(), { throwOnError: false }) }
     catch { return _ }
   })
+  // Fallback: chegarasiz (delimiter'siz) LaTeX — "\cos B = \frac{1}{24}"
+  out = out.replace(
+    /\\[a-zA-Z]+(?:\s*\{[^{}]*\}|\s*\^\{[^{}]*\}|\s*\^[^\s{}]+|\s*_\{[^{}]*\}|\s*_[^\s{}]+|\s+[A-Za-z]\b)*/g,
+    (m) => {
+      try { return katex.renderToString(m.trim(), { throwOnError: false }) }
+      catch { return m }
+    }
+  )
   return out
 }
 

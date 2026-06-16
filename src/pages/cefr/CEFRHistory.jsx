@@ -172,10 +172,6 @@ export default function CEFRHistory() {
         </div>
       ) : (
         <>
-          {filtered.length > PAGE_SIZE && (
-            <Pagination page={page} totalPages={totalPages} onChange={p => { setPage(p); window.scrollTo(0, 0) }} />
-          )}
-
           <p className="text-xs text-gray-400">{filtered.length} attempt{filtered.length !== 1 ? 's' : ''}</p>
 
           {pageItems.length === 0 ? (

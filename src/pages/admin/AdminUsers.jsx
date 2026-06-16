@@ -95,23 +95,32 @@ function PremiumModal({ user, onClose, onGrant }) {
             Choose duration. Timer starts from <strong>today</strong> (or extends existing expiry).
           </p>
 
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <button
-              onClick={() => onGrant(30)}
-              className="flex flex-col items-center gap-1 p-4 rounded-xl border-2 border-amber-200 bg-amber-50 hover:border-amber-400 hover:bg-amber-100 transition group"
-            >
-              <span className="text-2xl font-black text-amber-600 group-hover:scale-110 transition-transform">30</span>
-              <span className="text-xs font-bold text-amber-500">days · 1 month</span>
-            </button>
-            <button
-              onClick={() => onGrant(90)}
-              className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-sky-200 bg-sky-50 hover:border-sky-400 hover:bg-sky-100 transition group relative"
-            >
-              <span className="absolute -top-2.5 right-2 text-[9px] bg-emerald-500 text-white font-black px-2 py-0.5 rounded-full">−30%</span>
-              <span className="text-2xl font-black text-sky-600 group-hover:scale-110 transition-transform">90</span>
-              <span className="text-xs font-bold text-sky-500">days · 3 months</span>
-            </button>
+          <div className="grid grid-cols-2 gap-2.5 mb-3">
+            {[
+              { days: 30, label: '1 month' },
+              { days: 90, label: '3 months' },
+              { days: 180, label: '6 months' },
+              { days: 365, label: '12 months' },
+            ].map(({ days, label }) => (
+              <button
+                key={days}
+                onClick={() => onGrant({ days })}
+                className="flex flex-col items-center gap-0.5 p-3.5 rounded-xl border-2 border-amber-200 bg-amber-50 hover:border-amber-400 hover:bg-amber-100 transition group"
+              >
+                <span className="text-2xl font-black text-amber-600 group-hover:scale-110 transition-transform">{days}</span>
+                <span className="text-xs font-bold text-amber-500">days · {label}</span>
+              </button>
+            ))}
           </div>
+
+          <button
+            onClick={() => onGrant({ forever: true })}
+            className="w-full flex items-center justify-center gap-2 p-3.5 mb-3 rounded-xl border-2 border-emerald-300 bg-emerald-50 hover:border-emerald-500 hover:bg-emerald-100 transition group"
+          >
+            <Crown size={18} className="text-emerald-600" />
+            <span className="text-base font-black text-emerald-700">Forever</span>
+            <span className="text-xs font-semibold text-emerald-500">· never expires</span>
+          </button>
 
           <button
             onClick={onClose}
@@ -184,8 +193,9 @@ function UserDetailDrawer({ userId, onClose, onDeleted }) {
     }
   }
 
-  const handleGrant = (days) => {
-    premiumMutation.mutate({ action: 'grant', days })
+  const handleGrant = ({ days, forever }) => {
+    premiumMutation.mutate({ action: 'grant', ...(forever ? { forever: true } : { days }) })
+    setShowPremiumModal(false)
   }
 
   const fullName = user?.full_name || user?.email || '—'
@@ -330,30 +340,49 @@ function UserDetailDrawer({ userId, onClose, onDeleted }) {
 
             {/* Actions */}
             <div className="px-5 py-4 space-y-2">
-              {/* Premium expiry info */}
-              {user.is_premium && user.premium_until && (
+              {/* Premium status info */}
+              {user.is_premium && (
                 <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-2.5 flex items-center gap-2 mb-1">
-                  <Crown size={13} className="text-amber-500 flex-shrink-0" />
-                  <div>
-                    <p className="text-[11px] text-amber-600 font-semibold">Premium active</p>
+                  <Crown size={14} className="text-amber-500 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-[11px] text-amber-700 font-bold flex items-center gap-1.5">
+                      Premium active
+                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${user.premium_source === 'stripe' ? 'bg-violet-100 text-violet-600' : 'bg-emerald-100 text-emerald-700'}`}>
+                        {user.premium_source === 'stripe' ? 'Purchased' : 'Manual'}
+                      </span>
+                    </p>
                     <p className="text-[11px] text-amber-500">
-                      Expires: <strong>{formatDate(user.premium_until)}</strong>
+                      {user.premium_forever || !user.premium_until
+                        ? 'Never expires (Forever)'
+                        : <>Expires: <strong>{formatDate(user.premium_until)}</strong></>}
                     </p>
                   </div>
                 </div>
               )}
 
-              {/* Premium info (read-only — managed via Stripe) */}
-              {user.is_premium && user.premium_until && (
-                <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-2.5 flex items-center gap-2">
-                  <Crown size={13} className="text-amber-500 flex-shrink-0" />
-                  <div>
-                    <p className="text-[11px] text-amber-600 font-semibold">Premium active (via Stripe)</p>
-                    <p className="text-[11px] text-amber-500">
-                      Expires: <strong>{formatDate(user.premium_until)}</strong>
-                    </p>
-                  </div>
+              {/* Make Premium / Revoke Premium (manual) */}
+              {user.is_premium && user.premium_source === 'stripe' ? (
+                <div className="bg-violet-50 border border-violet-100 rounded-xl px-4 py-2.5 text-[11px] text-violet-600">
+                  This premium was purchased via Stripe — manage it through the payment system.
                 </div>
+              ) : user.is_premium ? (
+                <button
+                  onClick={() => premiumMutation.mutate({ action: 'revoke' })}
+                  disabled={premiumMutation.isPending}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold border transition bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 disabled:opacity-60"
+                >
+                  {premiumMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Crown size={14} />}
+                  Revoke Premium
+                </button>
+              ) : (
+                <button
+                  onClick={() => setShowPremiumModal(true)}
+                  disabled={premiumMutation.isPending}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold border transition bg-gradient-to-r from-amber-50 to-yellow-50 text-amber-700 border-amber-200 hover:from-amber-100 hover:to-yellow-100 disabled:opacity-60"
+                >
+                  {premiumMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Crown size={14} />}
+                  Make Premium
+                </button>
               )}
 
               {/* Make Admin / Revoke Admin */}
@@ -871,6 +900,7 @@ export default function AdminUsers() {
   const allUsers = Array.isArray(data) ? data : (data?.results ?? [])
   const totalCount = data?.count ?? allUsers.length
   const premiumCount = allUsers.filter(u => u.is_premium).length
+  const manualCount = allUsers.filter(u => u.is_premium && u.premium_source === 'manual').length
   const freeCount = allUsers.length - premiumCount
   const newToday = allUsers.filter(u => {
     if (!u.date_joined) return false
@@ -882,6 +912,7 @@ export default function AdminUsers() {
   // Apply plan filter
   const filteredUsers = planFilter === 'ALL' ? allUsers
     : planFilter === 'premium' ? allUsers.filter(u => u.is_premium)
+    : planFilter === 'manual' ? allUsers.filter(u => u.is_premium && u.premium_source === 'manual')
     : allUsers.filter(u => !u.is_premium)
 
   const visibleUsers = filteredUsers.slice(0, visibleCount)
@@ -969,6 +1000,7 @@ export default function AdminUsers() {
           {[
             { id: 'ALL', label: `All (${allUsers.length})` },
             { id: 'premium', label: `Premium (${premiumCount})` },
+            { id: 'manual', label: `Manual (${manualCount})` },
             { id: 'free', label: `Free (${freeCount})` },
           ].map(f => (
             <button key={f.id} onClick={() => { setPlanFilter(f.id); setVisibleCount(PAGE_SIZE) }}

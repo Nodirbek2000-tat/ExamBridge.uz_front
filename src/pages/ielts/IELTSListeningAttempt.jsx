@@ -4,12 +4,13 @@ import { useQuery, useQueries } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ChevronLeft, ChevronRight, Send, CheckCircle2, Bookmark,
-  RotateCcw, Headphones, Pause, Play, Volume2, VolumeX,
-  Maximize2, Minimize2, Sun, Moon, AlertTriangle, Menu, ChevronDown,
+  RotateCcw, RotateCw, Headphones, Pause, Play, Volume2, VolumeX,
+  Maximize2, Minimize2, Sun, Moon, AlertTriangle, Menu, ChevronDown, ChevronUp,
   SkipBack, SkipForward, Bell, SquarePen, Lock, ArrowDown,
 } from 'lucide-react'
 import api from '../../api/client'
 import { useAuthStore } from '../../store/authStore'
+import { loadExam, saveExam, clearExam } from '../../utils/examPersist'
 
 function Skeleton({ className = '' }) {
   return <div className={`animate-pulse rounded-lg bg-gray-200/70 ${className}`} />
@@ -79,21 +80,37 @@ function useTimer(initialSeconds, storageKey, frozen = false) {
   }
 }
 
-/** Test rejimida: yashirin audio, foydalanuvchi to'xtata olmaydi */
-function HiddenExamAudio({ src, active, onEnded }) {
+/** Test rejimida: yashirin audio. Refresh'da saqlangan joydan davom etadi (seekTo). */
+function HiddenExamAudio({ src, active, onEnded, seekTo = 0, onProgress }) {
   const ref = useRef(null)
   const onEndedRef = useRef(onEnded)
+  const onProgressRef = useRef(onProgress)
+  const firstSeekDoneRef = useRef(false)   // seek only the restored part, once
   useEffect(() => { onEndedRef.current = onEnded })
+  useEffect(() => { onProgressRef.current = onProgress })
 
-  // Load and play when src or active changes
+  // Play when active (resume from seekTo on first load); stop when inactive/unmounted
   useEffect(() => {
     const el = ref.current
-    if (!el || !active || !src) return
-    el.load()
-    el.play().catch(() => {})
-  }, [active, src])
+    if (!el) return
+    if (active && src) {
+      el.load()
+      const startPlayback = () => {
+        if (!firstSeekDoneRef.current && seekTo > 0) {
+          try { el.currentTime = seekTo } catch { /* */ }
+        }
+        firstSeekDoneRef.current = true
+        el.play().catch(() => {})
+      }
+      if (el.readyState >= 1) startPlayback()
+      else el.addEventListener('loadedmetadata', startPlayback, { once: true })
+    } else {
+      try { el.pause() } catch { /* */ }
+    }
+    return () => { try { el.pause() } catch { /* */ } }
+  }, [active, src, seekTo])
 
-  // Force-resume if paused (user cannot pause exam audio)
+  // Force-resume if paused — only while active (so it stops on exit)
   useEffect(() => {
     const el = ref.current
     if (!el || !active) return
@@ -105,13 +122,18 @@ function HiddenExamAudio({ src, active, onEnded }) {
     return () => el.removeEventListener('pause', onPause)
   }, [active, src])
 
-  // Fire onEnded via ref so it always has latest closure
+  // onEnded + report progress (for refresh-resume) via refs
   useEffect(() => {
     const el = ref.current
     if (!el) return
     const onEnd = () => onEndedRef.current?.()
+    const onTime = () => onProgressRef.current?.(el.currentTime)
     el.addEventListener('ended', onEnd)
-    return () => el.removeEventListener('ended', onEnd)
+    el.addEventListener('timeupdate', onTime)
+    return () => {
+      el.removeEventListener('ended', onEnd)
+      el.removeEventListener('timeupdate', onTime)
+    }
   }, [])
 
   if (!src) return null
@@ -166,7 +188,7 @@ function ReviewAudioPlayer({ audioUrl, dark }) {
 
   const skip = (sec) => {
     if (!audioRef.current) return
-    audioRef.current.currentTime = Math.max(0, Math.min(duration, currentTime + sec))
+    audioRef.current.currentTime = Math.max(0, Math.min(duration || currentTime + sec, currentTime + sec))
   }
 
   const toggleMute = () => {
@@ -176,68 +198,53 @@ function ReviewAudioPlayer({ audioUrl, dark }) {
   }
 
   const D = dark
-  const surface = D ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'
+  const surface = D ? 'bg-gray-800/90 border-gray-700' : 'bg-white border-sky-200'
 
   if (!audioUrl) {
     return (
-      <div className={`rounded-xl border px-4 py-3 text-center text-sm ${surface} ${D ? 'text-gray-400' : 'text-gray-500'}`}>
+      <div className={`rounded-full border px-4 py-2 text-center text-xs max-w-md mx-auto ${surface} ${D ? 'text-gray-400' : 'text-gray-400'}`}>
         Audio fayl mavjud emas
       </div>
     )
   }
 
+  const SkipBtn = ({ dir }) => (
+    <button
+      type="button"
+      onClick={() => skip(dir * 5)}
+      title={dir < 0 ? '5 soniya orqaga' : '5 soniya oldinga'}
+      className={`relative w-8 h-8 rounded-full flex items-center justify-center transition ${D ? 'text-gray-300 hover:bg-gray-700' : 'text-sky-700 hover:bg-sky-50'}`}
+    >
+      {dir < 0 ? <RotateCcw size={18} /> : <RotateCw size={18} />}
+      <span className="absolute inset-0 flex items-center justify-center text-[8px] font-black mt-[1px]">5</span>
+    </button>
+  )
+
   return (
-    <div className={`rounded-2xl border p-4 ${surface}`}>
+    <div className={`flex items-center gap-2.5 sm:gap-3 rounded-full border shadow-sm px-3 py-1.5 max-w-2xl mx-auto ${surface}`}>
       <audio ref={audioRef} src={audioUrl} preload="metadata" />
-      <div className={`h-2 rounded-full cursor-pointer mb-3 ${D ? 'bg-gray-600' : 'bg-gray-200'}`} onClick={seek}>
-        <div className="h-full bg-gradient-to-r from-sky-500 to-blue-600 rounded-full transition-all" style={{ width: `${pct}%` }} />
+      <SkipBtn dir={-1} />
+      <button
+        type="button"
+        onClick={togglePlay}
+        className="w-10 h-10 rounded-full bg-gradient-to-br from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 flex items-center justify-center text-white shadow-md flex-shrink-0"
+      >
+        {playing ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}
+      </button>
+      <SkipBtn dir={1} />
+      <div className={`flex-1 h-1.5 rounded-full cursor-pointer min-w-0 ${D ? 'bg-gray-600' : 'bg-sky-100'}`} onClick={seek}>
+        <div className="h-full bg-gradient-to-r from-sky-500 to-blue-600 rounded-full" style={{ width: `${pct}%` }} />
       </div>
-      <div className="flex flex-wrap items-center gap-3 justify-center sm:justify-between">
-        <button
-          type="button"
-          onClick={() => skip(-10)}
-          className={`p-2 rounded-lg transition ${D ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-500 hover:bg-gray-200'}`}
-        >
-          <SkipBack size={18} />
-        </button>
-        <button
-          type="button"
-          onClick={togglePlay}
-          className="w-12 h-12 rounded-full bg-sky-600 hover:bg-sky-700 flex items-center justify-center text-white shadow-lg"
-        >
-          {playing ? <Pause size={22} /> : <Play size={22} className="ml-0.5" />}
-        </button>
-        <button
-          type="button"
-          onClick={() => skip(10)}
-          className={`p-2 rounded-lg transition ${D ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-500 hover:bg-gray-200'}`}
-        >
-          <SkipForward size={18} />
-        </button>
-        <span className={`text-sm font-mono ${D ? 'text-gray-300' : 'text-gray-600'}`}>
-          {fmt(currentTime)} / {fmt(duration)}
-        </span>
-        <button
-          type="button"
-          onClick={toggleMute}
-          className={`p-2 rounded-lg ${D ? 'text-gray-400' : 'text-gray-500'}`}
-        >
-          {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-        </button>
-        <input
-          type="range"
-          min="0"
-          max="1"
-          step="0.05"
-          value={muted ? 0 : volume}
-          onChange={(e) => {
-            setVolume(+e.target.value)
-            if (audioRef.current) audioRef.current.volume = +e.target.value
-            setMuted(+e.target.value === 0)
-          }}
-          className="w-24 accent-sky-600"
-        />
-      </div>
+      <span className={`text-[11px] font-mono tabular-nums flex-shrink-0 ${D ? 'text-gray-300' : 'text-gray-500'}`}>
+        {fmt(currentTime)} / {fmt(duration)}
+      </span>
+      <button
+        type="button"
+        onClick={toggleMute}
+        className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition ${D ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-400 hover:bg-sky-50'}`}
+      >
+        {muted ? <VolumeX size={15} /> : <Volume2 size={15} />}
+      </button>
     </div>
   )
 }
@@ -378,7 +385,7 @@ function SubmitConfirm({ answered, total, onConfirm, onCancel, dark }) {
   )
 }
 
-function StartAudioScreen({ section, sectionTitle, onStart, dark, totalQuestions, isFull, isUnifiedAudio }) {
+function StartAudioScreen({ section, sectionTitle, onStart, dark, totalQuestions, isFull, isUnifiedAudio, resuming, audioDuration }) {
   const D = dark
   const bg = D ? 'bg-gray-950' : 'bg-white'
   const surface = D ? 'bg-gray-800 border-gray-700' : 'bg-white border-sky-100'
@@ -386,6 +393,9 @@ function StartAudioScreen({ section, sectionTitle, onStart, dark, totalQuestions
   const textSub = D ? 'text-gray-400' : 'text-gray-500'
   const questionCount = isFull ? (totalQuestions || (section?.questions?.length * 4) || 40) : (section?.questions?.length ?? '?')
   const minuteCount = isFull ? 40 : (section?.time_limit ?? 40)
+  const audioFmt = audioDuration > 0
+    ? `${Math.floor(audioDuration / 60)}:${String(Math.round(audioDuration) % 60).padStart(2, '0')}`
+    : null
 
   return (
     <div className={`flex flex-col items-center justify-center min-h-full ${bg} ${textMain} p-6`}>
@@ -402,7 +412,7 @@ function StartAudioScreen({ section, sectionTitle, onStart, dark, totalQuestions
         <p className={`text-sm mb-6 ${textSub}`}>
           IELTS Listening{isFull ? ` ? Full Mock${isUnifiedAudio ? ' ? Unified Audio' : ' ? 4 parts'}` : ''}
         </p>
-        <div className="grid grid-cols-2 gap-3 mb-7">
+        <div className="grid grid-cols-3 gap-3 mb-7">
           <div className={`rounded-2xl p-3 ${D ? 'bg-gray-700' : 'bg-sky-50/80'}`}>
             <p className="text-lg font-black">{questionCount}</p>
             <p className={`text-xs ${textSub}`}>Questions</p>
@@ -410,6 +420,10 @@ function StartAudioScreen({ section, sectionTitle, onStart, dark, totalQuestions
           <div className={`rounded-2xl p-3 ${D ? 'bg-gray-700' : 'bg-sky-50/80'}`}>
             <p className="text-lg font-black">{minuteCount}</p>
             <p className={`text-xs ${textSub}`}>Minutes</p>
+          </div>
+          <div className={`rounded-2xl p-3 ${D ? 'bg-gray-700' : 'bg-sky-50/80'}`}>
+            <p className="text-lg font-black tabular-nums">{audioFmt || '—'}</p>
+            <p className={`text-xs ${textSub}`}>Audio</p>
           </div>
         </div>
         <div className={`text-left rounded-2xl p-4 mb-7 space-y-2 ${D ? 'bg-gray-700/60' : 'bg-sky-50/60'}`}>
@@ -445,7 +459,7 @@ function StartAudioScreen({ section, sectionTitle, onStart, dark, totalQuestions
           <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
             <Play size={16} className="fill-white ml-0.5" />
           </div>
-          Start test
+          {resuming ? 'Resume test' : 'Start test'}
         </motion.button>
       </motion.div>
     </div>
@@ -493,15 +507,20 @@ export default function IELTSListeningAttempt() {
   const currentSectionId = String(partIds[activePartIndex] || initialSectionId || '')
   const sectionId = currentSectionId
 
-  const [answersByPart, setAnswersByPart] = useState({})
+  const answersStorageKey = reviewMode ? null : `listening-answers-${attemptId}`
+  const [answersByPart, setAnswersByPart] = useState(() => loadExam(answersStorageKey) || {})
   const answers = answersByPart[currentSectionId] || {}
   const [activeQ, setActiveQ] = useState(0)
   const [submitting, setSubmitting] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [showExitConfirm, setShowExitConfirm] = useState(false)
 
+  const audioStorageKey = reviewMode ? null : `listening-audio-${attemptId}`
   const [audioStarted, setAudioStarted] = useState(false)
-  const [audioPartIndex, setAudioPartIndex] = useState(0)  // which part's audio is currently playing
+  const [audioPartIndex, setAudioPartIndex] = useState(() => loadExam(audioStorageKey)?.partIndex || 0)
+  const pendingSeekRef = useRef(loadExam(audioStorageKey)?.currentTime || 0)
+  const lastAudioSaveRef = useRef(0)
+  const hasResumeRef = useRef((loadExam(audioStorageKey)?.currentTime || 0) > 0)
   const [darkMode, setDarkMode] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
@@ -517,6 +536,12 @@ export default function IELTSListeningAttempt() {
 
   const [bookmarkedIds, setBookmarkedIds] = useState(new Set())
   const [bookmarkLoading, setBookmarkLoading] = useState(new Set())
+
+  // Persist answers across refresh
+  useEffect(() => {
+    if (!answersStorageKey) return
+    saveExam(answersStorageKey, answersByPart)
+  }, [answersByPart, answersStorageKey])
 
   // Load ALL parts simultaneously
   const sectionQueries = useQueries({
@@ -617,9 +642,10 @@ export default function IELTSListeningAttempt() {
   }, [section])
 
   useEffect(() => {
+    if (reviewMode) return  // review: no navigation guard, so Back works normally
     window.history.pushState({ listeningAttemptGuard: true }, '', window.location.href)
     const onPopState = () => {
-      if (allowLeaveRef.current || reviewMode) return
+      if (allowLeaveRef.current) return
       setShowExitConfirm(true)
       window.history.pushState({ listeningAttemptGuard: true }, '', window.location.href)
     }
@@ -709,6 +735,9 @@ export default function IELTSListeningAttempt() {
     setShowConfirm(false)
     setShowExitConfirm(false)
     setSubmitting(true)
+    setAudioStarted(false)   // stop exam audio before leaving
+    clearExam(answersStorageKey)
+    clearExam(audioStorageKey)
     try {
       if (!isFull) {
         const res = await api.post(`/ielts/listening/${currentSectionId}/submit/`, {
@@ -758,6 +787,9 @@ export default function IELTSListeningAttempt() {
 
   const handleBackToList = () => {
     allowLeaveRef.current = true
+    setAudioStarted(false)   // stop exam audio before leaving
+    clearExam(answersStorageKey)
+    clearExam(audioStorageKey)
     navigate('/app/ielts/listening')
   }
 
@@ -768,12 +800,44 @@ export default function IELTSListeningAttempt() {
   const testAudioUrl = allSectionsData[0]?.test_audio_url || section?.test_audio_url || null
   const isUnifiedAudio = isFull && Boolean(testAudioUrl)
 
+  // Total audio length (sum of all audio files) — shown on the start screen
+  const [audioTotalSec, setAudioTotalSec] = useState(0)
+  useEffect(() => {
+    const urls = isUnifiedAudio
+      ? [testAudioUrl].filter(Boolean)
+      : allSectionsData.map(s => s?.audio_url).filter(Boolean)
+    if (!urls.length) { setAudioTotalSec(0); return }
+    let cancelled = false, total = 0, done = 0
+    const finish = (dur) => {
+      total += (Number.isFinite(dur) && dur > 0) ? dur : 0
+      done++
+      if (done === urls.length && !cancelled) setAudioTotalSec(Math.round(total))
+    }
+    urls.forEach(url => {
+      const a = new Audio()
+      a.preload = 'metadata'
+      a.src = url
+      a.addEventListener('loadedmetadata', () => finish(a.duration), { once: true })
+      a.addEventListener('error', () => finish(0), { once: true })
+    })
+    return () => { cancelled = true }
+  }, [isUnifiedAudio, testAudioUrl, allSectionsData])
+
   // Audio source is driven by audioPartIndex (independent of view)
   const activeAudioSrc = useMemo(() => {
     if (reviewMode || !audioStarted) return null
     if (isUnifiedAudio) return testAudioUrl
     return allSectionsData[audioPartIndex]?.audio_url || null
   }, [reviewMode, audioStarted, isUnifiedAudio, testAudioUrl, allSectionsData, audioPartIndex])
+
+  // Persist audio progress (throttled) so a refresh resumes from here
+  const handleAudioProgress = useCallback((t) => {
+    if (!audioStorageKey || !audioStarted) return
+    const now = Date.now()
+    if (now - lastAudioSaveRef.current < 1500) return
+    lastAudioSaveRef.current = now
+    saveExam(audioStorageKey, { started: true, partIndex: audioPartIndex, currentTime: t })
+  }, [audioStorageKey, audioStarted, audioPartIndex])
 
   // Called when audio for the current part ends
   const handleAudioEnded = useCallback(() => {
@@ -863,6 +927,8 @@ export default function IELTSListeningAttempt() {
         sectionTitle={sectionTitle}
         dark={darkMode}
         onStart={() => setAudioStarted(true)}
+        resuming={hasResumeRef.current}
+        audioDuration={audioTotalSec}
         isFull={isFull}
         isUnifiedAudio={isUnifiedAudio}
         totalQuestions={isFull ? partIds.length * (section?.questions?.length || 10) : undefined}
@@ -1035,23 +1101,18 @@ export default function IELTSListeningAttempt() {
         </div>
       </div>
 
-      {/* Instruction + audio (review) */}
-      {reviewMode && isUnifiedAudio && (
-        <div className={`border-b px-4 py-3 ${D ? 'bg-gray-800/80 border-gray-700' : 'bg-gray-100 border-gray-200'}`}>
-          <div className="max-w-6xl mx-auto">
-            <p className={`text-sm font-semibold mb-2 ${textMain}`}>Full Mock — Review audio</p>
-            <ReviewAudioPlayer audioUrl={section?.test_audio_url || null} dark={D} />
+      {/* Sticky top review audio player — always visible at top in review */}
+      {reviewMode && (() => {
+        const topAudio = isUnifiedAudio
+          ? testAudioUrl
+          : (section?.audio_url || allSectionsData.find((s) => s?.audio_url)?.audio_url || null)
+        if (!topAudio) return null
+        return (
+          <div className={`sticky top-0 z-20 border-b px-3 py-2 ${D ? 'bg-gray-900/95 border-gray-700 backdrop-blur' : 'bg-sky-50/80 border-sky-100 backdrop-blur'}`}>
+            <ReviewAudioPlayer key={topAudio} audioUrl={topAudio} dark={D} />
           </div>
-        </div>
-      )}
-      {reviewMode && !isFull && !isUnifiedAudio && (
-        <div className={`border-b px-4 py-3 ${D ? 'bg-gray-800/80 border-gray-700' : 'bg-gray-100 border-gray-200'}`}>
-          <div className="max-w-6xl mx-auto">
-            <p className={`text-sm font-semibold mb-2 ${textMain}`}>{partLabel} — Review audio</p>
-            <ReviewAudioPlayer audioUrl={section?.audio_url || null} dark={D} />
-          </div>
-        </div>
-      )}
+        )
+      })()}
 
       {!reviewMode && (
         <div className="px-4 py-2">
@@ -1070,6 +1131,8 @@ export default function IELTSListeningAttempt() {
         src={activeAudioSrc}
         active={!reviewMode && audioStarted && Boolean(activeAudioSrc)}
         onEnded={handleAudioEnded}
+        seekTo={pendingSeekRef.current}
+        onProgress={handleAudioProgress}
       />
 
       {/* Body */}
@@ -1080,18 +1143,18 @@ export default function IELTSListeningAttempt() {
               className={`overflow-y-auto border-b md:border-b-0 md:border-r flex-shrink-0 pb-44 ${divider} ${fontCls}`}
               style={{ flexBasis: `${splitRatio}%` }}
             >
-              <div className="p-4 md:p-5 space-y-8">
-                {allSectionsData.map((sec, idx) => {
-                  if (!sec) return null
-                  const secAudioUrl = !isUnifiedAudio ? (sec.audio_url || null) : null
+              <div className="p-4 md:p-5">
+                {(() => {
+                  const sec = allSectionsData[activePartIndex] || allSectionsData.find(Boolean)
+                  if (!sec) return <p className={`text-sm ${textSub}`}>No transcript for this part.</p>
                   const evidenceItems = buildListeningEvidenceItems(sec, reviewMap)
                   const firstQ = sec.questions?.[0]?.number
                   const lastQ = sec.questions?.[sec.questions.length - 1]?.number
                   return (
-                    <div key={partIds[idx] || idx}>
-                      <div className="flex items-center gap-2 mb-3">
+                    <div>
+                      <div className="flex items-center gap-2 mb-4">
                         <span className={`text-xs font-black px-2.5 py-1 rounded-full ${D ? 'bg-sky-900 text-sky-300' : 'bg-sky-100 text-sky-700'}`}>
-                          {sec.part_label || `Part ${idx + 1}`}
+                          {sec.part_label || `Part ${activePartIndex + 1}`}
                         </span>
                         {firstQ != null && (
                           <span className={`text-xs ${textSub}`}>
@@ -1099,19 +1162,16 @@ export default function IELTSListeningAttempt() {
                           </span>
                         )}
                       </div>
-                      {secAudioUrl && (
-                        <div className="mb-3">
-                          <ReviewAudioPlayer audioUrl={secAudioUrl} dark={D} />
-                        </div>
-                      )}
-                      <TranscriptWithEvidence
-                        text={sec.transcript || '(No transcript available for this part)'}
-                        dark={D}
-                        evidenceItems={showCorrectInReview ? evidenceItems : []}
-                      />
+                      <div className={`rounded-2xl border p-4 sm:p-5 ${D ? 'bg-gray-800/40 border-gray-700' : 'bg-white border-sky-100 shadow-sm'}`}>
+                        <TranscriptWithEvidence
+                          text={sec.transcript || '(No transcript available for this part)'}
+                          dark={D}
+                          evidenceItems={showCorrectInReview ? evidenceItems : []}
+                        />
+                      </div>
                     </div>
                   )
-                })}
+                })()}
               </div>
             </div>
             <div
@@ -1139,14 +1199,16 @@ export default function IELTSListeningAttempt() {
               <div className={`w-1 h-16 rounded-full ${D ? 'bg-gray-600' : 'bg-sky-200'}`} />
             </div>
             <div className={`flex-1 overflow-y-auto min-w-0 pb-40 md:pb-36 p-4 ${fontCls}`} style={{ zoom: questionZoom }}>
-              {/* In review mode show ALL parts' questions */}
+              {/* In review mode show only the ACTIVE part's questions (switch via bottom Part tabs) */}
               {isFull ? (
-                allSectionsData.map((sec, idx) => {
+                (() => {
+                  const idx = activePartIndex
+                  const sec = allSectionsData[idx]
                   if (!sec?.questions?.length) return null
                   const pid = String(partIds[idx])
                   const secAnswers = answersByPart[pid] || {}
                   return (
-                    <div key={partIds[idx] || idx} className={`mb-6 ${idx > 0 ? `border-t pt-4 ${D ? 'border-gray-700' : 'border-gray-200'}` : ''}`}>
+                    <div>
                       <p className={`text-xs font-bold uppercase tracking-wide mb-3 ${D ? 'text-sky-400' : 'text-sky-600'}`}>
                         {sec.part_label || `Part ${idx + 1}`}
                       </p>
@@ -1171,7 +1233,7 @@ export default function IELTSListeningAttempt() {
                       />
                     </div>
                   )
-                })
+                })()
               ) : (
                 <QuestionList
                   questions={questions}
@@ -1220,9 +1282,9 @@ export default function IELTSListeningAttempt() {
         )}
       </div>
 
-      {/* Bottom nav */}
-      <div className={`fixed bottom-2 md:bottom-3 left-2 right-2 md:left-4 md:right-4 z-30 rounded-2xl border ${divider} ${D ? 'bg-gray-900/95' : 'bg-white/95'} backdrop-blur shadow-lg`}>
-        <div className="flex items-center gap-3 px-3 py-2 max-w-screen-xl mx-auto">
+      {/* Bottom nav — stuck to the very bottom */}
+      <div className={`fixed bottom-0 left-0 right-0 z-30 rounded-t-2xl border-t ${D ? 'bg-gray-900/97 border-gray-700' : 'bg-gray-100/95 border-gray-200'} backdrop-blur shadow-[0_-4px_16px_rgba(0,0,0,0.08)]`}>
+        <div className="flex items-center gap-3 px-3 py-2.5 max-w-screen-xl mx-auto">
           <div className="flex flex-1 min-w-0 items-stretch gap-2">
               {(isFull ? partIds : [partIds[0] || 0]).map((pid, pidx) => {
                 const partSection = allSectionsData[pidx]
@@ -1236,14 +1298,14 @@ export default function IELTSListeningAttempt() {
                     role="button"
                     tabIndex={0}
                     onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSwitchPart(pidx) } }}
-                    className={`flex-1 min-w-0 flex flex-col items-center justify-center gap-1.5 px-1.5 sm:px-2 py-2 rounded-xl border-2 cursor-pointer transition ${
+                    className={`${isActivePart ? 'flex-[3] flex-row gap-3' : 'flex-1 flex-col gap-1.5'} min-w-0 flex items-center justify-center px-2.5 py-2 rounded-xl border-2 cursor-pointer transition ${
                       isActivePart
-                        ? 'border-sky-500 ' + (D ? 'bg-gray-800' : 'bg-sky-50/60')
-                        : D ? 'border-gray-600 bg-gray-800/40 hover:bg-gray-800' : 'border-gray-200 bg-white hover:bg-gray-50'
+                        ? (D ? 'border-sky-500 bg-gray-800' : 'border-sky-500 bg-sky-50')
+                        : D ? 'border-gray-600 bg-gray-800/40 hover:bg-gray-800' : 'border-gray-200 bg-white/70 hover:bg-white'
                     }`}
                     onClick={() => handleSwitchPart(pidx)}
                   >
-                    <span className={`text-xs sm:text-sm font-black text-center flex items-center justify-center gap-0.5 flex-wrap ${isActivePart ? 'text-sky-500' : textSub}`}>
+                    <span className={`text-xs sm:text-sm font-black whitespace-nowrap flex items-center gap-0.5 ${isActivePart ? 'text-sky-600' : textSub}`}>
                       {isAudioPart && (
                         <span className="inline-flex gap-px items-end h-3 shrink-0">
                           <span className="w-[3px] h-[5px] bg-emerald-500 rounded animate-pulse" />
@@ -1254,27 +1316,27 @@ export default function IELTSListeningAttempt() {
                       Part {pidx + 1}
                     </span>
                     {isActivePart ? (
-                      <div className="flex flex-wrap justify-center gap-1 w-full">
-                    {partQs.map((q, qi) => {
-                      const answered = Boolean(partAns[String(q.id)])
-                      const isCurrent = activeQ === qi
-                      return (
-                        <button
-                          key={q.id}
-                          type="button"
-                          onClick={e => { e.stopPropagation(); handleSwitchPart(pidx); setTimeout(() => goToQuestion(qi), 0) }}
-                          className={`w-8 h-8 rounded-full text-xs font-bold transition flex items-center justify-center flex-shrink-0 ${
-                            answered
-                              ? 'bg-sky-500 text-white'
-                              : isCurrent
-                                ? 'bg-sky-400 text-white ring-2 ring-sky-200'
-                                : D ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-500'
-                          }`}
-                        >
-                          {q.number}
-                        </button>
-                      )
-                    })}
+                      <div className="flex flex-nowrap items-center gap-1.5 min-w-0 overflow-x-auto py-0.5">
+                        {partQs.map((q, qi) => {
+                          const answered = Boolean(partAns[String(q.id)])
+                          const isCurrent = activeQ === qi
+                          return (
+                            <button
+                              key={q.id}
+                              type="button"
+                              onClick={e => { e.stopPropagation(); handleSwitchPart(pidx); setTimeout(() => goToQuestion(qi), 0) }}
+                              className={`w-9 h-9 rounded-full text-[13px] font-bold transition flex items-center justify-center flex-shrink-0 border-2 ${
+                                answered
+                                  ? 'bg-sky-500 text-white border-sky-500'
+                                  : isCurrent
+                                    ? 'bg-sky-100 text-sky-700 border-sky-500 ring-2 ring-sky-200'
+                                    : (D ? 'bg-gray-800 text-gray-200 border-gray-500' : 'bg-white text-gray-700 border-gray-400')
+                              }`}
+                            >
+                              {q.number}
+                            </button>
+                          )
+                        })}
                       </div>
                     ) : (
                       <span className={`text-[10px] sm:text-xs italic text-center leading-tight px-0.5 ${textSub}`}>{partQs.length} questions</span>
@@ -1866,54 +1928,75 @@ function renderInlineMarkdown(str, keyPrefix = '') {
   return parts.length ? parts : [<span key={`${keyPrefix}raw`}>{str}</span>]
 }
 
-function TranscriptWithEvidence({ text, dark, evidenceItems = [] }) {
-  const D = dark
-  const highlights = useMemo(() => {
-    if (!evidenceItems.length || !text) return []
-    const textLower = text.toLowerCase()
-    const picked = []
-    const sorted = [...evidenceItems].sort((a, b) => b.snippet.length - a.snippet.length)
-    for (const ev of sorted) {
-      const snippet = String(ev.snippet || '').trim()
-      if (snippet.length < 4) continue
-      const start = textLower.indexOf(snippet.toLowerCase())
-      if (start < 0) continue
-      const end = start + snippet.length
-      if (picked.some(p => p.start < end && start < p.end)) continue
-      picked.push({ start, end, q: ev.questionNumber })
-    }
-    return picked.sort((a, b) => a.start - b.start)
-  }, [text, evidenceItems])
-
-  const render = () => {
-    if (!text) return null
-    const nodes = []
-    let cursor = 0
-    for (const h of highlights) {
-      if (h.start > cursor) {
-        const seg = text.slice(cursor, h.start)
-        nodes.push(...renderInlineMarkdown(seg, `pre${h.q}`))
-      }
-      nodes.push(
-        <mark key={h.q} style={{ background: '#fde047', borderRadius: 3, padding: '0 2px' }}>
-          <span style={{
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            width: 18, height: 18, borderRadius: '50%',
-            background: '#ef4444', color: 'white', fontSize: 10, fontWeight: 900,
-            marginRight: 3, verticalAlign: 'middle',
-          }}>{h.q}</span>
-          {renderInlineMarkdown(text.slice(h.start, h.end), `hl${h.q}`)}
-        </mark>
-      )
-      cursor = h.end
-    }
-    if (cursor < text.length) nodes.push(...renderInlineMarkdown(text.slice(cursor), 'tail'))
-    return nodes
+// Render a single line: evidence highlights ([N] badges) + inline **bold**/*italic*
+function renderLineContent(line, evidenceItems, keyPrefix) {
+  if (!line) return [<span key={`${keyPrefix}e`}>{' '}</span>]
+  const lower = line.toLowerCase()
+  const picked = []
+  const sorted = [...(evidenceItems || [])].sort((a, b) => b.snippet.length - a.snippet.length)
+  for (const ev of sorted) {
+    const snip = String(ev.snippet || '').trim()
+    if (snip.length < 4) continue
+    const start = lower.indexOf(snip.toLowerCase())
+    if (start < 0) continue
+    const end = start + snip.length
+    if (picked.some(p => p.start < end && start < p.end)) continue
+    picked.push({ start, end, q: ev.questionNumber })
   }
+  picked.sort((a, b) => a.start - b.start)
+  const nodes = []
+  let cursor = 0
+  picked.forEach((h, i) => {
+    if (h.start > cursor) nodes.push(...renderInlineMarkdown(line.slice(cursor, h.start), `${keyPrefix}p${i}`))
+    nodes.push(
+      <mark key={`${keyPrefix}m${i}`} style={{ background: '#fde047', borderRadius: 3, padding: '0 2px' }}>
+        <span style={{
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          width: 18, height: 18, borderRadius: '50%',
+          background: '#ef4444', color: 'white', fontSize: 10, fontWeight: 900,
+          marginRight: 3, verticalAlign: 'middle',
+        }}>{h.q}</span>
+        {renderInlineMarkdown(line.slice(h.start, h.end), `${keyPrefix}h${i}`)}
+      </mark>
+    )
+    cursor = h.end
+  })
+  if (cursor < line.length) nodes.push(...renderInlineMarkdown(line.slice(cursor), `${keyPrefix}tail`))
+  return nodes.length ? nodes : [<span key={`${keyPrefix}r`}>{line}</span>]
+}
+
+// Block-aware transcript renderer: headings (#, ##, ###), bullets (-, •, *), **bold**, *italic*
+function TranscriptWithEvidence({ text, dark, evidenceItems = [], large }) {
+  const D = dark
+  const lines = (text || '').split('\n')
+  const base = large ? 'text-[17px] leading-8' : 'text-[15px] leading-7'
+  const ev = evidenceItems || []
 
   return (
-    <div className={`text-sm leading-relaxed whitespace-pre-wrap ${D ? 'text-gray-300' : 'text-gray-700'}`}>
-      {render()}
+    <div className={`${base} ${D ? 'text-gray-200' : 'text-gray-700'}`}>
+      {lines.map((raw, i) => {
+        const line = raw.replace(/\s+$/, '')
+        if (!line.trim()) return <div key={i} className="h-3" />
+        let m
+        if ((m = line.match(/^#\s+(.*)/))) {
+          return <p key={i} className={`font-black ${large ? 'text-2xl' : 'text-xl'} mt-4 mb-1 ${D ? 'text-white' : 'text-gray-900'}`}>{renderLineContent(m[1], ev, `l${i}`)}</p>
+        }
+        if ((m = line.match(/^##\s+(.*)/))) {
+          return <p key={i} className={`font-extrabold ${large ? 'text-xl' : 'text-lg'} mt-3 mb-0.5 ${D ? 'text-sky-200' : 'text-sky-800'}`}>{renderLineContent(m[1], ev, `l${i}`)}</p>
+        }
+        if ((m = line.match(/^###\s+(.*)/))) {
+          return <p key={i} className={`font-bold ${large ? 'text-lg' : 'text-base'} mt-2 ${D ? 'text-gray-100' : 'text-gray-900'}`}>{renderLineContent(m[1], ev, `l${i}`)}</p>
+        }
+        if ((m = line.match(/^\s*[-•]\s+(.*)/)) || (m = line.match(/^\s*\*\s+(.*)/))) {
+          return (
+            <div key={i} className="flex gap-2.5 pl-1 my-1">
+              <span className={`mt-[0.6em] w-1.5 h-1.5 rounded-full flex-shrink-0 ${D ? 'bg-sky-400' : 'bg-sky-500'}`} />
+              <span className="flex-1">{renderLineContent(m[1], ev, `l${i}`)}</span>
+            </div>
+          )
+        }
+        return <p key={i} className="my-1">{renderLineContent(line, ev, `l${i}`)}</p>
+      })}
     </div>
   )
 }
@@ -2161,9 +2244,9 @@ function TableGapBlock({ questions, answers, onAnswer, dark, reviewMode, reviewM
   return (
     <>
       {gi && <GroupInstruction text={gi} dark={D} />}
-      <div className={`rounded-xl overflow-hidden mb-2 border-2 ${D ? 'border-gray-700' : 'border-gray-300'}`}>
+      <div className={`rounded-xl overflow-hidden mb-2 border-2 inline-block max-w-full align-top ${D ? 'border-gray-700' : 'border-gray-300'}`}>
         <div className="overflow-x-auto">
-          <table className={`min-w-full text-sm font-normal border-collapse ${D ? 'text-gray-200' : 'text-gray-900'}`}>
+          <table className={`w-auto text-sm font-normal border-collapse ${D ? 'text-gray-200' : 'text-gray-900'}`}>
             {headerRow.length > 0 && (
               <thead>
                 <tr className={D ? 'bg-gray-700/60' : 'bg-gray-100'}>

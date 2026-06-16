@@ -86,10 +86,23 @@ const CRITERION_ICONS = {
   grammatical_range: AlignLeft,
 }
 
+// Hech qachon obyektni to'g'ridan-to'g'ri render qilmaymiz — JSX da "Objects are
+// not valid as a React child" crashini oldini oladi (har xil AI javob shakllari uchun).
+function txt(v) {
+  if (v == null) return ''
+  if (typeof v === 'string' || typeof v === 'number') return v
+  if (typeof v === 'object') return v.text ?? v.point ?? v.feedback ?? v.issue ?? ''
+  return String(v)
+}
+
 function CriterionCard({ key_: key, data, delay }) {
   const [open, setOpen] = useState(true)
-  const c = bandColor(data.band)
+  const cr = data && typeof data === 'object' ? data : {}
+  const bandNum = typeof cr.band === 'number' ? cr.band : Number(cr.band) || 0
+  const c = bandColor(bandNum)
   const Icon = CRITERION_ICONS[key] || BookOpen
+  const strengths = Array.isArray(cr.strengths) ? cr.strengths : []
+  const errors = Array.isArray(cr.errors) ? cr.errors : []
 
   return (
     <motion.div
@@ -108,14 +121,14 @@ function CriterionCard({ key_: key, data, delay }) {
           <Icon size={24} strokeWidth={2.2} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-bold text-gray-900 text-base sm:text-[17px] tracking-tight">{data.label}</p>
-          <p className="text-sm text-gray-500 mt-1 line-clamp-2 leading-relaxed">{data.feedback}</p>
+          <p className="font-bold text-gray-900 text-base sm:text-[17px] tracking-tight">{txt(cr.label)}</p>
+          <p className="text-sm text-gray-500 mt-1 line-clamp-2 leading-relaxed">{txt(cr.feedback)}</p>
         </div>
         <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
           <div
             className={`min-w-[3rem] px-3 py-2 rounded-xl bg-gradient-to-br ${c.chip} text-white text-xl font-black shadow-sm tabular-nums`}
           >
-            {data.band}
+            {txt(bandNum)}
           </div>
           {open ? <ChevronUp size={18} className="text-sky-300" /> : <ChevronDown size={18} className="text-sky-300" />}
         </div>
@@ -131,43 +144,43 @@ function CriterionCard({ key_: key, data, delay }) {
             className="overflow-hidden"
           >
             <div className="px-5 pb-5 sm:px-6 sm:pb-6 pt-0 space-y-4 border-t border-sky-50/90 bg-gradient-to-b from-sky-50/20 to-white">
-              <p className="text-base text-gray-700 leading-relaxed pt-4 sm:pt-5">{data.feedback}</p>
+              <p className="text-base text-gray-700 leading-relaxed pt-4 sm:pt-5">{txt(cr.feedback)}</p>
 
-              {data.strengths?.length > 0 && (
+              {strengths.length > 0 && (
                 <div className="rounded-xl bg-emerald-50/60 border border-emerald-100/80 p-4">
                   <div className="flex items-center gap-2 mb-3">
                     <ThumbsUp size={14} className="text-emerald-600" />
                     <span className="text-xs font-bold text-emerald-800 uppercase tracking-wide">Strengths</span>
                   </div>
                   <ul className="space-y-2">
-                    {data.strengths.map((s, i) => (
+                    {strengths.map((s, i) => (
                       <li key={i} className="flex items-start gap-2.5 text-sm text-gray-800 leading-snug">
                         <CheckCircle2 size={15} className="text-emerald-500 mt-0.5 flex-shrink-0" />
-                        {s}
+                        {txt(s)}
                       </li>
                     ))}
                   </ul>
                 </div>
               )}
 
-              {data.errors?.length > 0 && (
+              {errors.length > 0 && (
                 <div>
                   <div className="flex items-center gap-2 mb-2">
                     <TriangleAlert size={14} className="text-slate-600" />
                     <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">Issues &amp; fixes</span>
                   </div>
                   <div className="space-y-3">
-                    {data.errors.map((e, i) => (
+                    {errors.map((e, i) => (
                       <div key={i} className="rounded-xl bg-slate-50/80 border border-slate-100 p-3.5 space-y-2">
-                        {e.quote && (
+                        {txt(e.quote) && (
                           <p className="text-xs font-mono text-gray-700 bg-white/90 border border-slate-100/80 rounded-lg px-3 py-2 italic leading-relaxed">
-                            &ldquo;{e.quote}&rdquo;
+                            &ldquo;{txt(e.quote)}&rdquo;
                           </p>
                         )}
-                        <p className="text-xs text-red-700 font-semibold leading-relaxed">{e.issue}</p>
-                        {e.suggestion && (
+                        <p className="text-xs text-red-700 font-semibold leading-relaxed">{txt(e.issue)}</p>
+                        {txt(e.suggestion) && (
                           <p className="text-xs text-emerald-800 leading-relaxed">
-                            <span className="font-semibold text-emerald-700">Suggestion:</span> {e.suggestion}
+                            <span className="font-semibold text-emerald-700">Suggestion:</span> {txt(e.suggestion)}
                           </p>
                         )}
                       </div>
@@ -227,11 +240,26 @@ export default function IELTSWritingResult() {
         setText(data.response_text || '')
         setWordCount(data.word_count || 0)
 
-        if (data.status === 'ready' && data.ai_band) {
+        if (data.status === 'ready' && data.ai_band != null) {
           clearInterval(pollRef.current)
+          // Eski yozuvlarda ai_criteria raqam bo'lishi mumkin ({task_achievement: 6.0}) —
+          // ularni karta kutadigan {band, label, feedback} shakliga keltiramiz
+          const LABELS = {
+            task_achievement: 'Task Achievement',
+            coherence_cohesion: 'Coherence & Cohesion',
+            lexical_resource: 'Lexical Resource',
+            grammatical_range: 'Grammatical Range & Accuracy',
+          }
+          const normalized = {}
+          for (const k of CRITERIA_ORDER) {
+            const v = data.ai_criteria?.[k]
+            normalized[k] = (v && typeof v === 'object')
+              ? v
+              : { band: Number(v) || 0, label: LABELS[k], feedback: '', strengths: [], errors: [] }
+          }
           setResult({
             overall_band: parseFloat(data.ai_band),
-            ...data.ai_criteria,
+            ...normalized,
           })
           setLoading(false)
         }
@@ -394,15 +422,17 @@ export default function IELTSWritingResult() {
                     {CRITERIA_ORDER.map((k) => {
                       const cr = result[k]
                       if (!cr) return null
-                      const c = bandColor(cr.band)
-                      const short = cr.label?.split(/\s+/).slice(0, 2).join(' ') || k
+                      const bandNum = typeof cr.band === 'number' ? cr.band : Number(cr.band) || 0
+                      const c = bandColor(bandNum)
+                      const label = typeof cr.label === 'string' ? cr.label : ''
+                      const short = label.split(/\s+/).slice(0, 2).join(' ') || k
                       return (
                         <span
                           key={k}
                           className={`inline-flex items-center gap-1.5 pl-2 pr-2.5 py-1 rounded-xl text-xs font-bold border ${c.border} ${c.light} ${c.text} shadow-sm`}
                         >
                           <span className="text-[10px] font-semibold text-gray-600 max-w-[100px] truncate">{short}</span>
-                          <span className="tabular-nums">{cr.band}</span>
+                          <span className="tabular-nums">{bandNum}</span>
                         </span>
                       )
                     })}

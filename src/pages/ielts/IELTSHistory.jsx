@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   History, BookOpen, Headphones, Mic, PenLine,
   Clock3, RotateCcw, Eye, ChevronLeft, ChevronRight,
-  Loader2, CheckCircle2, Star, Trophy,
+  Loader2, CheckCircle2,
 } from 'lucide-react'
 import api from '../../api/client'
 
@@ -229,67 +229,40 @@ function SpeakingWritingCard({ item, onReview }) {
   const Icon = isSpeaking ? Mic : PenLine
   const iconBg = isSpeaking ? 'bg-rose-100' : 'bg-amber-100'
   const iconColor = isSpeaking ? 'text-rose-500' : 'text-amber-500'
-  const timeStr = formatTime(item.time_spent)
-  const taskLabel = isSpeaking
-    ? `Part ${item.task_part}`
-    : `Task ${item.task_type}`
+  const taskLabel = isSpeaking ? `Part ${item.task_part}` : `Task ${item.task_type}`
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col gap-3">
-      <div className="flex items-start gap-3">
-        <div className={`w-9 h-9 rounded-xl ${iconBg} flex items-center justify-center flex-shrink-0`}>
-          <Icon size={16} className={iconColor} />
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+      <div className="flex items-center gap-3 mb-3">
+        <div className={`w-8 h-8 rounded-xl ${iconBg} flex items-center justify-center flex-shrink-0`}>
+          <Icon size={14} className={iconColor} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-bold text-gray-800 text-sm leading-tight line-clamp-2">
+          <p className="font-bold text-gray-800 text-sm leading-snug truncate">
             {item.task_title || item.title || `#${item.id}`}
           </p>
-          <div className="flex items-center gap-2 mt-1 flex-wrap">
-            <span className={`text-xs px-1.5 py-0.5 rounded font-semibold flex-shrink-0 ${isSpeaking ? 'bg-rose-100 text-rose-600' : 'bg-amber-100 text-amber-600'}`}>
+          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+            <span className={`text-xs px-1.5 py-0.5 rounded font-semibold ${isSpeaking ? 'bg-rose-100 text-rose-600' : 'bg-amber-100 text-amber-600'}`}>
               {taskLabel}
             </span>
-            {item.ai_band && (
-              <span className="flex items-center gap-0.5 text-xs text-gray-500">
-                <Star size={10} className="text-yellow-400" />
-                {parseFloat(item.ai_band).toFixed(1)}
-              </span>
-            )}
+            <span className="text-xs text-gray-400 flex items-center gap-1">
+              <Clock3 size={10} /> {formatDate(item.created_at || item.date)}
+            </span>
           </div>
         </div>
         {item.ai_band && <BandBadge band={item.ai_band} />}
       </div>
 
-      {item.ai_criteria && Object.keys(item.ai_criteria).length > 0 && (
-        <div className="grid grid-cols-2 gap-1.5">
-          {Object.entries(item.ai_criteria).slice(0, 4).map(([key, val]) => (
-            <div key={key} className="bg-gray-50 rounded-lg px-2 py-1 flex items-center justify-between gap-1">
-              <span className="text-xs text-gray-400 truncate capitalize">
-                {key.replace(/_/g, ' ').split(' ').slice(0, 2).join(' ')}
-              </span>
-              <span className="text-xs font-bold text-gray-700">{val}</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="flex items-center justify-between">
-        <div className="text-xs text-gray-400 flex items-center gap-2">
-          <span className="flex items-center gap-1">
-            <Clock3 size={10} /> {formatDate(item.created_at || item.date)}
-          </span>
-          {timeStr && <span>{timeStr}</span>}
-        </div>
-        <button
-          onClick={() => onReview(item)}
-          className={`h-8 px-3 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition ${
-            isSpeaking
-              ? 'bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100'
-              : 'bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100'
-          }`}
-        >
-          <Eye size={12} /> Review
-        </button>
-      </div>
+      <button
+        onClick={() => onReview(item)}
+        className={`w-full h-9 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition border ${
+          isSpeaking
+            ? 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100'
+            : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100'
+        }`}
+      >
+        <Eye size={13} /> Review Result
+      </button>
     </div>
   )
 }
@@ -350,14 +323,16 @@ export default function IELTSHistory() {
       // Listening-only mock → use mode=review so the page fetches all sections
       navigate(`/exam/ielts/listening/${item.id}?mode=review&title=${title}`)
     } else {
-      // Reading mock → passage-based review (existing flow works fine)
-      navigate(`/exam/ielts/reading/${item.id}?passage=${item.passage_id || 0}&title=${title}`)
+      // Reading mock → mode=review: sahifa review API dan BARCHA passage'larni oladi
+      // (mock'da passage_id yo'q, shuning uchun passage= bilan ochib bo'lmaydi)
+      navigate(`/exam/ielts/reading/${item.id}?mode=review&title=${title}`)
     }
   }
 
   const handleReadingReview = (item) => {
+    // mode=review → javoblar va to'g'ri/noto'g'ri belgilar ham yuklanadi
     navigate(
-      `/exam/ielts/reading/${item.id}?passage=${item.passage_id || 0}&title=${encodeURIComponent(item.title || 'Reading')}`
+      `/exam/ielts/reading/${item.id}?mode=review&passage=${item.passage_id || 0}&title=${encodeURIComponent(item.title || 'Reading')}`
     )
   }
 
@@ -460,10 +435,6 @@ export default function IELTSHistory() {
         </div>
       ) : (
         <>
-          {filtered.length > PAGE_SIZE && (
-            <Pagination page={page} totalPages={totalPages} onChange={p => { setPage(p); window.scrollTo(0, 0) }} />
-          )}
-
           <p className="text-xs text-gray-400">{filtered.length} attempt{filtered.length !== 1 ? 's' : ''}</p>
 
           {pageItems.length === 0 ? (

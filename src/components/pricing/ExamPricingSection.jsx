@@ -15,8 +15,8 @@ export const EXAM_PRICING_PLANS = [
     tag: null,
     description:
       'Unlimited monthly access to SAT mocks, IELTS Speaking, and IELTS Writing — with AI feedback where it matters.',
-    price: "$7.99",
-    compareAt: "$11.99",
+    price: "$6.99",
+    compareAt: "$9.99",
     billing: '/ month',
     cta: 'Get Premium',
     highlight: false,
@@ -31,11 +31,11 @@ export const EXAM_PRICING_PLANS = [
   {
     id: '3month',
     name: 'Pro',
-    tag: 'SAVE 33%',
+    tag: 'SAVE 30%',
     description:
       '3 months at a steep discount — everything in Premium, plus deeper AI coaching: progress, chat, explanations, and a private AI teacher.',
-    price: "$15.99",
-    compareAt: "$23.97",
+    price: "$14.69",
+    compareAt: "$20.97",
     billing: '/ 3 months',
     cta: 'Get Pro Access',
     highlight: true,
@@ -46,25 +46,6 @@ export const EXAM_PRICING_PLANS = [
       'AI chat — ask anything about SAT / IELTS tasks',
       'AI explanations — step-by-step reasoning on tough items',
       'Private AI teacher — guided prompts tailored to you',
-      'Priority support',
-    ],
-  },
-  {
-    id: '6month',
-    name: 'Pro 6M',
-    tag: 'BEST VALUE',
-    description:
-      'Our best deal — 6 months of full Pro access billed once. Everything in Pro at the lowest monthly rate, ideal for a full prep season.',
-    price: "$28.99",
-    compareAt: "$47.94",
-    billing: '/ 6 months',
-    cta: 'Get 6-Month Pro',
-    highlight: false,
-    features: [
-      'Everything in Pro — all AI coaching features included',
-      '6 months billed once — lowest monthly price',
-      'Best for a full SAT / IELTS prep season',
-      'AI progress, chat, explanations & private AI teacher',
       'Priority support',
     ],
   },
@@ -94,39 +75,46 @@ function PlanCard({ plan, revealClass, onCheckout, loading }) {
     <div className={`exam-price-card ${revealClass} relative flex min-w-0`}>
       {plan.tag && (
         <div
-          className="absolute -top-1.5 left-3 right-3 z-10 text-center py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wide text-white"
+          className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-10 px-5 py-1.5 rounded-full text-[11px] font-black uppercase tracking-wider text-white shadow-md shadow-sky-500/30 whitespace-nowrap"
           style={{ background: 'linear-gradient(135deg,#0EA5E9,#2563EB)' }}
         >
           {plan.tag}
         </div>
       )}
       <div
-        className={`rounded-2xl flex-1 h-full flex flex-col ${plan.tag ? 'pt-8' : 'pt-5'} px-4 sm:px-5 pb-5 sm:pb-6 bg-white transition-shadow duration-300 ${
+        className={`rounded-2xl flex-1 h-full flex flex-col ${plan.tag ? 'pt-9' : 'pt-6'} px-5 sm:px-6 pb-6 bg-white transition-all duration-300 ${
           plan.highlight
-            ? 'border-2 border-sky-400 shadow-lg shadow-sky-500/15 ring-2 ring-sky-100/90'
-            : 'border border-slate-200/80 shadow-sm hover:shadow-md hover:border-sky-200'
+            ? 'border-2 border-sky-400 shadow-lg shadow-sky-500/15 ring-2 ring-sky-100/80'
+            : 'border border-slate-200 shadow-sm hover:shadow-md hover:border-sky-200'
         }`}
       >
-        <div className="mb-0.5 flex items-center gap-2 flex-wrap">
-          <h3 className="text-lg font-black text-slate-900">{plan.name}</h3>
+        <div className="mb-1.5 flex items-center gap-2 flex-wrap">
+          <h3 className="text-xl font-black text-slate-900 tracking-tight">{plan.name}</h3>
           {plan.highlight && (
-            <span className="text-[9px] font-bold uppercase tracking-wide text-sky-600 px-1.5 py-0.5 rounded-full bg-sky-50 border border-sky-200">
+            <span className="text-[9px] font-bold uppercase tracking-wide text-sky-600 px-2 py-0.5 rounded-full bg-sky-50 border border-sky-200">
               Most popular
             </span>
           )}
         </div>
-        <p className="text-slate-500 text-[12.5px] sm:text-[13px] leading-relaxed min-h-[3.25rem] mb-4">
+        <p className="text-slate-500 text-[13px] leading-relaxed min-h-[3.5rem] mb-4">
           {plan.description}
         </p>
-        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0 mb-4">
-          <span className="text-2xl font-black text-slate-900">{plan.price}</span>
-          <span className="text-xs text-slate-400 line-through">{plan.compareAt}</span>
-          <span className="text-xs font-medium text-slate-400">{plan.billing}</span>
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0 mb-3.5">
+          <span className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">{plan.price}</span>
+          <span className="text-[13px] text-slate-400 line-through">{plan.compareAt}</span>
+          <span className="text-[13px] font-medium text-slate-400">{plan.billing}</span>
         </div>
-        <ul className="flex-1 space-y-2 mb-5">
+
+        {/* All exams included badge */}
+        <div className="mb-4 inline-flex items-center gap-1.5 w-fit px-3 py-1.5 rounded-lg bg-sky-50 border border-sky-100">
+          <Sparkles size={12} className="text-sky-500 shrink-0" />
+          <span className="text-[11.5px] font-bold text-sky-700">IELTS · CEFR · SAT Mocks — all in {plan.name}</span>
+        </div>
+
+        <ul className="flex-1 space-y-2.5 mb-5">
           {plan.features.map((f) => (
-            <li key={f} className="flex gap-2 text-[11.5px] sm:text-[12.5px] text-slate-600 leading-snug">
-              <span className="shrink-0 mt-0.5 w-4 h-4 rounded-full bg-sky-100 flex items-center justify-center">
+            <li key={f} className="flex gap-2 text-[13px] text-slate-700 leading-snug">
+              <span className="shrink-0 mt-0.5 w-[18px] h-[18px] rounded-full bg-sky-100 flex items-center justify-center">
                 <Check className="w-2.5 h-2.5 text-sky-600" strokeWidth={3} />
               </span>
               {f}
@@ -139,24 +127,24 @@ function PlanCard({ plan, revealClass, onCheckout, loading }) {
           type="button"
           onClick={() => onCheckout(plan.id)}
           disabled={loading === plan.id}
-          className={`w-full rounded-xl py-2.5 text-[13px] font-bold transition-all mt-auto flex items-center justify-center gap-2 disabled:opacity-70 ${
+          className={`w-full rounded-xl py-3 text-[14px] font-bold transition-all mt-auto flex items-center justify-center gap-2 disabled:opacity-70 ${
             plan.highlight
               ? 'text-white bg-gradient-to-r from-sky-500 to-blue-600 shadow-md shadow-sky-400/30 hover:from-sky-600 hover:to-blue-700'
-              : 'text-slate-800 bg-slate-50 border border-slate-200 hover:border-sky-200 hover:bg-sky-50/80 hover:text-sky-900'
+              : 'text-slate-800 bg-slate-50 border border-slate-200 hover:border-sky-300 hover:bg-sky-50/80 hover:text-sky-900'
           }`}
         >
           {loading === plan.id ? (
-            <Loader2 size={15} className="animate-spin" />
+            <Loader2 size={16} className="animate-spin" />
           ) : (
             <>
-              <CreditCard size={14} />
+              <CreditCard size={15} />
               {plan.cta}
             </>
           )}
         </button>
 
         {/* Card badge */}
-        <p className="text-center text-[10px] text-slate-400 mt-2 flex items-center justify-center gap-1">
+        <p className="text-center text-[10.5px] text-slate-400 mt-2.5 flex items-center justify-center gap-1">
           <Sparkles size={9} className="text-sky-300" />
           Secure payment · Auto-renews · Cancel anytime
         </p>
@@ -233,7 +221,7 @@ export default function ExamPricingSection({ animateOnScroll = true, sectionId =
           backgroundSize: '28px 28px',
         }}
       />
-      <div className="relative z-10 max-w-5xl mx-auto">
+      <div className="relative z-10 max-w-4xl mx-auto">
         {/* Success banner */}
         {showSuccess && <SuccessBanner onClose={dismissSuccess} />}
 
@@ -259,7 +247,7 @@ export default function ExamPricingSection({ animateOnScroll = true, sectionId =
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 items-stretch">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-7 items-stretch">
           {EXAM_PRICING_PLANS.map((p) => (
             <PlanCard
               key={p.id}

@@ -104,7 +104,9 @@ export default function SATTestList() {
       queryKey: ['sat-test-results-mini', test.id],
       queryFn: () => api.get(`/sat/tests/${test.id}/results/`).then((r) => r.data),
       enabled: !isLoading && tab === 'full',
-      staleTime: 60_000,
+      // Test tugatib qaytganda yangi natija darhol ko'rinsin (refresh kerak emas)
+      staleTime: 0,
+      refetchOnMount: 'always',
     })),
   })
 
@@ -114,7 +116,9 @@ export default function SATTestList() {
       queryKey: ['sat-individual-results', test.id],
       queryFn: () => api.get(`/sat/tests/${test.id}/individual-stats/`).then((r) => r.data),
       enabled: !isLoading,
-      staleTime: 60_000,
+      // Yangi module natijasi darhol ko'rinsin (refresh kerak emas)
+      staleTime: 0,
+      refetchOnMount: 'always',
     })),
   })
 

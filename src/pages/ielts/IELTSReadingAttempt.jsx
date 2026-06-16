@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import api from '../../api/client'
 import { sanitizeHtml } from '../../utils/sanitizeHtml';
+import { loadExam, saveExam, clearExam } from '../../utils/examPersist'
 
 function Skeleton({ className = '' }) {
   return <div className={`animate-pulse rounded-lg bg-gray-200/70 ${className}`} />
@@ -1602,17 +1603,6 @@ export default function IELTSReadingAttempt() {
   const location = useLocation()
 
   const initialPassageId = Number(searchParams.get('passage') || 0)
-  const partIds = useMemo(() => {
-    const ids = (searchParams.get('parts') || '')
-      .split(',')
-      .map((v) => Number(v))
-      .filter((v) => Number.isFinite(v) && v > 0)
-    if (initialPassageId && !ids.includes(initialPassageId)) ids.unshift(initialPassageId)
-    return ids.length ? ids : (initialPassageId ? [initialPassageId] : [])
-  }, [searchParams, initialPassageId])
-  const [activePartIndex, setActivePartIndex] = useState(() => Math.max(0, partIds.indexOf(initialPassageId)))
-  const currentPassageId = partIds[activePartIndex] || initialPassageId
-  const partsQuery = partIds.length > 1 ? `&parts=${partIds.join(',')}` : ''
   const passageTitle = decodeURIComponent(searchParams.get('title') || 'Reading Passage')
   const cleanPassageTitle = passageTitle.replace(/\bID:\s*\d+\b/gi, '').replace(/\s{2,}/g, ' ').trim()
   const isReviewMode = searchParams.get('mode') === 'review'
@@ -1627,10 +1617,29 @@ export default function IELTSReadingAttempt() {
 
   const reviewData = fetchedReviewData || location.state?.reviewData || null
   const reviewMode = Boolean(reviewData) || isReviewMode
+
+  const partIds = useMemo(() => {
+    const ids = (searchParams.get('parts') || '')
+      .split(',')
+      .map((v) => Number(v))
+      .filter((v) => Number.isFinite(v) && v > 0)
+    if (initialPassageId && !ids.includes(initialPassageId)) ids.unshift(initialPassageId)
+    const urlIds = ids.length ? ids : (initialPassageId ? [initialPassageId] : [])
+    if (urlIds.length) return urlIds
+    // Mock review: URL'da passage yo'q — passage'larni review API javobidan olamiz
+    const reviewIds = (reviewData?.passages || [])
+      .map((p) => Number(p.id))
+      .filter((v) => Number.isFinite(v) && v > 0)
+    return reviewIds
+  }, [searchParams, initialPassageId, reviewData])
+  const [activePartIndex, setActivePartIndex] = useState(() => Math.max(0, partIds.indexOf(initialPassageId)))
+  const currentPassageId = partIds[activePartIndex] || initialPassageId
+  const partsQuery = partIds.length > 1 ? `&parts=${partIds.join(',')}` : ''
   const [showCorrectInReview, setShowCorrectInReview] = useState(false)
 
-  // Core state
-  const [answersByPart, setAnswersByPart] = useState({})
+  // Core state — answers persist across refresh (keyed to attempt)
+  const answersStorageKey = reviewMode ? null : `reading-answers-${attemptId}`
+  const [answersByPart, setAnswersByPart] = useState(() => loadExam(answersStorageKey) || {})
   const [activeQ, setActiveQ] = useState(0)
   const [submitting, setSubmitting] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
@@ -1697,6 +1706,12 @@ export default function IELTSReadingAttempt() {
   const totalTimeSec = Math.max(20, Math.min(60, partIds.length * 20)) * 60
   const timerStorageKey = `reading-timer-${attemptId}`
   const timer = useTimer(totalTimeSec, reviewMode ? null : timerStorageKey)
+
+  // Persist answers across refresh
+  useEffect(() => {
+    if (!answersStorageKey) return
+    saveExam(answersStorageKey, answersByPart)
+  }, [answersByPart, answersStorageKey])
 
   // All questions flat for bottom nav
   const allQuestionsFlat = useMemo(() =>
@@ -1782,8 +1797,9 @@ export default function IELTSReadingAttempt() {
     return () => document.removeEventListener('fullscreenchange', handler)
   }, [])
 
-  // Prevent accidental exit via browser back
+  // Prevent accidental exit via browser back (exam mode only)
   useEffect(() => {
+    if (reviewMode) return  // review: no navigation guard, so Back works normally
     window.history.pushState({ readingAttemptGuard: true }, '', window.location.href)
     const onPopState = () => {
       if (allowLeaveRef.current) return
@@ -1792,7 +1808,7 @@ export default function IELTSReadingAttempt() {
     }
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
-  }, [])
+  }, [reviewMode])
 
   // Drag resize
   const handleMouseMove = useCallback(e => {
@@ -2042,6 +2058,7 @@ export default function IELTSReadingAttempt() {
     if (reviewMode) return
     timer.stop()
     timer.clearPersist()
+    clearExam(answersStorageKey)
     setShowConfirm(false)
     setShowExitConfirm(false)
     setSubmitting(true)
@@ -2157,6 +2174,7 @@ export default function IELTSReadingAttempt() {
   const handleBackToList = () => {
     allowLeaveRef.current = true
     timer.clearPersist()
+    clearExam(answersStorageKey)
     navigate('/app/ielts/reading')
   }
   const handleRedoFromReview = async () => {
@@ -2690,9 +2708,9 @@ export default function IELTSReadingAttempt() {
         </AnimatePresence>
       </div>
 
-      {/* -- Global Bottom Navigation (Pills) ----------------------------- */}
-      <div className={`fixed bottom-2 md:bottom-3 left-2 right-2 md:left-4 md:right-4 z-30 rounded-2xl border ${divider} ${D ? 'bg-gray-900/95' : 'bg-white/95'} backdrop-blur shadow-lg`}>
-        <div className="flex items-center gap-3 px-3 py-2 max-w-screen-xl mx-auto">
+      {/* -- Global Bottom Navigation (Pills) — stuck to the very bottom ---- */}
+      <div className={`fixed bottom-0 left-0 right-0 z-30 rounded-t-2xl border-t ${D ? 'bg-gray-900/97 border-gray-700' : 'bg-gray-100/95 border-gray-200'} backdrop-blur shadow-[0_-4px_16px_rgba(0,0,0,0.08)]`}>
+        <div className="flex items-center gap-3 px-3 py-2.5 max-w-screen-xl mx-auto">
           <div className="flex flex-1 min-w-0 items-stretch gap-2">
               {(partIds.length ? partIds : [currentPassageId || 0]).map((pid, pidx) => {
                 const partPassage = allPassagesData[pidx]
@@ -2705,38 +2723,38 @@ export default function IELTSReadingAttempt() {
                     role="button"
                     tabIndex={0}
                     onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActivePartIndex(pidx) } }}
-                    className={`flex-1 min-w-0 flex flex-col items-center justify-center gap-1.5 px-1.5 sm:px-2 py-2 rounded-xl border-2 cursor-pointer transition ${
+                    className={`${isActivePart ? 'flex-[3] flex-row gap-3' : 'flex-1 flex-col gap-1.5'} min-w-0 flex items-center justify-center px-2.5 py-2 rounded-xl border-2 cursor-pointer transition ${
                       isActivePart
-                        ? `border-sky-500 ${D ? 'bg-gray-800' : 'bg-sky-50'}`
-                        : D ? 'border-gray-600 bg-gray-800/40 hover:bg-gray-800' : 'border-gray-200 bg-white hover:bg-gray-50'
+                        ? (D ? 'border-sky-500 bg-gray-800' : 'border-sky-500 bg-sky-50')
+                        : D ? 'border-gray-600 bg-gray-800/40 hover:bg-gray-800' : 'border-gray-200 bg-white/70 hover:bg-white'
                     }`}
                     onClick={() => setActivePartIndex(pidx)}
                   >
-                    <span className={`text-xs sm:text-sm font-black text-center ${isActivePart ? 'text-sky-500' : D ? 'text-gray-400' : 'text-gray-500'}`}>
+                    <span className={`text-xs sm:text-sm font-black whitespace-nowrap ${isActivePart ? 'text-sky-600' : D ? 'text-gray-400' : 'text-gray-500'}`}>
                       Part {pidx + 1}
                     </span>
                     {isActivePart ? (
-                      <div className="flex flex-wrap justify-center gap-1 w-full">
-                      {partQs.map((q, qi) => {
-                        const answered = Boolean(partAns[String(q.id)])
-                        const isCurrent = activeQ === qi
-                        return (
-                          <button
-                            key={q.id}
-                            type="button"
-                            onClick={e => { e.stopPropagation(); setTimeout(() => goToQuestion(qi), 0) }}
-                            className={`w-8 h-8 rounded-full text-xs font-bold transition flex items-center justify-center flex-shrink-0 ${
-                              answered
-                                ? 'bg-sky-500 text-white'
-                                : isCurrent
-                                  ? 'bg-sky-400 text-white ring-2 ring-sky-300'
-                                  : D ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'
-                            }`}
-                          >
-                            {q.number}
-                          </button>
-                        )
-                      })}
+                      <div className="flex flex-nowrap items-center gap-1.5 min-w-0 overflow-x-auto py-0.5">
+                        {partQs.map((q, qi) => {
+                          const answered = Boolean(partAns[String(q.id)])
+                          const isCurrent = activeQ === qi
+                          return (
+                            <button
+                              key={q.id}
+                              type="button"
+                              onClick={e => { e.stopPropagation(); setTimeout(() => goToQuestion(qi), 0) }}
+                              className={`w-9 h-9 rounded-full text-[13px] font-bold transition flex items-center justify-center flex-shrink-0 border-2 ${
+                                answered
+                                  ? 'bg-sky-500 text-white border-sky-500'
+                                  : isCurrent
+                                    ? 'bg-sky-100 text-sky-700 border-sky-500 ring-2 ring-sky-200'
+                                    : (D ? 'bg-gray-800 text-gray-200 border-gray-500' : 'bg-white text-gray-700 border-gray-400')
+                              }`}
+                            >
+                              {q.number}
+                            </button>
+                          )
+                        })}
                       </div>
                     ) : (
                       <span className={`text-[10px] sm:text-xs italic text-center leading-tight px-0.5 ${textSub}`}>{partQs.length} questions</span>

@@ -4,9 +4,29 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   BookOpen, Headphones, GraduationCap, Layers, ChevronDown,
   Upload, X, AlertCircle, FileJson, Loader2, Check,
-  Trash2, FileText, Music2, VolumeX, Eye, Crown, Clock, Search,
+  Trash2, FileText, Music2, VolumeX, Eye, Crown, Clock, Search, Download,
 } from 'lucide-react'
 import api from '../../api/client'
+
+// Yuklangan audioni admin kompyuteriga saqlash (download)
+async function downloadAudioFile(url, baseName = 'audio') {
+  const ext = (url.split('?')[0].match(/\.(mp3|wav|m4a|ogg|aac)$/i)?.[1] || 'mp3').toLowerCase()
+  const safe = String(baseName).replace(/[^\w.-]+/g, '_').slice(0, 60) || 'audio'
+  try {
+    const res = await fetch(url)
+    const blob = await res.blob()
+    const objUrl = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = objUrl
+    a.download = `${safe}.${ext}`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(objUrl)
+  } catch {
+    window.open(url, '_blank')
+  }
+}
 
 // ── Level + QT helpers ────────────────────────────────────────────────────────
 const LEVEL_COLORS = {
@@ -631,6 +651,17 @@ const LISTENING_EXAMPLE = `// ════════════════�
 // CEFR LISTENING — TO'LIQ IMPORT GUIDE
 // ═══════════════════════════════════════════════════════
 // Audio file → import qilgandan so'ng admin panel orqali yuklanadi
+//
+// ── TRANSCRIPT FORMATTING (review sahifasida chiroyli ko'rinadi) ──
+// transcript ichida "\\n" = yangi qator. Quyidagi belgilar ishlaydi:
+//   # Sarlavha      → eng katta sarlavha
+//   ## Sarlavha     → o'rta sarlavha
+//   ### Sarlavha    → qalin mayda sarlavha
+//   - matn  /  • matn  → ro'yxat (pastma-past)
+//   **qalin**       → qalin
+//   *kursiv*        → kursiv
+//   [1], [2] ...    → javob joylari (sariq highlight + raqam)
+// Misol: "## SHOPPING\\n\\n**Speaker:** Hello.\\n- Item: [1]\\n- Price: [2]"
 // ═══════════════════════════════════════════════════════
 
 // ── OPTION 1: Single Practice Section ───────────────────
@@ -1078,10 +1109,25 @@ function AudioUploadModal({ item, section, onClose, onSuccess }) {
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
         </div>
         <p className="text-sm text-gray-500 mb-4 truncate">{item.title}</p>
+
+        {(item.audio_url || item.audio_file) && (
+          <div className="p-3 bg-green-50 rounded-xl border border-green-100 mb-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Music2 size={14} className="text-green-600" />
+              <span className="text-xs font-semibold text-green-700">Audio yuklangan</span>
+            </div>
+            <audio src={item.audio_url || item.audio_file} controls className="w-full h-8 text-xs" />
+            <button onClick={() => downloadAudioFile(item.audio_url || item.audio_file, item.title)}
+              className="mt-2 w-full py-1.5 text-xs text-green-700 hover:bg-green-100 rounded-lg transition font-medium flex items-center justify-center gap-1.5 border border-green-200">
+              <Download size={12} /> Save audio
+            </button>
+          </div>
+        )}
+
         <button onClick={() => fileRef.current?.click()} disabled={loading}
           className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-sky-300 rounded-xl text-sm text-sky-600 hover:bg-sky-50 transition font-medium">
           {loading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
-          {loading ? 'Yuklanmoqda...' : 'Audio tanlash (MP3, WAV, OGG)'}
+          {loading ? 'Yuklanmoqda...' : (item.audio_url || item.audio_file) ? 'Audioni almashtirish' : 'Audio tanlash (MP3, WAV, OGG)'}
         </button>
         <input ref={fileRef} type="file" accept="audio/*" className="hidden" onChange={handleUpload} />
         {status && (

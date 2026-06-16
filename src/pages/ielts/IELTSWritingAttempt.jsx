@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import api from '../../api/client'
 import { downloadWritingPdf } from '../../utils/downloadPdf'
+import { examKey, loadExam, saveExam, clearExam } from '../../utils/examPersist'
 
 // ── Timer ─────────────────────────────────────────────────────────────────────
 function useTimer(limitSeconds) {
@@ -53,6 +54,7 @@ function useTimer(limitSeconds) {
     expired,
     start: () => setRunning(true),
     pause: () => setRunning(false),
+    seed: (s) => setElapsed(s),
     reset: () => {
       setRunning(false)
       setElapsed(0)
@@ -160,6 +162,32 @@ function OwnWritingMode() {
     initialLeft: 40,
     initialTop: 40,
   })
+
+  const ownKey = examKey('ielts_writing', 'own')
+  const ownRestoredRef = useRef(false)
+
+  // Restore own-writing progress on mount
+  useEffect(() => {
+    if (ownRestoredRef.current) return
+    ownRestoredRef.current = true
+    const saved = loadExam(ownKey)
+    if (saved) {
+      if (typeof saved.title === 'string') setTitle(saved.title)
+      if (typeof saved.text === 'string') setText(saved.text)
+      if (saved.timeLimit) setTimeLimit(saved.timeLimit)
+      if (saved.started) {
+        timer.seed(saved.elapsed || 0)
+        setStarted(true)
+        timer.start()
+      }
+    }
+  }, [])
+
+  // Persist own-writing progress
+  useEffect(() => {
+    if (!started) return
+    saveExam(ownKey, { title, text, timeLimit, elapsed: timer.elapsed, started: true })
+  }, [title, text, timeLimit, timer.elapsed, started])
 
   const handleStart = () => {
     if (!title.trim()) return
@@ -389,11 +417,12 @@ function OwnWritingMode() {
           </button>
           <button
             type="button"
-            onClick={() =>
+            onClick={() => {
+              clearExam(ownKey)
               navigate('/exam/ielts/writing/result/0', {
                 state: { task: null, text, wordCount: words, ownTitle: title },
               })
-            }
+            }}
             disabled={words < 10}
             className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl text-sm font-bold text-white gradient-primary shadow-glow hover:opacity-95 disabled:opacity-50"
           >
@@ -419,6 +448,7 @@ export default function IELTSWritingAttempt() {
   const [timerStarted, setTimerStarted] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [fs, setFs] = useState(false)
+  const [zoomImage, setZoomImage] = useState(false)
 
   const isDesktop = useMediaMd()
   const { leftPct, topPct, containerRef, onDownHorizontal, onDownVertical } = useResizableSplit({
@@ -434,6 +464,30 @@ export default function IELTSWritingAttempt() {
   })
 
   const timer = useTimer((task?.time_limit || 40) * 60)
+
+  const pKey = (!isOwn && attemptId && taskId) ? examKey('ielts_writing', `${attemptId}_${taskId}`) : null
+  const restoredRef = useRef(false)
+
+  // Restore saved progress once the task has loaded
+  useEffect(() => {
+    if (restoredRef.current || !pKey || !task) return
+    restoredRef.current = true
+    const saved = loadExam(pKey)
+    if (saved) {
+      if (typeof saved.text === 'string') setText(saved.text)
+      if (saved.started) {
+        timer.seed(saved.elapsed || 0)
+        setTimerStarted(true)
+        timer.start()
+      }
+    }
+  }, [task, pKey])
+
+  // Persist text + elapsed time whenever they change
+  useEffect(() => {
+    if (!pKey || !timerStarted) return
+    saveExam(pKey, { text, elapsed: timer.elapsed, started: true })
+  }, [text, timer.elapsed, timerStarted, pKey])
 
   const handleStartTimer = () => {
     setTimerStarted(true)
@@ -462,6 +516,7 @@ export default function IELTSWritingAttempt() {
     setSubmitting(true)
     setShowConfirm(false)
     timer.pause()
+    clearExam(pKey)
     try {
       const resp = await api.post(`/ielts/writing/${attemptId}/submit/`, {
         task_id: Number(taskId),
@@ -636,11 +691,16 @@ export default function IELTSWritingAttempt() {
             </div>
             <p className="text-sm leading-relaxed text-gray-900 font-semibold">{task.prompt}</p>
             {task.image && (
-              <img
-                src={task.image}
-                alt="Task visual"
-                className="w-full rounded-lg border border-gray-200 object-contain max-h-52"
-              />
+              <div className="relative group cursor-zoom-in" onClick={() => setZoomImage(true)}>
+                <img
+                  src={task.image}
+                  alt="Task visual"
+                  className="w-full rounded-lg border border-gray-200 object-contain max-h-[420px] bg-white transition group-hover:brightness-95"
+                />
+                <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-black/55 text-white text-[10px] font-semibold backdrop-blur-sm pointer-events-none">
+                  <Maximize2 size={11} /> Click to enlarge
+                </span>
+              </div>
             )}
           </div>
 
@@ -763,6 +823,36 @@ export default function IELTSWritingAttempt() {
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* Image zoom lightbox */}
+      <AnimatePresence>
+        {zoomImage && task?.image && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setZoomImage(false)}
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-8 bg-black/80 backdrop-blur-sm cursor-zoom-out"
+          >
+            <button
+              type="button"
+              onClick={() => setZoomImage(false)}
+              className="absolute top-4 right-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-sm font-semibold transition"
+            >
+              <Minimize2 size={16} /> Close
+            </button>
+            <motion.img
+              initial={{ scale: 0.92 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.92 }}
+              src={task.image}
+              alt="Task visual enlarged"
+              onClick={(e) => e.stopPropagation()}
+              className="max-w-full max-h-full object-contain rounded-xl shadow-2xl bg-white cursor-default"
+            />
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

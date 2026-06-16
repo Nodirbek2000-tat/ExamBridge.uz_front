@@ -6,12 +6,12 @@ import { Mic, MicOff, Loader2, Volume2, Check, Lightbulb, Upload } from 'lucide-
 import api from '../../api/client'
 
 const AI_PERSONAS = [
-  { name: 'Sarah',   gender: 'female', voice: 'nova',    speed: 0.90, greeting: "Hello! I'm Sarah, your CEFR speaking examiner today." },
-  { name: 'Emily',   gender: 'female', voice: 'shimmer', speed: 0.92, greeting: "Hi there! My name is Emily, and I'll be your examiner today." },
-  { name: 'James',   gender: 'male',   voice: 'onyx',    speed: 0.88, greeting: "Hello! I'm James. I'll be conducting your CEFR speaking test today." },
-  { name: 'David',   gender: 'male',   voice: 'echo',    speed: 0.90, greeting: "Good day! My name is David, and I'm your speaking examiner." },
-  { name: 'Sophia',  gender: 'female', voice: 'alloy',   speed: 0.93, greeting: "Hello! I'm Sophia. Welcome to your CEFR speaking practice today." },
-  { name: 'Michael', gender: 'male',   voice: 'fable',   speed: 0.89, greeting: "Hi! I'm Michael. I'll be your CEFR speaking examiner for this session." },
+  { name: 'Sarah',   gender: 'female', voice: 'nova',    speed: 0.95, greeting: "Hello! I'm Sarah, your CEFR speaking examiner today." },
+  { name: 'Emily',   gender: 'female', voice: 'shimmer', speed: 0.95, greeting: "Hi there! My name is Emily, and I'll be your examiner today." },
+  { name: 'James',   gender: 'male',   voice: 'onyx',    speed: 0.93, greeting: "Hello! I'm James. I'll be conducting your CEFR speaking test today." },
+  { name: 'David',   gender: 'male',   voice: 'echo',    speed: 0.94, greeting: "Good day! My name is David, and I'm your speaking examiner." },
+  { name: 'Sophia',  gender: 'female', voice: 'alloy',   speed: 0.95, greeting: "Hello! I'm Sophia. Welcome to your CEFR speaking practice today." },
+  { name: 'Michael', gender: 'male',   voice: 'fable',   speed: 0.93, greeting: "Hi! I'm Michael. I'll be your CEFR speaking examiner for this session." },
 ]
 
 function speakBrowser(text, persona, onEnd) {
@@ -152,7 +152,8 @@ function ExaminerBlock({ persona, state }) {
 export default function CEFRSpeakingAttempt() {
   const { taskId } = useParams()
   const [searchParams] = useSearchParams()
-  const attemptId = searchParams.get('attempt')
+  const rawAttempt = searchParams.get('attempt')
+  const attemptId = rawAttempt && rawAttempt !== 'undefined' && rawAttempt !== 'null' ? rawAttempt : null
   const navigate = useNavigate()
 
   const [persona] = useState(() => AI_PERSONAS[Math.floor(Math.random() * AI_PERSONAS.length)])
@@ -277,6 +278,32 @@ export default function CEFRSpeakingAttempt() {
     say(greetText, () => showQuestionRef.current(0, questions))
   }, [questions, state])
 
+  // Preload ALL question TTS as soon as questions are built — eliminates waiting
+  useEffect(() => {
+    if (!questions.length) return
+    const farewell = "That is the end of the speaking test. Thank you very much for your answers. Well done!"
+    const greetText = `${persona.greeting} We have ${questions.length} question${questions.length > 1 ? 's' : ''} today.`
+    const allTexts = [
+      greetText,
+      farewell,
+      ...questions.flatMap(q => [
+        q.intro ? q.intro + ' ' + q.text : q.text,
+        q.acceptPhrase,
+      ].filter(Boolean)),
+    ]
+    allTexts.forEach(text => {
+      const cacheKey = `${persona.voice}:${text}`
+      if (ttsCacheRef.current.has(cacheKey)) return
+      api.post('/ielts/speaking/tts/',
+        { text, voice: persona.voice, speed: persona.speed },
+        { responseType: 'blob' }
+      ).then(r => {
+        ttsCacheRef.current.set(cacheKey, URL.createObjectURL(r.data))
+      }).catch(() => {})
+    })
+  }, [questions])
+
+  // Backup: preload next question while recording
   useEffect(() => {
     if (state !== 'RECORDING' || !questions.length) return
     const nextIdx = qIndex + 1

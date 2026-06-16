@@ -8,6 +8,7 @@ import {
   Maximize2, Minimize2, Sun, Moon, Menu, XCircle, Lock, ArrowDown,
 } from 'lucide-react'
 import api from '../../api/client'
+import { loadExam, saveExam, clearExam } from '../../utils/examPersist'
 import { useAuthStore } from '../../store/authStore'
 
 function useTimer(initialSeconds, storageKey, frozen = false) {
@@ -1198,7 +1199,8 @@ export default function CEFRReadingAttempt() {
   }, [partsParam, passageId])
   const [activePart, setActivePart] = useState(0)
 
-  const [answers, setAnswers] = useState({})
+  const answersStorageKey = reviewMode ? null : `cefr-reading-answers-${attemptId}-${passageId || 'x'}`
+  const [answers, setAnswers] = useState(() => loadExam(answersStorageKey) || {})
   const [activeQ, setActiveQ] = useState(0)
   const [submitting, setSubmitting] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
@@ -1258,6 +1260,12 @@ export default function CEFRReadingAttempt() {
 
   const timerStorageKey = `cefr-reading-timer-${attemptId}-${passageId || 'x'}`
   const timer = useTimer((passage?.time_limit || 20) * 60, reviewMode ? null : timerStorageKey, reviewMode)
+
+  // Persist answers across refresh
+  useEffect(() => {
+    if (!answersStorageKey) return
+    saveExam(answersStorageKey, answers)
+  }, [answers, answersStorageKey])
   const questions = passage?.questions || []
 
   const reviewMap = useMemo(() => {
@@ -1291,9 +1299,10 @@ export default function CEFRReadingAttempt() {
   }, [reviewData])
 
   useEffect(() => {
+    if (reviewMode) return  // review: no navigation guard, so Back works normally
     window.history.pushState({ cefrReadingGuard: true }, '', window.location.href)
     const onPopState = () => {
-      if (allowLeaveRef.current || reviewMode) return
+      if (allowLeaveRef.current) return
       setShowExitConfirm(true)
       window.history.pushState({ cefrReadingGuard: true }, '', window.location.href)
     }
@@ -1343,6 +1352,7 @@ export default function CEFRReadingAttempt() {
     if (reviewMode) return
     timer.stop()
     timer.clearPersist()
+    clearExam(answersStorageKey)
     setShowConfirm(false)
     setShowExitConfirm(false)
     setSubmitting(true)
@@ -1382,6 +1392,7 @@ export default function CEFRReadingAttempt() {
   const handleBackToList = () => {
     allowLeaveRef.current = true
     timer.clearPersist()
+    clearExam(answersStorageKey)
     navigate('/app/cefr/reading')
   }
 

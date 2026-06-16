@@ -9,12 +9,12 @@ import api from '../../api/client'
 // alloy=neutral, echo=male-clear, fable=male-warm, onyx=male-deep,
 // nova=female-warm, shimmer=female-clear
 const AI_PERSONAS = [
-  { name: 'Sarah',   gender: 'female', voice: 'nova',    speed: 0.90, greeting: "Hello! I'm Sarah, your IELTS speaking examiner today." },
-  { name: 'Emily',   gender: 'female', voice: 'shimmer', speed: 0.92, greeting: "Hi there! My name is Emily, and I'll be your examiner today." },
-  { name: 'James',   gender: 'male',   voice: 'onyx',    speed: 0.88, greeting: "Hello! I'm James. I'll be conducting your IELTS speaking test today." },
-  { name: 'David',   gender: 'male',   voice: 'echo',    speed: 0.90, greeting: "Good day! My name is David, and I'm your speaking examiner." },
-  { name: 'Sophia',  gender: 'female', voice: 'alloy',   speed: 0.93, greeting: "Hello! I'm Sophia. Welcome to your IELTS speaking practice today." },
-  { name: 'Michael', gender: 'male',   voice: 'fable',   speed: 0.89, greeting: "Hi! I'm Michael. I'll be your IELTS speaking examiner for this session." },
+  { name: 'Sarah',   gender: 'female', voice: 'nova',    speed: 0.95, greeting: "Hello! I'm Sarah, your IELTS speaking examiner today." },
+  { name: 'Emily',   gender: 'female', voice: 'shimmer', speed: 0.95, greeting: "Hi there! My name is Emily, and I'll be your examiner today." },
+  { name: 'James',   gender: 'male',   voice: 'onyx',    speed: 0.93, greeting: "Hello! I'm James. I'll be conducting your IELTS speaking test today." },
+  { name: 'David',   gender: 'male',   voice: 'echo',    speed: 0.94, greeting: "Good day! My name is David, and I'm your speaking examiner." },
+  { name: 'Sophia',  gender: 'female', voice: 'alloy',   speed: 0.95, greeting: "Hello! I'm Sophia. Welcome to your IELTS speaking practice today." },
+  { name: 'Michael', gender: 'male',   voice: 'fable',   speed: 0.93, greeting: "Hi! I'm Michael. I'll be your IELTS speaking examiner for this session." },
 ]
 
 // ── Browser TTS fallback (if API unavailable) ──────────────────────────────
@@ -182,7 +182,8 @@ function ExaminerBlock({ persona, state }) {
 export default function IELTSSpeakingAttempt() {
   const { taskId } = useParams()
   const [searchParams] = useSearchParams()
-  const attemptId = searchParams.get('attempt')
+  const rawAttempt = searchParams.get('attempt')
+  const attemptId = rawAttempt && rawAttempt !== 'undefined' && rawAttempt !== 'null' ? rawAttempt : null
   const navigate = useNavigate()
 
   const [persona] = useState(() => AI_PERSONAS[Math.floor(Math.random() * AI_PERSONAS.length)])
@@ -196,21 +197,25 @@ export default function IELTSSpeakingAttempt() {
   const [subText, setSubText] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [micError, setMicError] = useState('')
+  const [prepCountdown, setPrepCountdown] = useState(0)
+  const [speakCountdown, setSpeakCountdown] = useState(0)
 
   const recorderRef = useRef(null)
   const recognitionRef = useRef(null)
   const streamRef = useRef(null)
   const transcriptRef = useRef('')
   const audioChunksRef = useRef([])
-  const questionAudiosRef = useRef([])   // Blob per question
-  const currentAudioRef = useRef(null)   // currently playing Audio element
-  const ttsCacheRef = useRef(new Map())  // text → blob URL cache
-  /** Foydalanuvchi 2-bosish bilan to‘xtatdi — STT onend qayta ishga tushmasin */
+  const questionAudiosRef = useRef([])
+  const currentAudioRef = useRef(null)
+  const ttsCacheRef = useRef(new Map())
   const stopSpeechRequestedRef = useRef(false)
-  /** Yozuv boshlangan vaqt (tasodifiy erta "stop"ni bloklash) */
   const recordingStartedAtRef = useRef(0)
-  /** Mik ochilayotganda getUserMedia ni bekor qilish */
   const micAbortRef = useRef(null)
+  const prepTimerRef = useRef(null)
+  const speakTimerRef = useRef(null)
+  const autoStartRef = useRef(false)
+  const sayRef = useRef(null)
+  const stopRecordingRef = useRef(null)
 
   // ── Mic permission — auto-request on mount ───────────────────────────────
   const handleAllowMic = async () => {
@@ -303,6 +308,8 @@ export default function IELTSSpeakingAttempt() {
     speakAPI(text, onDone)
   }, [speakAPI])
 
+  sayRef.current = say
+
   const showQuestionRef = useRef(null)
   showQuestionRef.current = (idx, qs) => {
     const questionsToUse = qs || questions
@@ -317,7 +324,16 @@ export default function IELTSSpeakingAttempt() {
     setCurrentTranscript('')
     transcriptRef.current = ''
     const textToSay = q.intro ? q.intro + ' ' + q.text : q.text
-    say(textToSay, () => setState('WAIT_RECORD'))
+
+    if (q.type === 'cue_card') {
+      // Part 2: read cue card → 1-min prep timer
+      say(textToSay, () => {
+        setPrepCountdown(60)
+        setState('PREP_TIMER')
+      })
+    } else {
+      say(textToSay, () => setState('WAIT_RECORD'))
+    }
   }
 
   // Greeting once questions ready AND mic permission granted (state === 'LOADING')
@@ -329,7 +345,92 @@ export default function IELTSSpeakingAttempt() {
     say(greetText, () => showQuestionRef.current(0, questions))
   }, [questions, state])
 
-  // Preload next question's TTS while user is recording
+  const TIME_UP_TEXT = "Your time is up. Start speaking now."
+
+  // Preload ALL question TTS as soon as questions are built — eliminates waiting
+  useEffect(() => {
+    if (!questions.length) return
+    const farewell = "That is the end of the speaking test. Thank you very much for your answers. Well done!"
+    const greetText = `${persona.greeting} We have ${questions.length} question${questions.length > 1 ? 's' : ''} today.`
+    const allTexts = [
+      greetText,
+      farewell,
+      TIME_UP_TEXT,
+      ...questions.flatMap(q => [
+        q.intro ? q.intro + ' ' + q.text : q.text,
+        q.acceptPhrase,
+      ].filter(Boolean)),
+    ]
+    allTexts.forEach(text => {
+      const cacheKey = `${persona.voice}:${text}`
+      if (ttsCacheRef.current.has(cacheKey)) return
+      api.post('/ielts/speaking/tts/',
+        { text, voice: persona.voice, speed: persona.speed },
+        { responseType: 'blob' }
+      ).then(r => {
+        ttsCacheRef.current.set(cacheKey, URL.createObjectURL(r.data))
+      }).catch(() => {})
+    })
+  }, [questions])
+
+  // 1-minute preparation timer for Part 2 cue card
+  useEffect(() => {
+    if (state !== 'PREP_TIMER') {
+      if (prepTimerRef.current) { clearInterval(prepTimerRef.current); prepTimerRef.current = null }
+      return
+    }
+    let count = prepCountdown || 60
+    prepTimerRef.current = setInterval(() => {
+      count--
+      if (count <= 0) {
+        clearInterval(prepTimerRef.current)
+        prepTimerRef.current = null
+        setPrepCountdown(0)
+        sayRef.current?.(TIME_UP_TEXT, () => {
+          autoStartRef.current = true
+          setState('WAIT_RECORD')
+        })
+      } else {
+        setPrepCountdown(count)
+      }
+    }, 1000)
+    return () => { if (prepTimerRef.current) { clearInterval(prepTimerRef.current); prepTimerRef.current = null } }
+  }, [state])
+
+  // Auto-start recording when WAIT_RECORD is triggered by prep timer
+  useEffect(() => {
+    if (state !== 'WAIT_RECORD') return
+    if (!autoStartRef.current) return
+    autoStartRef.current = false
+    startRecording(true)
+  }, [state])
+
+  // 2-minute auto-stop timer for Part 2 cue card speaking
+  useEffect(() => {
+    if (state !== 'RECORDING') {
+      if (speakTimerRef.current) { clearInterval(speakTimerRef.current); speakTimerRef.current = null }
+      setSpeakCountdown(0)
+      return
+    }
+    const q = questions[qIndex]
+    if (q?.type !== 'cue_card') return
+    let count = 120
+    setSpeakCountdown(count)
+    speakTimerRef.current = setInterval(() => {
+      count--
+      if (count <= 0) {
+        clearInterval(speakTimerRef.current)
+        speakTimerRef.current = null
+        setSpeakCountdown(0)
+        stopRecordingRef.current?.()
+      } else {
+        setSpeakCountdown(count)
+      }
+    }, 1000)
+    return () => { if (speakTimerRef.current) { clearInterval(speakTimerRef.current); speakTimerRef.current = null } }
+  }, [state, qIndex])
+
+  // Preload next question's TTS while user is recording (backup)
   useEffect(() => {
     if (state !== 'RECORDING' || !questions.length) return
     const nextIdx = qIndex + 1
@@ -364,8 +465,8 @@ export default function IELTSSpeakingAttempt() {
     }
   }
 
-  const startRecording = async () => {
-    if (state !== 'WAIT_RECORD') return
+  const startRecording = async (autoStart = false) => {
+    if (!autoStart && state !== 'WAIT_RECORD') return
 
     setCurrentTranscript('')
     setMicError('')
@@ -469,7 +570,7 @@ export default function IELTSSpeakingAttempt() {
   const stopRecording = () => {
     if (state !== 'RECORDING') return
 
-    // Mikrofon hali yuklanayotganda 2-bosish: recorder yo‘q — keyingi savolga o‘tmaslik
+    // Mikrofon hali yuklanayotganda 2-bosish: recorder yo'q — keyingi savolga o'tmaslik
     const recorder = recorderRef.current
     if (!recorder) return
 
@@ -523,6 +624,8 @@ export default function IELTSSpeakingAttempt() {
       advance()
     }
   }
+
+  stopRecordingRef.current = stopRecording
 
   const handleMicClick = () => {
     if (state === 'PREPARING_MIC') return
@@ -722,6 +825,30 @@ export default function IELTSSpeakingAttempt() {
             </div>
           )}
 
+          {state === 'PREP_TIMER' && (
+            <div className="flex flex-col items-center gap-4 w-full">
+              <div className="relative flex items-center justify-center">
+                <svg width="120" height="120" style={{ transform: 'rotate(-90deg)' }}>
+                  <circle cx="60" cy="60" r="52" fill="none" stroke="#e2e8f0" strokeWidth="8" />
+                  <circle
+                    cx="60" cy="60" r="52" fill="none"
+                    stroke="#f59e0b" strokeWidth="8" strokeLinecap="round"
+                    strokeDasharray={`${(prepCountdown / 60) * 326.7} 326.7`}
+                    style={{ transition: 'stroke-dasharray 0.9s linear' }}
+                  />
+                </svg>
+                <div className="absolute flex flex-col items-center">
+                  <span className="text-4xl font-black text-slate-800 tabular-nums">{prepCountdown}</span>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">seconds</span>
+                </div>
+              </div>
+              <div className="text-center space-y-1">
+                <p className="text-sm font-bold text-amber-700">Preparation time</p>
+                <p className="text-xs text-slate-500">Read the cue card and prepare your answer</p>
+              </div>
+            </div>
+          )}
+
           {state === 'PREPARING_MIC' && (
             <div className="flex flex-col items-center gap-2 w-full">
               <Loader2 size={28} className="animate-spin text-slate-500" />
@@ -732,7 +859,16 @@ export default function IELTSSpeakingAttempt() {
           {state === 'RECORDING' && (
             <div className="flex flex-col items-center gap-2 w-full">
               <WaveBars active />
-              <p className="text-xs text-emerald-600 font-semibold">Yozilmoqda…</p>
+              {speakCountdown > 0 ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-black text-emerald-600 tabular-nums">
+                    {Math.floor(speakCountdown / 60)}:{String(speakCountdown % 60).padStart(2, '0')}
+                  </span>
+                  <span className="text-xs text-slate-400 font-medium">remaining</span>
+                </div>
+              ) : (
+                <p className="text-xs text-emerald-600 font-semibold">Recording…</p>
+              )}
             </div>
           )}
 
@@ -759,13 +895,7 @@ export default function IELTSSpeakingAttempt() {
                       : 'bg-sky-500 hover:bg-sky-600 shadow-sky-200/60'
                 }`}
                 whileTap={state === 'PREPARING_MIC' ? undefined : { scale: 0.94 }}
-                aria-label={
-                  state === 'RECORDING'
-                    ? 'Stop recording'
-                    : state === 'PREPARING_MIC'
-                      ? 'Preparing microphone'
-                      : 'Start speaking'
-                }
+                aria-label={state === 'RECORDING' ? 'Stop recording' : 'Start speaking'}
               >
                 {state === 'RECORDING' ? (
                   <MicOff size={30} className="text-white" />
@@ -777,15 +907,15 @@ export default function IELTSSpeakingAttempt() {
               </motion.button>
               <p className="text-center text-xs sm:text-sm text-slate-500 font-medium px-2">
                 {state === 'RECORDING'
-                  ? 'Tugash uchun yana bir marta bos'
+                  ? speakCountdown > 0 ? 'Auto-stops when time runs out · or tap to stop early' : 'Tap to stop recording'
                   : state === 'PREPARING_MIC'
-                    ? 'Mikrofon ruxsati va yozuv tayyorlanmoqda…'
-                    : 'Bosing va gapirishni boshlang'}
+                    ? 'Opening microphone…'
+                    : 'Tap to start speaking'}
               </p>
             </div>
           )}
 
-          {questions.length > 0 && state !== 'LOADING' && state !== 'FAREWELL' && (
+          {questions.length > 0 && state !== 'LOADING' && state !== 'PREP_TIMER' && state !== 'FAREWELL' && (
             <div className="flex items-center justify-center gap-2 pt-2">
               {questions.map((_, i) => (
                 <span

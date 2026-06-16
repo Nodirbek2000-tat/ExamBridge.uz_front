@@ -105,7 +105,7 @@ function AudioPlayer({ src, label }) {
         {playing ? <Pause size={13} className="text-white" /> : <Play size={13} className="text-white ml-0.5" />}
       </button>
       <div className="flex-1 min-w-0">
-        <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wide mb-1">{label || 'Audio javob'}</p>
+        <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wide mb-1">{label || 'Audio response'}</p>
         <div className="relative h-1.5 bg-emerald-100 rounded-full overflow-hidden cursor-pointer"
           onClick={e => {
             if (!duration) return
@@ -161,7 +161,7 @@ function CriterionCard({ keyName, data, delay }) {
                 <div className="bg-emerald-50 rounded-xl p-3 space-y-1.5">
                   <div className="flex items-center gap-1.5 mb-1">
                     <ThumbsUp size={12} className="text-emerald-600" />
-                    <span className="text-xs font-bold text-emerald-700 uppercase tracking-wide">Kuchli tomonlar</span>
+                    <span className="text-xs font-bold text-emerald-700 uppercase tracking-wide">Strengths</span>
                   </div>
                   {data.strengths.map((s, i) => (
                     <div key={i} className="flex items-start gap-2 text-sm text-gray-700">
@@ -174,7 +174,7 @@ function CriterionCard({ keyName, data, delay }) {
                 <div>
                   <div className="flex items-center gap-1.5 mb-2">
                     <TriangleAlert size={12} className="text-slate-500" />
-                    <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Tavsiyalar</span>
+                    <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Recommendations</span>
                   </div>
                   <div className="space-y-2">
                     {data.errors.map((e, i) => (
@@ -268,7 +268,7 @@ export default function CEFRSpeakingResult() {
           runAnalysis(data.transcripts || [], data, id)
         }
       } catch {
-        setError('Natija topilmadi')
+        setError('Result not found')
         setLoading(false)
       }
     })()
@@ -276,15 +276,15 @@ export default function CEFRSpeakingResult() {
 
   const errorQuotes = result ? collectErrorQuotes(result) : []
 
-  if (!transcripts.length && !loading && !result) {
+  if ((!responseId || responseId === '0') && !transcripts.length && !loading && !result) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center space-y-3">
           <AlertCircle size={36} className="text-gray-300 mx-auto" />
-          <p className="text-gray-400 text-sm">Natija topilmadi</p>
+          <p className="text-gray-400 text-sm">Result not found</p>
           <button onClick={() => navigate('/app/cefr/speaking')}
             className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold">
-            Speakingga qayt
+            Back to Speaking
           </button>
         </div>
       </div>
@@ -297,7 +297,7 @@ export default function CEFRSpeakingResult() {
       <div className="flex-shrink-0 glass border-b border-emerald-100 px-5 h-14 flex items-center gap-3 shadow-sm">
         <button onClick={() => navigate('/app/cefr/speaking')}
           className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-50 transition">
-          <ArrowLeft size={14} /> Ro'yxat
+          <ArrowLeft size={14} /> List
         </button>
         <div className="flex-1 text-sm font-semibold text-gray-800 truncate">
           {taskInfo?.title || 'CEFR Speaking Result'}
@@ -321,8 +321,8 @@ export default function CEFRSpeakingResult() {
                 <div className="w-16 h-16 rounded-full border-4 border-emerald-100 border-t-emerald-500 animate-spin" />
                 <Sparkles size={20} className="text-emerald-500 absolute inset-0 m-auto" />
               </div>
-              <p className="font-bold text-gray-800">AI tahlil qilmoqda...</p>
-              <p className="text-sm text-gray-400">4 mezon bo'yicha baholanmoqda</p>
+              <p className="font-bold text-gray-800">Analyzing with AI...</p>
+              <p className="text-sm text-gray-400">Scoring across four criteria</p>
             </motion.div>
           )}
 
@@ -330,11 +330,11 @@ export default function CEFRSpeakingResult() {
           {error && !loading && (
             <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center space-y-3">
               <AlertCircle size={28} className="text-red-400 mx-auto" />
-              <p className="font-semibold text-red-700">Tahlil muvaffaqiyatsiz</p>
+              <p className="font-semibold text-red-700">Analysis failed</p>
               <p className="text-sm text-red-500">{error}</p>
               <button onClick={() => runAnalysis(transcripts, taskInfo, responseId !== '0' ? responseId : null)}
                 className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-xl text-sm font-semibold mx-auto">
-                <RotateCcw size={13} /> Qayta urinish
+                <RotateCcw size={13} /> Try again
               </button>
             </div>
           )}
@@ -356,7 +356,7 @@ export default function CEFRSpeakingResult() {
                     </span>
                   </div>
                   <div className="flex-1">
-                    <p className="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-1">Umumiy Ball</p>
+                    <p className="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-1">Overall Band</p>
                     <p className="text-2xl font-black text-gray-900">{bandLabel(result.overall_band)}</p>
                     <p className="text-sm text-gray-400 mt-0.5">{taskInfo?.title}</p>
                     <div className="flex gap-3 mt-3 flex-wrap">
@@ -396,19 +396,19 @@ export default function CEFRSpeakingResult() {
                         <p className="text-xs font-semibold text-slate-600">Q{i + 1}: {t.question}</p>
 
                         {t.audio_url && (
-                          <AudioPlayer src={t.audio_url} label="Yozib olingan javob" />
+                          <AudioPlayer src={t.audio_url} label="Recorded response" />
                         )}
 
                         <div className="bg-gray-50 rounded-xl p-3">
-                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Matn transkripti</p>
-                          <TranscriptText text={t.transcript || '(yozilmadi)'} errorQuotes={errorQuotes} />
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Transcript</p>
+                          <TranscriptText text={t.transcript || '(not recorded)'} errorQuotes={errorQuotes} />
                         </div>
 
                         {correction?.corrected && (
                           <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 space-y-1.5">
                             <div className="flex items-center gap-1.5">
                               <Wand2 size={11} className="text-emerald-600" />
-                              <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wide">Yaxshilangan variant</p>
+                              <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wide">Improved version</p>
                             </div>
                             <p className="text-sm text-emerald-900 leading-relaxed">{correction.corrected}</p>
                             {correction.note && (
@@ -427,7 +427,7 @@ export default function CEFRSpeakingResult() {
                 className="flex gap-3">
                 <button onClick={() => navigate('/app/cefr/speaking')}
                   className="flex-1 py-3 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">
-                  Ro'yxatga qayt
+                  Back to list
                 </button>
                 {taskInfo?.id && (
                   <button onClick={() => navigate(`/exam/cefr/speaking/${taskInfo.id}`)}

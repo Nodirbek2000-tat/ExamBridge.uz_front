@@ -5,8 +5,28 @@ import {
   BookOpen, Headphones, Mic, PenLine,
   Upload, X, AlertCircle, FileJson, Loader2, Check,
   Trash2, Edit3, FileText, Clock, Star, Music2, VolumeX,
-  Save, Eye, Zap, Search, ChevronDown, ChevronUp, Layers,
+  Save, Eye, Zap, Search, ChevronDown, ChevronUp, Layers, Download,
 } from 'lucide-react'
+
+// Yuklangan audioni admin kompyuteriga saqlash (download)
+async function downloadAudioFile(url, baseName = 'unified-audio') {
+  const ext = (url.split('?')[0].match(/\.(mp3|wav|m4a|ogg|aac)$/i)?.[1] || 'mp3').toLowerCase()
+  const safe = String(baseName).replace(/[^\w.-]+/g, '_').slice(0, 60) || 'unified-audio'
+  try {
+    const res = await fetch(url)
+    const blob = await res.blob()
+    const objUrl = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = objUrl
+    a.download = `${safe}.${ext}`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(objUrl)
+  } catch {
+    window.open(url, '_blank')  // zaxira: yangi oynada ochish
+  }
+}
 import api from '../../api/client'
 
 // ── QT helpers ────────────────────────────────────────────────────────────────
@@ -569,6 +589,18 @@ const SECTION_CONFIG = {
 // IELTS LISTENING — TO'LIQ IMPORT GUIDE
 // ═══════════════════════════════════════════════════════
 
+// ── TRANSCRIPT FORMATTING (review sahifasida chiroyli ko'rinadi) ──
+// transcript ichida "\\n" = yangi qator. Quyidagi belgilar ishlaydi:
+//   # Sarlavha          → eng katta sarlavha
+//   ## Kichik sarlavha   → ko'k o'rta sarlavha
+//   ### Mayda sarlavha   → qalin mayda sarlavha
+//   - matn   yoki   • matn   → ro'yxat (nuqtali, pastma-past)
+//   **qalin**            → qalin matn
+//   *kursiv*             → kursiv matn
+//   [1], [2] ...         → javob joylari (sariq highlight + raqam)
+// Misol transcript:
+//   "## CAR INSURANCE\\n\\n**Agent:** Good morning.\\n**Customer:** Hello.\\n\\n- Address: [1]\\n- Occupation: [2]"
+
 // ── OPTION 1: Single practice section ────────────────────
 {
   "title": "Section 1 — Hotel Booking",
@@ -796,6 +828,7 @@ const SECTION_CONFIG = {
     endpoint: '/admin/ielts/speaking/',
     importEndpoint: '/import/ielts/speaking/',
     detailEndpoint: null,
+    premiumEndpoint: (pk) => `/admin/ielts/speaking/${pk}/`,
     exampleJson: `// Part 1 (general questions)
 {
   "title": "Part 1 — Work and Study",
@@ -848,6 +881,7 @@ const SECTION_CONFIG = {
     endpoint: '/admin/ielts/writing/',
     importEndpoint: '/import/ielts/writing/',
     detailEndpoint: null,
+    premiumEndpoint: (pk) => `/admin/ielts/writing/${pk}/`,
     hasImage: true,
     exampleJson: `// Task 1 (chart/graph — rasm yuklanadi import dan keyin)
 {
@@ -1038,8 +1072,12 @@ function TestAudioUploadModal({ item, onClose, onSuccess }) {
               <span className="text-xs font-semibold text-purple-700">Unified audio is set</span>
             </div>
             <audio src={item.test_audio_url} controls className="w-full h-8 text-xs" />
+            <button onClick={() => downloadAudioFile(item.test_audio_url, item.title)}
+              className="mt-2 w-full py-1.5 text-xs text-purple-700 hover:bg-purple-100 rounded-lg transition font-medium flex items-center justify-center gap-1.5 border border-purple-200">
+              <Download size={12} /> Save audio
+            </button>
             <button onClick={handleDelete} disabled={loading}
-              className="mt-2 w-full py-1.5 text-xs text-red-600 hover:bg-red-50 rounded-lg transition font-medium flex items-center justify-center gap-1">
+              className="mt-1.5 w-full py-1.5 text-xs text-red-600 hover:bg-red-50 rounded-lg transition font-medium flex items-center justify-center gap-1">
               <Trash2 size={11} /> Remove unified audio
             </button>
           </div>
@@ -1206,8 +1244,14 @@ function EditModal({ item, section, onClose, onSuccess }) {
 }
 
 // ── Single section/passage row ────────────────────────────────────────────────
-function SectionRow({ item, index, section, config, colors, onEdit, onAudio, onImage, onDelete, indent }) {
+function SectionRow({ item, index, section, config, colors, onEdit, onAudio, onImage, onDelete, onTogglePremium, indent }) {
   const metas = config.renderMeta(item)
+  const [premiumLoading, setPremiumLoading] = useState(false)
+  const handlePremium = async () => {
+    if (!onTogglePremium) return
+    setPremiumLoading(true)
+    try { await onTogglePremium(item, !item.is_premium) } finally { setPremiumLoading(false) }
+  }
   return (
     <div className={`flex items-center gap-4 px-5 py-4 hover:bg-sky-50/30 transition-colors ${indent ? 'pl-12 bg-gray-50/40' : ''}`}>
       <div className={`w-10 h-10 rounded-xl ${indent ? 'bg-indigo-50' : colors.icon} flex items-center justify-center flex-shrink-0 text-sm font-bold ${indent ? 'text-indigo-600' : colors.text}`}>
@@ -1255,6 +1299,18 @@ function SectionRow({ item, index, section, config, colors, onEdit, onAudio, onI
         )}
       </div>
       <div className="flex items-center gap-1 flex-shrink-0">
+        {onTogglePremium && (config.premiumEndpoint || config.detailEndpoint) && !indent && (
+          <button onClick={handlePremium} disabled={premiumLoading}
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition ${
+              item.is_premium
+                ? 'text-amber-600 bg-amber-50 hover:bg-amber-100 border border-amber-200'
+                : 'text-gray-400 hover:text-amber-600 hover:bg-amber-50 border border-gray-200'
+            }`}
+            title={item.is_premium ? 'Remove premium' : 'Make premium'}>
+            {premiumLoading ? <Loader2 size={12} className="animate-spin" /> : <Star size={12} fill={item.is_premium ? 'currentColor' : 'none'} />}
+            {item.is_premium ? 'Premium ✓' : 'Premium'}
+          </button>
+        )}
         {section === 'listening' && (
           <button onClick={() => onAudio(item)}
             className={`p-2 rounded-lg transition ${item.audio_file ? 'text-green-500 hover:bg-green-50' : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50'}`}
@@ -1403,7 +1459,7 @@ function MockGroupRow({ testId, testTitle, parts, testIsPremium, section, config
 
 // ── TAB 1: Content (Ro'yxat) ──────────────────────────────────────────────────
 function ContentTab({ section, config, colors, items, isLoading, error,
-  onEdit, onAudio, onImage, onDelete, onTestAudio, onTestPremium }) {
+  onEdit, onAudio, onImage, onDelete, onTestAudio, onTestPremium, onTogglePremium }) {
   const [search, setSearch] = useState('')
   const [diffFilter, setDiffFilter] = useState('ALL')
 
@@ -1517,6 +1573,7 @@ function ContentTab({ section, config, colors, items, isLoading, error,
                 onAudio={onAudio}
                 onImage={onImage}
                 onDelete={onDelete}
+                onTogglePremium={onTogglePremium}
                 indent={false}
               />
             ))}
@@ -1960,6 +2017,13 @@ export default function AdminIELTSSection({ section }) {
     invalidate()
   }
 
+  const handleTogglePremium = async (item, isPremium) => {
+    const ep = config.premiumEndpoint || config.detailEndpoint
+    if (!ep) return
+    await api.patch(ep(item.id), { is_premium: isPremium })
+    invalidate()
+  }
+
   const deleteAllEndpoint = section === 'reading'
     ? '/admin/ielts/reading/all/'
     : section === 'listening'
@@ -2027,7 +2091,7 @@ export default function AdminIELTSSection({ section }) {
               section={section} config={config} colors={colors}
               items={items} isLoading={isLoading} error={error}
               onEdit={setEditItem} onAudio={setAudioItem} onImage={setImageItem} onDelete={setDeleteId}
-              onTestAudio={setTestAudioItem} onTestPremium={handleTestPremium}
+              onTestAudio={setTestAudioItem} onTestPremium={handleTestPremium} onTogglePremium={handleTogglePremium}
             />
           )}
           {activeTab === 'questions' && (
