@@ -40,14 +40,22 @@ function speakBrowser(text, persona, onEnd) {
   else window.speechSynthesis.onvoiceschanged = setVoice
 }
 
+// A question may be a string OR an object {question, sample_answer} — extract a string.
+function qStr(q) {
+  if (q == null) return ''
+  if (typeof q === 'string') return q
+  if (typeof q === 'object') return q.question ?? q.text ?? q.prompt ?? q.content ?? ''
+  return String(q)
+}
+
 function buildQuestions(task) {
   if (!task) return []
   if (task.test_type === 'MOCK' && task.parts_data?.length) {
     const qs = []
     for (const part of task.parts_data) {
       if (part.part === 2) {
-        const cueText = part.cue_card || part.prompt || ''
-        const bullets = (part.bullet_points || []).map(b => `• ${b}`).join('\n')
+        const cueText = qStr(part.cue_card || part.prompt || '')
+        const bullets = (part.bullet_points || []).map(b => `• ${qStr(b)}`).join('\n')
         qs.push({
           part: 2, type: 'cue_card',
           text: cueText + (bullets ? '\n\n' + bullets : ''),
@@ -55,13 +63,13 @@ function buildQuestions(task) {
           acceptPhrase: "Thank you. That was well done.",
         })
         if (part.follow_up) {
-          qs.push({ part: 2, type: 'followup', text: part.follow_up, intro: '', acceptPhrase: "Thank you." })
+          qs.push({ part: 2, type: 'followup', text: qStr(part.follow_up), intro: '', acceptPhrase: "Thank you." })
         }
       } else {
         const questions = part.questions || []
         questions.forEach((q, i) => {
           qs.push({
-            part: part.part, type: 'question', text: q,
+            part: part.part, type: 'question', text: qStr(q),
             intro: i === 0 && part.part === 1
               ? "Let's begin. I'd like to ask you some questions."
               : i === 0 && part.part === 3
@@ -76,8 +84,8 @@ function buildQuestions(task) {
   }
   if (task.part === 2) {
     const qs = []
-    const cueText = task.prompt || ''
-    const bullets = (task.bullet_points || []).map(b => `• ${b}`).join('\n')
+    const cueText = qStr(task.cue_card || task.prompt || '')
+    const bullets = (task.bullet_points || []).map(b => `• ${qStr(b)}`).join('\n')
     qs.push({
       part: 2, type: 'cue_card',
       text: cueText + (bullets ? '\n\n' + bullets : ''),
@@ -85,12 +93,12 @@ function buildQuestions(task) {
       acceptPhrase: "Thank you. That was very good.",
     })
     if (task.follow_up) {
-      qs.push({ part: 2, type: 'followup', text: task.follow_up, intro: '', acceptPhrase: "Thank you very much." })
+      qs.push({ part: 2, type: 'followup', text: qStr(task.follow_up), intro: '', acceptPhrase: "Thank you very much." })
     }
     return qs
   }
   return (task.questions || []).map((q, i) => ({
-    part: task.part, type: 'question', text: q,
+    part: task.part, type: 'question', text: qStr(q),
     intro: i === 0 && task.part === 1 ? "I'd like to ask you some general questions." : '',
     acceptPhrase: randomAccept(),
   }))
