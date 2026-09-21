@@ -220,10 +220,11 @@ export default function AdminLayout() {
           })}
         </nav>
 
-        {/* Django admin — the raw database view, for anything the panel doesn't cover */}
+        {/* Django admin — the raw database view, for anything the panel doesn't cover.
+            It only exists on the admin subdomain, so link there explicitly. */}
         <div className="px-3 pb-1">
           <a
-            href="/admin/"
+            href="https://nodir.exambridge.uz/admin/"
             target="_blank"
             rel="noreferrer"
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-emerald-50 hover:text-emerald-700 transition-all duration-200 group"
