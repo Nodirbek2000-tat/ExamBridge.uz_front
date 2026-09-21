@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { NavLink, Outlet, Navigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
 import LazyBoundary from '../../components/LazyBoundary'
+import NotFoundPage from '../NotFoundPage'
 import {
   LayoutDashboard,
   Users,
@@ -27,8 +28,8 @@ import {
   Trophy,
   ExternalLink,
   Building2,
-  ShieldAlert,
   Newspaper,
+  Database,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Logo from '../../components/Logo.jsx'
@@ -163,45 +164,9 @@ export default function AdminLayout() {
 
   if (!user) return <Navigate to="/login" replace />
 
-  // Signed in, but NOT an admin account → show a clear explanation instead of a
-  // silent bounce. This is the usual cause of "/api/admin/* → 403": the browser
-  // is logged into a non-staff look-alike account.
-  if (!user.is_staff) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-lg border border-gray-100 p-8 text-center">
-          <div className="w-14 h-14 mx-auto rounded-2xl bg-red-50 flex items-center justify-center mb-4">
-            <ShieldAlert size={26} className="text-red-500" />
-          </div>
-          <h1 className="text-lg font-bold text-gray-900">Admin huquqi yo'q</h1>
-          <p className="text-sm text-gray-500 mt-2">
-            Siz hozir quyidagi akkaunt bilan kirgansiz:
-          </p>
-          <p className="text-sm font-semibold text-gray-900 mt-1 break-all bg-gray-50 rounded-lg py-2 px-3">
-            {user.email}
-          </p>
-          <p className="text-xs text-gray-400 mt-3">
-            Bu akkauntda admin (staff) huquqi yo'q. Iltimos, admin akkauntingiz bilan
-            qaytadan kiring.
-          </p>
-          <div className="flex gap-2 mt-6">
-            <button
-              onClick={async () => { await logout(); window.location.href = '/login' }}
-              className="flex-1 h-10 rounded-xl bg-sky-500 text-white text-sm font-bold hover:bg-sky-600 transition"
-            >
-              Boshqa akkaunt bilan kirish
-            </button>
-            <button
-              onClick={() => { window.location.href = '/app' }}
-              className="flex-1 h-10 rounded-xl bg-gray-100 text-gray-700 text-sm font-bold hover:bg-gray-200 transition"
-            >
-              Ilovaga qaytish
-            </button>
-          </div>
-        </div>
-      </div>
-    )
-  }
+  // Not an admin → the panel simply does not exist for this account. A plain
+  // 404 reveals nothing about what lives here.
+  if (!user.is_staff) return <NotFoundPage />
 
   return (
     <div className="flex h-screen bg-white overflow-hidden">
@@ -254,6 +219,20 @@ export default function AdminLayout() {
             )
           })}
         </nav>
+
+        {/* Django admin — the raw database view, for anything the panel doesn't cover */}
+        <div className="px-3 pb-1">
+          <a
+            href="/admin/"
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-emerald-50 hover:text-emerald-700 transition-all duration-200 group"
+          >
+            <Database size={17} className="text-gray-400 group-hover:text-emerald-600" />
+            <span className="flex-1">Django admin</span>
+            <ExternalLink size={13} className="text-gray-300 group-hover:text-emerald-500" />
+          </a>
+        </div>
 
         {/* Bottom user card */}
         <div className="p-3 border-t border-sky-100">
