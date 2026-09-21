@@ -18,6 +18,9 @@ export default function LoginPage() {
   const loading = useAuthStore((s) => s.loading)
   const navigate = useNavigate()
 
+  // The admin subdomain is not a registered Google OAuth origin
+  const googleAvailable = !window.location.hostname.startsWith('nodir.')
+
   const resolveLanding = async (user) => {
     if (user?.is_staff) return '/admin-panel'
     // Center managers (director/admin/teacher) land on their center panel.
@@ -92,27 +95,33 @@ export default function LoginPage() {
             <p className="text-gray-500 text-sm mt-1">Sign in to your account</p>
           </div>
 
-          {/* Google button */}
-          <div className="flex justify-center mb-5">
-            <GoogleLogin
-              onSuccess={async (credentialResponse) => {
-                const res = await googleLogin(credentialResponse.credential)
-                if (res.success) handleSuccess(res.user)
-                else setError(res.error)
-              }}
-              onError={() => setError('Google login failed. Try again.')}
-              theme="outline"
-              size="large"
-              width="400"
-              text="signin_with"
-            />
-          </div>
+          {/* Google button — only on the public site. Google OAuth is registered
+              for the main origin, so on the admin subdomain it would always fail
+              with origin_mismatch; email + password is the way in there. */}
+          {googleAvailable && (
+            <>
+              <div className="flex justify-center mb-5">
+                <GoogleLogin
+                  onSuccess={async (credentialResponse) => {
+                    const res = await googleLogin(credentialResponse.credential)
+                    if (res.success) handleSuccess(res.user)
+                    else setError(res.error)
+                  }}
+                  onError={() => setError('Google login failed. Try again.')}
+                  theme="outline"
+                  size="large"
+                  width="400"
+                  text="signin_with"
+                />
+              </div>
 
-          <div className="relative flex items-center mb-5">
-            <div className="flex-1 border-t border-gray-100" />
-            <span className="px-3 text-xs text-gray-400 font-medium">or sign in with email</span>
-            <div className="flex-1 border-t border-gray-100" />
-          </div>
+              <div className="relative flex items-center mb-5">
+                <div className="flex-1 border-t border-gray-100" />
+                <span className="px-3 text-xs text-gray-400 font-medium">or sign in with email</span>
+                <div className="flex-1 border-t border-gray-100" />
+              </div>
+            </>
+          )}
 
           <form onSubmit={submit} className="space-y-4">
             <div>
