@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { NavLink, Outlet, Navigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
+import LazyBoundary from '../../components/LazyBoundary'
 import {
   LayoutDashboard,
   Users,
   BookOpen,
   Headphones,
+  Repeat2,
   GraduationCap,
   Settings,
   LogOut,
@@ -26,6 +28,7 @@ import {
   ExternalLink,
   Building2,
   ShieldAlert,
+  Newspaper,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Logo from '../../components/Logo.jsx'
@@ -69,6 +72,17 @@ const NAV = [
       { to: '/admin-panel/cefr/reading',   icon: BookOpen,      label: 'Reading' },
       { to: '/admin-panel/cefr/listening', icon: ListMusic,     label: 'Listening' },
       { to: '/admin-panel/cefr/grammar',   icon: GraduationCap, label: 'Grammar' },
+    ],
+  },
+  {
+    key: 'study',
+    icon: Newspaper,
+    label: 'Study Tools',
+    children: [
+      { to: '/admin-panel/study/articles', icon: Newspaper, label: 'Articles' },
+      { to: '/admin-panel/study/writing-samples', icon: PenLine, label: 'Writing Samples' },
+      { to: '/admin-panel/study/shadowing', icon: Repeat2, label: 'Shadowing' },
+      { to: '/admin-panel/study/podcasts', icon: Headphones, label: 'Podcasts' },
     ],
   },
   { to: '/admin-panel/testmakon-users', icon: ExternalLink, label: 'TestMakon Users' },
@@ -284,7 +298,9 @@ export default function AdminLayout() {
 
         {/* Page content */}
         <main className="flex-1 overflow-y-auto p-6">
-          <Outlet />
+          <LazyBoundary>
+            <Outlet />
+          </LazyBoundary>
         </main>
       </div>
     </div>

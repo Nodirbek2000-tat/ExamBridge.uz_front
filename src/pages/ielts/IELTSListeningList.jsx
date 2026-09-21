@@ -36,7 +36,7 @@ function DifficultyBadge({ difficulty }) {
   )
 }
 
-export default function IELTSListeningList() {
+export default function IELTSListeningList({ accentBtn = 'bg-sky-500 hover:bg-sky-600' } = {}) {
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
   const [search, setSearch] = useState('')
@@ -50,7 +50,6 @@ export default function IELTSListeningList() {
   const { data, isLoading } = useQuery({
     queryKey: ['ielts-listening-list'],
     queryFn: () => api.get('/ielts/listening/').then((r) => r.data),
-    staleTime: 60_000,
   })
 
   const items = useMemo(() => {
@@ -256,7 +255,7 @@ export default function IELTSListeningList() {
                       <button
                         onClick={() => handleStart(item)}
                         disabled={isStarting}
-                        className="w-full sm:w-auto px-5 h-10 rounded-lg text-sm font-bold transition disabled:opacity-60 bg-sky-500 hover:bg-sky-600 text-white"
+                        className={`w-full sm:w-auto px-5 h-10 rounded-lg text-sm font-bold transition disabled:opacity-60 text-white ${accentBtn}`}
                       >
                         {isStarting
                           ? <Loader2 size={15} className="animate-spin mx-auto" />

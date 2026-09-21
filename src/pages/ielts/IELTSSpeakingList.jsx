@@ -165,7 +165,7 @@ function speakingMeta(task) {
   }
 }
 
-export default function IELTSSpeakingList() {
+export default function IELTSSpeakingList({ embedded = false, accentBtn = 'bg-sky-500 hover:bg-sky-600' } = {}) {
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
   const [filter, setFilter] = useState('all')
@@ -199,20 +199,22 @@ export default function IELTSSpeakingList() {
 
   return (
     <div className="min-h-[60vh] max-w-6xl mx-auto space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <button
-          type="button"
-          onClick={() => navigate('/app/ielts')}
-          className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-sky-600 transition w-fit"
-        >
-          <ChevronLeft size={18} />
-          Back
-        </button>
-        <h1 className="text-xl sm:text-2xl font-black text-gray-900 text-center sm:absolute sm:left-1/2 sm:-translate-x-1/2 sm:pointer-events-none">
-          Speaking
-        </h1>
-        <div className="hidden sm:block w-[72px]" aria-hidden />
-      </div>
+      {!embedded && (
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <button
+            type="button"
+            onClick={() => navigate('/app/ielts')}
+            className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-sky-600 transition w-fit"
+          >
+            <ChevronLeft size={18} />
+            Back
+          </button>
+          <h1 className="text-xl sm:text-2xl font-black text-gray-900 text-center sm:absolute sm:left-1/2 sm:-translate-x-1/2 sm:pointer-events-none">
+            Speaking
+          </h1>
+          <div className="hidden sm:block w-[72px]" aria-hidden />
+        </div>
+      )}
 
       <div>
         <h2 className="text-2xl sm:text-3xl font-black text-gray-900">Choose a speaking test</h2>
@@ -309,7 +311,7 @@ export default function IELTSSpeakingList() {
                       type="button"
                       onClick={() => handleStart(task)}
                       disabled={isStarting}
-                      className="w-full sm:w-auto px-5 h-10 rounded-lg text-sm font-bold transition disabled:opacity-60 bg-sky-500 hover:bg-sky-600 text-white"
+                      className={`w-full sm:w-auto px-5 h-10 rounded-lg text-sm font-bold transition disabled:opacity-60 text-white ${accentBtn}`}
                     >
                       {isStarting
                         ? <Loader2 size={15} className="animate-spin mx-auto" />

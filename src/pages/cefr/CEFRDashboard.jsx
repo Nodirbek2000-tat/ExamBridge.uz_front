@@ -30,9 +30,9 @@ export default function CEFRDashboard() {
       {/* Quick access cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {[
-          { to: '/app/cefr/tests', icon: GraduationCap, label: 'Grammar & Vocab', desc: 'MCQ, Gap fill, Error correction', color: 'from-sky-400 to-slate-400' },
-          { to: '/app/cefr/reading', icon: BookOpen, label: 'Reading', desc: 'Passages with comprehension questions', color: 'from-blue-400 to-indigo-400' },
-          { to: '/app/cefr/listening', icon: Headphones, label: 'Listening', desc: 'Audio sections and transcripts', color: 'from-purple-400 to-violet-400' },
+          { to: '/app/cefr/skills?tab=reading', icon: BookOpen, label: 'Reading', desc: 'Passages with comprehension questions', color: 'from-blue-400 to-indigo-400' },
+          { to: '/app/cefr/skills?tab=listening', icon: Headphones, label: 'Listening', desc: 'Audio sections and transcripts', color: 'from-purple-400 to-violet-400' },
+          { to: '/app/cefr/skills?tab=speaking', icon: GraduationCap, label: 'Speaking', desc: 'AI-scored speaking practice', color: 'from-rose-400 to-pink-400' },
         ].map((card, i) => (
           <motion.div key={card.to} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.07 }}>
             <Link to={card.to}

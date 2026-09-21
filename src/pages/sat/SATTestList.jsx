@@ -95,7 +95,6 @@ export default function SATTestList() {
       queryKey: ['sat-test-modules', test.id],
       queryFn: () => api.get(`/sat/tests/${test.id}/modules/`).then((r) => r.data),
       enabled: !isLoading && tab === 'individual',
-      staleTime: 60_000,
     })),
   })
 

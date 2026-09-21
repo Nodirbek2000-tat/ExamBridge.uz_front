@@ -11,6 +11,8 @@ import {
 import api from '../../api/client'
 import { useAuthStore } from '../../store/authStore'
 import { loadExam, saveExam, clearExam } from '../../utils/examPersist'
+import { useAnswerReview } from '../../hooks/useAnswerReview'
+import AnswerReviewToggle from '../../components/exam/AnswerReviewToggle'
 
 function Skeleton({ className = '' }) {
   return <div className={`animate-pulse rounded-lg bg-gray-200/70 ${className}`} />
@@ -140,61 +142,161 @@ function HiddenExamAudio({ src, active, onEnded, seekTo = 0, onProgress }) {
   return <audio ref={ref} src={src} preload="auto" className="sr-only" playsInline />
 }
 
+// Komponent tashqarida e'lon qilingan: ilgari ReviewAudioPlayer ICHIDA edi va
+// har render'da yangi komponent turi yaratilib, tugmalar DOM'dan o'chib qayta
+// qo'shilardi (fokus yo'qolardi, bosish ba'zan yo'qqa chiqardi).
+function SkipBtn({ dir, dark, onSkip }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onSkip(dir * 5)}
+      title={dir < 0 ? '5 soniya orqaga' : '5 soniya oldinga'}
+      className={`relative w-8 h-8 rounded-full flex items-center justify-center transition ${dark ? 'text-gray-300 hover:bg-gray-700' : 'text-sky-700 hover:bg-sky-50'}`}
+    >
+      {dir < 0 ? <RotateCcw size={18} /> : <RotateCw size={18} />}
+      <span className="absolute inset-0 flex items-center justify-center text-[8px] font-black mt-[1px]">5</span>
+    </button>
+  )
+}
+
 function ReviewAudioPlayer({ audioUrl, dark }) {
   const audioRef = useRef(null)
+  const barRef = useRef(null)
   const [playing, setPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
-  const [volume, setVolume] = useState(1)
   const [muted, setMuted] = useState(false)
+  // Holat emas, ref: React qayta render qilguncha kutmaydi. Holatda edi va
+  // bosgandan keyingi BIRINCHI sichqoncha harakati eski qiymatni ko'rib
+  // e'tiborsiz qolardi — sudrash ba'zan ishlamasdi.
+  const draggingRef = useRef(false)
+  const [blobUrl, setBlobUrl] = useState(null)
+  const resumeRef = useRef({ time: 0, playing: false })
 
-  const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`
-  const pct = duration ? (currentTime / duration) * 100 : 0
+  const fmt = (s) => {
+    const v = Number.isFinite(s) && s > 0 ? s : 0
+    return `${String(Math.floor(v / 60)).padStart(2, '0')}:${String(Math.floor(v % 60)).padStart(2, '0')}`
+  }
+  const pct = duration ? Math.min(100, (currentTime / duration) * 100) : 0
+
+  // ── Audioni brauzer xotirasiga (blob) ko'chirish ──────────────────────────
+  // Nega kerak: Django fayllarni Range ("shu joyidan ber") so'rovlarisiz
+  // uzatadi. Shunda brauzer faylni TO'LIQ yuklab olgan bo'lsa ham uni
+  // "seekable emas" deb belgilaydi — natijada 5 soniyalik tugmalar va
+  // progress barni bosish jim turib qolardi (audio.seekable = [0,0]).
+  //
+  // Fayl blob sifatida olinsa, u brauzer xotirasida bo'ladi va serverga
+  // umuman bog'liq bo'lmaydi — o'tkazish har doim ishlaydi.
+  //
+  // Avval oddiy havola qo'yiladi (darhol eshitish uchun), blob tayyor bo'lgach
+  // manba jimgina almashtiriladi va turgan joyi tiklanadi.
+  useEffect(() => {
+    if (!audioUrl) return
+    let cancelled = false
+    let objectUrl = null
+    fetch(audioUrl)
+      .then((r) => (r.ok ? r.blob() : Promise.reject(new Error('audio yuklanmadi'))))
+      .then((blob) => {
+        if (cancelled) return
+        objectUrl = URL.createObjectURL(blob)
+        setBlobUrl(objectUrl)
+      })
+      .catch(() => { /* blob bo'lmasa oddiy havola bilan ishlayveradi */ })
+    return () => {
+      cancelled = true
+      setBlobUrl(null)
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [audioUrl])
+
+  // Manba almashganda turgan joyni va ijro holatini tiklaymiz
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio || !blobUrl) return
+    const { time, playing: wasPlaying } = resumeRef.current
+    const restore = () => {
+      if (time > 0) { try { audio.currentTime = time } catch { /* */ } }
+      if (wasPlaying) audio.play().catch(() => {})
+    }
+    if (audio.readyState >= 1) restore()
+    else audio.addEventListener('loadedmetadata', restore, { once: true })
+  }, [blobUrl])
 
   useEffect(() => {
     const audio = audioRef.current
     if (!audio) return
-    const onTime = () => setCurrentTime(audio.currentTime)
-    const onDur = () => setDuration(audio.duration)
-    const onEnded = () => setPlaying(false)
-    audio.addEventListener('timeupdate', onTime)
-    audio.addEventListener('loadedmetadata', onDur)
-    audio.addEventListener('ended', onEnded)
-    return () => {
-      audio.removeEventListener('timeupdate', onTime)
-      audio.removeEventListener('loadedmetadata', onDur)
-      audio.removeEventListener('ended', onEnded)
+    // Manba blobga almashganda tiklash uchun joriy holatni eslab boramiz
+    const syncTime = () => {
+      setCurrentTime(audio.currentTime)
+      if (audio.currentTime > 0) resumeRef.current.time = audio.currentTime
     }
-  }, [])
+    const syncDur = () => setDuration(Number.isFinite(audio.duration) ? audio.duration : 0)
+    const onPlay = () => { setPlaying(true); resumeRef.current.playing = true }
+    const onPause = () => { setPlaying(false); resumeRef.current.playing = false }
+
+    // Metadata bu effektdan OLDIN yuklangan bo'lishi mumkin (masalan, audio
+    // brauzer keshida bo'lsa) — u holda 'loadedmetadata' boshqa chaqirilmaydi
+    // va duration 0 bo'lib qolardi. Shuning uchun darhol o'qib olamiz.
+    if (audio.readyState >= 1) { syncDur(); syncTime() }
+    setPlaying(!audio.paused)
+    setMuted(audio.muted)
+
+    audio.addEventListener('timeupdate', syncTime)
+    audio.addEventListener('seeked', syncTime)
+    audio.addEventListener('loadedmetadata', syncDur)
+    audio.addEventListener('durationchange', syncDur)
+    audio.addEventListener('play', onPlay)
+    audio.addEventListener('pause', onPause)
+    audio.addEventListener('ended', onPause)
+    return () => {
+      audio.removeEventListener('timeupdate', syncTime)
+      audio.removeEventListener('seeked', syncTime)
+      audio.removeEventListener('loadedmetadata', syncDur)
+      audio.removeEventListener('durationchange', syncDur)
+      audio.removeEventListener('play', onPlay)
+      audio.removeEventListener('pause', onPause)
+      audio.removeEventListener('ended', onPause)
+    }
+  }, [audioUrl, blobUrl])
 
   const togglePlay = () => {
     const audio = audioRef.current
     if (!audio) return
-    if (playing) {
-      audio.pause()
-      setPlaying(false)
-    } else {
-      audio.play()
-      setPlaying(true)
-    }
+    // React holatiga emas, elementning HAQIQIY holatiga qaraymiz —
+    // ular bir-biridan chetlashib qolishi mumkin
+    if (audio.paused) audio.play().catch(() => {})
+    else audio.pause()
   }
 
-  const seek = (e) => {
-    const bar = e.currentTarget
+  // Vaqt/davomiylikni React holatidan emas, elementdan o'qiymiz: holat
+  // eskirgan bo'lishi mumkin (pauza paytida timeupdate chaqirilmaydi)
+  const seekToClientX = (clientX) => {
+    const audio = audioRef.current
+    const bar = barRef.current
+    if (!audio || !bar) return
+    const dur = Number.isFinite(audio.duration) ? audio.duration : 0
+    if (!dur) return
     const rect = bar.getBoundingClientRect()
-    const ratio = (e.clientX - rect.left) / rect.width
-    if (audioRef.current) audioRef.current.currentTime = ratio * duration
+    if (!rect.width) return
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
+    audio.currentTime = ratio * dur
+    setCurrentTime(audio.currentTime)
   }
 
   const skip = (sec) => {
-    if (!audioRef.current) return
-    audioRef.current.currentTime = Math.max(0, Math.min(duration || currentTime + sec, currentTime + sec))
+    const audio = audioRef.current
+    if (!audio) return
+    const dur = Number.isFinite(audio.duration) ? audio.duration : 0
+    const next = audio.currentTime + sec
+    audio.currentTime = Math.max(0, dur ? Math.min(dur - 0.05, next) : Math.max(0, next))
+    setCurrentTime(audio.currentTime)
   }
 
   const toggleMute = () => {
-    if (!audioRef.current) return
-    audioRef.current.muted = !muted
-    setMuted((p) => !p)
+    const audio = audioRef.current
+    if (!audio) return
+    audio.muted = !audio.muted
+    setMuted(audio.muted)
   }
 
   const D = dark
@@ -208,22 +310,11 @@ function ReviewAudioPlayer({ audioUrl, dark }) {
     )
   }
 
-  const SkipBtn = ({ dir }) => (
-    <button
-      type="button"
-      onClick={() => skip(dir * 5)}
-      title={dir < 0 ? '5 soniya orqaga' : '5 soniya oldinga'}
-      className={`relative w-8 h-8 rounded-full flex items-center justify-center transition ${D ? 'text-gray-300 hover:bg-gray-700' : 'text-sky-700 hover:bg-sky-50'}`}
-    >
-      {dir < 0 ? <RotateCcw size={18} /> : <RotateCw size={18} />}
-      <span className="absolute inset-0 flex items-center justify-center text-[8px] font-black mt-[1px]">5</span>
-    </button>
-  )
-
   return (
     <div className={`flex items-center gap-2.5 sm:gap-3 rounded-full border shadow-sm px-3 py-1.5 max-w-2xl mx-auto ${surface}`}>
-      <audio ref={audioRef} src={audioUrl} preload="metadata" />
-      <SkipBtn dir={-1} />
+      {/* blob tayyor bo'lgach o'shanga o'tamiz — o'shanda seek ishlaydi */}
+      <audio ref={audioRef} src={blobUrl || audioUrl} preload="auto" />
+      <SkipBtn dir={-1} dark={D} onSkip={skip} />
       <button
         type="button"
         onClick={togglePlay}
@@ -231,9 +322,43 @@ function ReviewAudioPlayer({ audioUrl, dark }) {
       >
         {playing ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}
       </button>
-      <SkipBtn dir={1} />
-      <div className={`flex-1 h-1.5 rounded-full cursor-pointer min-w-0 ${D ? 'bg-gray-600' : 'bg-sky-100'}`} onClick={seek}>
-        <div className="h-full bg-gradient-to-r from-sky-500 to-blue-600 rounded-full" style={{ width: `${pct}%` }} />
+      <SkipBtn dir={1} dark={D} onSkip={skip} />
+      {/* Bosish ham, sudrash ham ishlaydi. Tashqi qatlam balandroq —
+          ingichka chiziqni aniq bosish qiyin bo'lmasin */}
+      <div
+        ref={barRef}
+        role="slider"
+        aria-label="Audio pozitsiyasi"
+        aria-valuemin={0}
+        aria-valuemax={Math.round(duration) || 0}
+        aria-valuenow={Math.round(currentTime) || 0}
+        tabIndex={0}
+        className="flex-1 min-w-0 py-2.5 cursor-pointer touch-none select-none"
+        onPointerDown={(e) => {
+          // setPointerCapture ba'zi holatlarda xato beradi — u tufayli
+          // bosish umuman ishlamay qolmasin
+          try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* */ }
+          draggingRef.current = true
+          seekToClientX(e.clientX)
+        }}
+        onPointerMove={(e) => { if (draggingRef.current) seekToClientX(e.clientX) }}
+        onPointerUp={(e) => {
+          try { e.currentTarget.releasePointerCapture(e.pointerId) } catch { /* */ }
+          draggingRef.current = false
+        }}
+        onPointerCancel={() => { draggingRef.current = false }}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowRight') { e.preventDefault(); skip(5) }
+          if (e.key === 'ArrowLeft') { e.preventDefault(); skip(-5) }
+        }}
+      >
+        <div className={`relative h-1.5 rounded-full ${D ? 'bg-gray-600' : 'bg-sky-100'}`}>
+          <div className="h-full bg-gradient-to-r from-sky-500 to-blue-600 rounded-full" style={{ width: `${pct}%` }} />
+          <span
+            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-white border-2 border-sky-500 shadow"
+            style={{ left: `${pct}%` }}
+          />
+        </div>
       </div>
       <span className={`text-[11px] font-mono tabular-nums flex-shrink-0 ${D ? 'text-gray-300' : 'text-gray-500'}`}>
         {fmt(currentTime)} / {fmt(duration)}
@@ -489,7 +614,8 @@ export default function IELTSListeningAttempt() {
 
   const reviewData = fetchedReviewData || location.state?.reviewData || null
   const reviewMode = Boolean(reviewData) || isReviewMode
-  const [showCorrectInReview, setShowCorrectInReview] = useState(true)
+  // Sozlama localStorage'da saqlanadi va to'rttala imtihon sahifasida bir xil
+  const [showCorrectInReview, toggleAnswerReview] = useAnswerReview()
 
   const partIds = useMemo(() => {
     // In review mode: derive section IDs from review API response (all parts at once)
@@ -801,11 +927,26 @@ export default function IELTSListeningAttempt() {
   const isUnifiedAudio = isFull && Boolean(testAudioUrl)
 
   // Total audio length (sum of all audio files) — shown on the start screen
+  //
+  // Bu yerda audio AYNI PAYTDA fonda to'liq yuklab ham qo'yiladi (preload='auto').
+  // Oldin 'metadata' edi: faqat davomiyligi o'qilardi, ovozning o'zi esa Start
+  // bosilgandan keyin yuklana boshlardi va o'quvchi 6-7 soniya kutib qolardi.
+  // Endi o'quvchi start ekranidagi ko'rsatmani o'qib turganda audio yuklanadi,
+  // Start bosilganda esa darhol yangraydi.
   const [audioTotalSec, setAudioTotalSec] = useState(0)
+  const preloadersRef = useRef([])
+
+  // Havolalarni bitta matnga aylantiramiz: `allSectionsData` har render'da yangi
+  // massiv bo'lgani uchun unga bog'lansak, effekt har render'da qayta ishlab
+  // audioni qayta-qayta yuklashni boshlab yuboradi.
+  const audioUrlsKey = useMemo(() => (
+    isUnifiedAudio
+      ? [testAudioUrl].filter(Boolean).join('|')
+      : allSectionsData.map(s => s?.audio_url).filter(Boolean).join('|')
+  ), [isUnifiedAudio, testAudioUrl, allSectionsData])
+
   useEffect(() => {
-    const urls = isUnifiedAudio
-      ? [testAudioUrl].filter(Boolean)
-      : allSectionsData.map(s => s?.audio_url).filter(Boolean)
+    const urls = audioUrlsKey ? audioUrlsKey.split('|') : []
     if (!urls.length) { setAudioTotalSec(0); return }
     let cancelled = false, total = 0, done = 0
     const finish = (dur) => {
@@ -813,15 +954,24 @@ export default function IELTSListeningAttempt() {
       done++
       if (done === urls.length && !cancelled) setAudioTotalSec(Math.round(total))
     }
-    urls.forEach(url => {
+    const elements = urls.map(url => {
       const a = new Audio()
-      a.preload = 'metadata'
+      a.preload = 'auto'
       a.src = url
       a.addEventListener('loadedmetadata', () => finish(a.duration), { once: true })
       a.addEventListener('error', () => finish(0), { once: true })
+      return a
     })
-    return () => { cancelled = true }
-  }, [isUnifiedAudio, testAudioUrl, allSectionsData])
+    // Havolani saqlaymiz — aks holda brauzer bu obyektlarni tozalab,
+    // yuklanishni yarim yo'lda to'xtatib qo'yishi mumkin
+    preloadersRef.current = elements
+    return () => {
+      cancelled = true
+      // Sahifadan chiqilsa yuklashni to'xtatamiz (behuda trafik ketmasin)
+      elements.forEach(a => { try { a.src = '' } catch { /* */ } })
+      preloadersRef.current = []
+    }
+  }, [audioUrlsKey])
 
   // Audio source is driven by audioPartIndex (independent of view)
   const activeAudioSrc = useMemo(() => {
@@ -994,18 +1144,7 @@ export default function IELTSListeningAttempt() {
         <div className="ml-auto flex items-center gap-1 sm:gap-2 flex-shrink-0">
           {reviewMode ? (
             <>
-              <button
-                type="button"
-                onClick={() => setShowCorrectInReview((p) => !p)}
-                className={`inline-flex items-center gap-2 px-2 py-1.5 rounded-xl border text-xs font-semibold ${
-                  showCorrectInReview ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-gray-200 bg-white text-gray-600'
-                }`}
-              >
-                <span className={`w-9 h-5 rounded-full p-0.5 ${showCorrectInReview ? 'bg-emerald-500' : 'bg-gray-200'}`}>
-                  <span className={`block w-4 h-4 rounded-full bg-white transition ${showCorrectInReview ? 'translate-x-4' : 'translate-x-0'}`} />
-                </span>
-                <span className="hidden lg:inline">Show Correct</span>
-              </button>
+              <AnswerReviewToggle enabled={showCorrectInReview} onToggle={toggleAnswerReview} dark={D} />
               <button
                 type="button"
                 onClick={toggleFullscreen}

@@ -7,6 +7,7 @@ import {
   Trash2, Edit3, FileText, Clock, Star, Music2, VolumeX,
   Save, Eye, Zap, Search, ChevronDown, ChevronUp, Layers, Download,
 } from 'lucide-react'
+import CopyJsonButton from '../../components/admin/CopyJsonButton'
 
 // Yuklangan audioni admin kompyuteriga saqlash (download)
 async function downloadAudioFile(url, baseName = 'unified-audio') {
@@ -1311,6 +1312,10 @@ function SectionRow({ item, index, section, config, colors, onEdit, onAudio, onI
             {item.is_premium ? 'Premium ✓' : 'Premium'}
           </button>
         )}
+        {/* Import formatidagi JSON nusxasi — reading va listening uchun */}
+        {(section === 'reading' || section === 'listening') && (
+          <CopyJsonButton url={`/admin/export/ielts/${section}/${item.id}/`} />
+        )}
         {section === 'listening' && (
           <button onClick={() => onAudio(item)}
             className={`p-2 rounded-lg transition ${item.audio_file ? 'text-green-500 hover:bg-green-50' : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50'}`}
@@ -1391,6 +1396,13 @@ function MockGroupRow({ testId, testTitle, parts, testIsPremium, section, config
             {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </div>
         </button>
+
+        {/* To'liq mock testning import formatidagi JSON nusxasi
+            (barcha partlar/sectionlar bitta faylda) */}
+        <CopyJsonButton
+          url={`/admin/export/ielts/test/${testId}/?kind=${section}`}
+          title="To'liq mock testni import formatidagi JSON sifatida nusxalash"
+        />
 
         {/* Premium toggle for mock test */}
         <button

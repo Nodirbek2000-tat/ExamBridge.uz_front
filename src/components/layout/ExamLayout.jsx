@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom'
 import { useEffect } from 'react'
+import LazyBoundary from '../LazyBoundary'
 
 // Exam mode: fullscreen, no sidebar, anti-cheat
 export default function ExamLayout() {
@@ -20,7 +21,9 @@ export default function ExamLayout() {
   return (
     <div className="h-screen flex flex-col bg-white overflow-hidden">
       <div className="flex-1 min-h-0 flex flex-col">
-        <Outlet />
+        <LazyBoundary>
+          <Outlet />
+        </LazyBoundary>
       </div>
     </div>
   )

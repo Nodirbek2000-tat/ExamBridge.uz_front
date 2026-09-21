@@ -11,6 +11,8 @@ import {
 import api from '../../api/client'
 import { sanitizeHtml } from '../../utils/sanitizeHtml';
 import { loadExam, saveExam, clearExam } from '../../utils/examPersist'
+import { useAnswerReview } from '../../hooks/useAnswerReview'
+import AnswerReviewToggle from '../../components/exam/AnswerReviewToggle'
 
 function Skeleton({ className = '' }) {
   return <div className={`animate-pulse rounded-lg bg-gray-200/70 ${className}`} />
@@ -1635,7 +1637,9 @@ export default function IELTSReadingAttempt() {
   const [activePartIndex, setActivePartIndex] = useState(() => Math.max(0, partIds.indexOf(initialPassageId)))
   const currentPassageId = partIds[activePartIndex] || initialPassageId
   const partsQuery = partIds.length > 1 ? `&parts=${partIds.join(',')}` : ''
-  const [showCorrectInReview, setShowCorrectInReview] = useState(false)
+  // Sozlama localStorage'da saqlanadi va to'rttala imtihon sahifasida bir xil.
+  // Oldin bu sahifada standart holat "o'chiq" edi, qolgan uchtasida "yoqiq".
+  const [showCorrectInReview, toggleAnswerReview] = useAnswerReview()
 
   // Core state — answers persist across refresh (keyed to attempt)
   const answersStorageKey = reviewMode ? null : `reading-answers-${attemptId}`
@@ -2299,19 +2303,7 @@ export default function IELTSReadingAttempt() {
         {/* Review controls */}
         {reviewMode ? (
           <div className="ml-auto flex items-center gap-2 flex-shrink-0">
-            <button
-              onClick={() => setShowCorrectInReview((p) => !p)}
-              className={`inline-flex items-center gap-2 px-2 py-1.5 rounded-xl border text-xs font-semibold ${
-                showCorrectInReview
-                  ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
-                  : 'border-gray-200 bg-white text-gray-600'
-              }`}
-            >
-              <span className={`w-9 h-5 rounded-full p-0.5 transition ${showCorrectInReview ? 'bg-emerald-500' : 'bg-gray-200'}`}>
-                <span className={`block w-4 h-4 rounded-full bg-white transition ${showCorrectInReview ? 'translate-x-4' : 'translate-x-0'}`} />
-              </span>
-              <span className="hidden lg:inline">Show Correct</span>
-            </button>
+            <AnswerReviewToggle enabled={showCorrectInReview} onToggle={toggleAnswerReview} />
             <button
               onClick={toggleFullscreen}
               className="p-2 rounded-xl border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition hidden md:inline-flex"

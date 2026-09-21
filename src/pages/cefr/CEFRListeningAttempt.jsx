@@ -11,6 +11,8 @@ import {
 import api from '../../api/client'
 import { loadExam, saveExam, clearExam } from '../../utils/examPersist'
 import { useAuthStore } from '../../store/authStore'
+import { useAnswerReview } from '../../hooks/useAnswerReview'
+import AnswerReviewToggle from '../../components/exam/AnswerReviewToggle'
 
 function Skeleton({ className = '' }) {
   return <div className={`animate-pulse rounded-lg bg-gray-200/70 ${className}`} />
@@ -128,31 +130,107 @@ function HiddenExamAudio({ src, active, seekTo = 0, onProgress }) {
   return <audio ref={ref} src={src} preload="auto" className="sr-only" playsInline />
 }
 
+// Komponent tashqarida: ilgari ReviewAudioPlayer ichida e'lon qilingandi va
+// har render'da tugmalar DOM'dan o'chib qayta qo'shilardi
+function SkipBtn({ dir, dark, onSkip }) {
+  return (
+    <button type="button" onClick={() => onSkip(dir * 5)}
+      title={dir < 0 ? '5 soniya orqaga' : '5 soniya oldinga'}
+      className={`relative w-8 h-8 rounded-full flex items-center justify-center transition ${dark ? 'text-gray-300 hover:bg-gray-700' : 'text-emerald-700 hover:bg-emerald-50'}`}>
+      {dir < 0 ? <RotateCcw size={18} /> : <RotateCw size={18} />}
+      <span className="absolute inset-0 flex items-center justify-center text-[8px] font-black mt-[1px]">5</span>
+    </button>
+  )
+}
+
 // ── Review-only audio (full controls) ────────────────────────────────────────
 function ReviewAudioPlayer({ audioUrl, dark }) {
-  const audioRef = useRef()
+  const audioRef = useRef(null)
+  const barRef = useRef(null)
   const [playing, setPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
-  const [volume, setVolume] = useState(1)
   const [muted, setMuted] = useState(false)
-  const fmt = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`
+  // Holat emas, ref: bosgandan keyingi birinchi sichqoncha harakati
+  // eskirgan qiymatni ko'rib e'tiborsiz qolmasin
+  const draggingRef = useRef(false)
+  const [blobUrl, setBlobUrl] = useState(null)
+  const resumeRef = useRef({ time: 0, playing: false })
+  const fmt = s => {
+    const v = Number.isFinite(s) && s > 0 ? s : 0
+    return `${String(Math.floor(v / 60)).padStart(2, '0')}:${String(Math.floor(v % 60)).padStart(2, '0')}`
+  }
+
+  // Audioni brauzer xotirasiga (blob) ko'chiramiz.
+  // Django fayllarni Range so'rovlarisiz uzatgani uchun brauzer faylni to'liq
+  // yuklab olgan bo'lsa ham uni "seekable emas" deb belgilaydi va 5 soniyalik
+  // tugmalar / progress bar ishlamaydi. Blob esa har doim to'liq o'tkaziladi.
+  useEffect(() => {
+    if (!audioUrl) return
+    let cancelled = false
+    let objectUrl = null
+    fetch(audioUrl)
+      .then((r) => (r.ok ? r.blob() : Promise.reject(new Error('audio yuklanmadi'))))
+      .then((blob) => {
+        if (cancelled) return
+        objectUrl = URL.createObjectURL(blob)
+        setBlobUrl(objectUrl)
+      })
+      .catch(() => { /* blob bo'lmasa oddiy havola bilan ishlayveradi */ })
+    return () => {
+      cancelled = true
+      setBlobUrl(null)
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [audioUrl])
+
+  // Manba blobga almashganda turgan joyni tiklaymiz
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio || !blobUrl) return
+    const { time, playing: wasPlaying } = resumeRef.current
+    const restore = () => {
+      if (time > 0) { try { audio.currentTime = time } catch { /* */ } }
+      if (wasPlaying) audio.play().catch(() => {})
+    }
+    if (audio.readyState >= 1) restore()
+    else audio.addEventListener('loadedmetadata', restore, { once: true })
+  }, [blobUrl])
 
   useEffect(() => {
     const audio = audioRef.current
     if (!audio) return
-    const onTime = () => setCurrentTime(audio.currentTime)
-    const onDur = () => setDuration(audio.duration)
-    const onEnd = () => setPlaying(false)
-    audio.addEventListener('timeupdate', onTime)
-    audio.addEventListener('loadedmetadata', onDur)
-    audio.addEventListener('ended', onEnd)
-    return () => {
-      audio.removeEventListener('timeupdate', onTime)
-      audio.removeEventListener('loadedmetadata', onDur)
-      audio.removeEventListener('ended', onEnd)
+    const syncTime = () => {
+      setCurrentTime(audio.currentTime)
+      if (audio.currentTime > 0) resumeRef.current.time = audio.currentTime
     }
-  }, [])
+    const syncDur = () => setDuration(Number.isFinite(audio.duration) ? audio.duration : 0)
+    const onPlay = () => { setPlaying(true); resumeRef.current.playing = true }
+    const onPause = () => { setPlaying(false); resumeRef.current.playing = false }
+
+    // Metadata bu effektdan oldin yuklangan bo'lsa 'loadedmetadata' boshqa
+    // chaqirilmaydi va duration 0 bo'lib qolardi — darhol o'qib olamiz
+    if (audio.readyState >= 1) { syncDur(); syncTime() }
+    setPlaying(!audio.paused)
+    setMuted(audio.muted)
+
+    audio.addEventListener('timeupdate', syncTime)
+    audio.addEventListener('seeked', syncTime)
+    audio.addEventListener('loadedmetadata', syncDur)
+    audio.addEventListener('durationchange', syncDur)
+    audio.addEventListener('play', onPlay)
+    audio.addEventListener('pause', onPause)
+    audio.addEventListener('ended', onPause)
+    return () => {
+      audio.removeEventListener('timeupdate', syncTime)
+      audio.removeEventListener('seeked', syncTime)
+      audio.removeEventListener('loadedmetadata', syncDur)
+      audio.removeEventListener('durationchange', syncDur)
+      audio.removeEventListener('play', onPlay)
+      audio.removeEventListener('pause', onPause)
+      audio.removeEventListener('ended', onPause)
+    }
+  }, [audioUrl, blobUrl])
 
   if (!audioUrl) return (
     <div className={`rounded-full border px-4 py-2 text-center text-xs max-w-md mx-auto ${dark ? 'bg-gray-800 border-gray-700 text-gray-500' : 'bg-white border-emerald-100 text-gray-400'}`}>
@@ -160,38 +238,90 @@ function ReviewAudioPlayer({ audioUrl, dark }) {
     </div>
   )
 
-  const pct = duration ? (currentTime / duration) * 100 : 0
+  const pct = duration ? Math.min(100, (currentTime / duration) * 100) : 0
   const D = dark
-  const skip = (sec) => { if (audioRef.current) audioRef.current.currentTime = Math.max(0, Math.min(duration || currentTime + sec, currentTime + sec)) }
 
-  const SkipBtn = ({ dir }) => (
-    <button type="button" onClick={() => skip(dir * 5)}
-      title={dir < 0 ? '5 soniya orqaga' : '5 soniya oldinga'}
-      className={`relative w-8 h-8 rounded-full flex items-center justify-center transition ${D ? 'text-gray-300 hover:bg-gray-700' : 'text-emerald-700 hover:bg-emerald-50'}`}>
-      {dir < 0 ? <RotateCcw size={18} /> : <RotateCw size={18} />}
-      <span className="absolute inset-0 flex items-center justify-center text-[8px] font-black mt-[1px]">5</span>
-    </button>
-  )
+  // Vaqtni React holatidan emas, elementdan o'qiymiz — holat eskirgan bo'lishi mumkin
+  const skip = (sec) => {
+    const audio = audioRef.current
+    if (!audio) return
+    const dur = Number.isFinite(audio.duration) ? audio.duration : 0
+    const next = audio.currentTime + sec
+    audio.currentTime = Math.max(0, dur ? Math.min(dur - 0.05, next) : Math.max(0, next))
+    setCurrentTime(audio.currentTime)
+  }
+
+  const seekToClientX = (clientX) => {
+    const audio = audioRef.current
+    const bar = barRef.current
+    if (!audio || !bar) return
+    const dur = Number.isFinite(audio.duration) ? audio.duration : 0
+    if (!dur) return
+    const rect = bar.getBoundingClientRect()
+    if (!rect.width) return
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
+    audio.currentTime = ratio * dur
+    setCurrentTime(audio.currentTime)
+  }
 
   return (
     <div className={`flex items-center gap-2.5 sm:gap-3 rounded-full border shadow-sm px-3 py-1.5 max-w-2xl mx-auto ${D ? 'bg-gray-800/90 border-gray-700' : 'bg-white border-emerald-200'}`}>
-      <audio ref={audioRef} src={audioUrl} preload="metadata" />
-      <SkipBtn dir={-1} />
-      <button onClick={() => {
+      {/* preload="auto" — Django Range so'rovlarini qo'llamaydi, shuning uchun
+          fayl to'liq yuklanmasa audio ichiga o'tkazib bo'lmaydi */}
+      <audio ref={audioRef} src={blobUrl || audioUrl} preload="auto" />
+      <SkipBtn dir={-1} dark={D} onSkip={skip} />
+      <button type="button" onClick={() => {
         const a = audioRef.current
-        if (playing) { a.pause(); setPlaying(false) } else { a.play(); setPlaying(true) }
+        if (!a) return
+        if (a.paused) a.play().catch(() => {})
+        else a.pause()
       }} className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 flex items-center justify-center text-white shadow-md transition flex-shrink-0">
         {playing ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}
       </button>
-      <SkipBtn dir={1} />
-      <div className={`flex-1 h-1.5 rounded-full cursor-pointer min-w-0 ${D ? 'bg-gray-600' : 'bg-emerald-100'}`}
-        onClick={e => { const r = e.currentTarget.getBoundingClientRect(); audioRef.current.currentTime = ((e.clientX - r.left) / r.width) * duration }}>
-        <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-600 rounded-full" style={{ width: `${pct}%` }} />
+      <SkipBtn dir={1} dark={D} onSkip={skip} />
+      {/* Bosish ham, sudrash ham ishlaydi */}
+      <div
+        ref={barRef}
+        role="slider"
+        aria-label="Audio pozitsiyasi"
+        aria-valuemin={0}
+        aria-valuemax={Math.round(duration) || 0}
+        aria-valuenow={Math.round(currentTime) || 0}
+        tabIndex={0}
+        className="flex-1 min-w-0 py-2.5 cursor-pointer touch-none select-none"
+        onPointerDown={(e) => {
+          try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* */ }
+          draggingRef.current = true
+          seekToClientX(e.clientX)
+        }}
+        onPointerMove={(e) => { if (draggingRef.current) seekToClientX(e.clientX) }}
+        onPointerUp={(e) => {
+          try { e.currentTarget.releasePointerCapture(e.pointerId) } catch { /* */ }
+          draggingRef.current = false
+        }}
+        onPointerCancel={() => { draggingRef.current = false }}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowRight') { e.preventDefault(); skip(5) }
+          if (e.key === 'ArrowLeft') { e.preventDefault(); skip(-5) }
+        }}
+      >
+        <div className={`relative h-1.5 rounded-full ${D ? 'bg-gray-600' : 'bg-emerald-100'}`}>
+          <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-600 rounded-full" style={{ width: `${pct}%` }} />
+          <span
+            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-white border-2 border-emerald-500 shadow"
+            style={{ left: `${pct}%` }}
+          />
+        </div>
       </div>
       <span className={`text-[11px] font-mono tabular-nums flex-shrink-0 ${D ? 'text-gray-400' : 'text-gray-500'}`}>
         {fmt(currentTime)} / {fmt(duration)}
       </span>
-      <button onClick={() => { audioRef.current.muted = !muted; setMuted(p => !p) }}
+      <button type="button" onClick={() => {
+        const a = audioRef.current
+        if (!a) return
+        a.muted = !a.muted
+        setMuted(a.muted)
+      }}
         className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition ${D ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-400 hover:bg-emerald-50'}`}>
         {muted ? <VolumeX size={15} /> : <Volume2 size={15} />}
       </button>
@@ -1206,7 +1336,8 @@ export default function CEFRListeningAttempt() {
   const sectionTitle = decodeURIComponent(searchParams.get('title') || 'Listening')
   const reviewData = location.state?.reviewData || null
   const reviewMode = Boolean(reviewData)
-  const [showCorrectInReview, setShowCorrectInReview] = useState(true)
+  // Sozlama localStorage'da saqlanadi va to'rttala imtihon sahifasida bir xil
+  const [showCorrectInReview, toggleAnswerReview] = useAnswerReview()
 
   const answersStorageKey = reviewMode ? null : `cefr-listening-answers-${attemptId}`
   const audioStorageKey = reviewMode ? null : `cefr-listening-audio-${attemptId}`
@@ -1256,17 +1387,29 @@ export default function CEFRListeningAttempt() {
   }, [audioStorageKey, audioStarted])
 
   // Total audio length for the start screen
+  //
+  // Ayni paytda audio fonda to'liq yuklab ham qo'yiladi (preload='auto').
+  // Oldin 'metadata' edi: faqat davomiyligi o'qilardi, ovoz esa Start
+  // bosilgandan keyin yuklana boshlardi va o'quvchi bir necha soniya kutardi.
+  const preloaderRef = useRef(null)
   useEffect(() => {
     const url = section?.audio_url
     if (!url) { setAudioTotalSec(0); return }
     let cancelled = false
     const a = new Audio()
-    a.preload = 'metadata'
+    a.preload = 'auto'
     a.src = url
+    // Havolani saqlaymiz — brauzer obyektni tozalab, yuklashni to'xtatmasin
+    preloaderRef.current = a
     const onMeta = () => { if (!cancelled) setAudioTotalSec(Math.round(a.duration || 0)) }
     a.addEventListener('loadedmetadata', onMeta, { once: true })
     a.addEventListener('error', () => { if (!cancelled) setAudioTotalSec(0) }, { once: true })
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+      // Sahifadan chiqilsa yuklashni to'xtatamiz
+      try { a.src = '' } catch { /* */ }
+      preloaderRef.current = null
+    }
   }, [section?.audio_url])
 
   const questions = section?.questions || []
@@ -1474,13 +1617,7 @@ export default function CEFRListeningAttempt() {
         )}
         {reviewMode ? (
           <div className="ml-auto flex items-center gap-2 flex-shrink-0">
-            <button
-              type="button"
-              onClick={() => setShowCorrectInReview((p) => !p)}
-              className={`text-xs px-2 py-1 rounded-lg border ${showCorrectInReview ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-gray-200'}`}
-            >
-              Correct
-            </button>
+            <AnswerReviewToggle enabled={showCorrectInReview} onToggle={toggleAnswerReview} dark={D} />
             <button type="button" onClick={handleRedoFromReview} className="text-xs px-2 py-1 rounded-lg border border-gray-200 flex items-center gap-1">
               <RotateCcw size={12} /> Re-Do
             </button>

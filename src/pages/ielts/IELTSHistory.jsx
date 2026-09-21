@@ -276,19 +276,16 @@ export default function IELTSHistory() {
   const { data: rlData = [], isLoading: rlLoading } = useQuery({
     queryKey: ['ielts-history-all'],
     queryFn: () => api.get('/ielts/history/', { params: { type: 'all' } }).then(r => r.data),
-    staleTime: 30_000,
   })
 
   const { data: spData = [], isLoading: spLoading } = useQuery({
     queryKey: ['ielts-speaking-history'],
     queryFn: () => api.get('/ielts/speaking/history/').then(r => r.data),
-    staleTime: 30_000,
   })
 
   const { data: wrData = [], isLoading: wrLoading } = useQuery({
     queryKey: ['ielts-writing-history'],
     queryFn: () => api.get('/ielts/writing/history/').then(r => r.data),
-    staleTime: 30_000,
   })
 
   const isLoading = rlLoading || spLoading || wrLoading

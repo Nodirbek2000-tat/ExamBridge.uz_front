@@ -11,7 +11,7 @@ function speakingMeta(task) {
   return { time: '~4–5 min', detail: n ? `${n} questions` : 'Speaking', badge: `Part ${task.part}` }
 }
 
-export default function CEFRSpeakingList() {
+export default function CEFRSpeakingList({ embedded = false, accentBtn = 'bg-emerald-600 hover:bg-emerald-700' } = {}) {
   const navigate = useNavigate()
   const user = useAuthStore(s => s.user)
   const [filter, setFilter] = useState('all')
@@ -43,15 +43,17 @@ export default function CEFRSpeakingList() {
 
   return (
     <div className="min-h-[60vh] max-w-6xl mx-auto space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-        <button type="button" onClick={() => navigate('/app/cefr')}
-          className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-emerald-600 transition w-fit">
-          <ChevronLeft size={18} /> Back
-        </button>
-        <h1 className="text-xl sm:text-2xl font-black text-gray-900 sm:absolute sm:left-1/2 sm:-translate-x-1/2 sm:pointer-events-none">
-          CEFR Speaking
-        </h1>
-      </div>
+      {!embedded && (
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <button type="button" onClick={() => navigate('/app/cefr')}
+            className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-emerald-600 transition w-fit">
+            <ChevronLeft size={18} /> Back
+          </button>
+          <h1 className="text-xl sm:text-2xl font-black text-gray-900 sm:absolute sm:left-1/2 sm:-translate-x-1/2 sm:pointer-events-none">
+            CEFR Speaking
+          </h1>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2">
         {[['all','All'],['1','Part 1'],['2','Part 2'],['3','Part 3'],['mock','Full Mock']].map(([val,label]) => (
@@ -125,7 +127,7 @@ export default function CEFRSpeakingList() {
                     onClick={() => handleStart(task)}
                     disabled={locked || isStarting}
                     className={`w-full sm:w-auto px-5 h-10 rounded-lg text-sm font-bold transition disabled:opacity-60 ${
-                      locked ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                      locked ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : `${accentBtn} text-white`
                     }`}
                   >
                     {isStarting ? <Loader2 size={15} className="animate-spin mx-auto" />

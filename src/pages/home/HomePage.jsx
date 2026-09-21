@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
+import Seo from '../../components/Seo.jsx'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import {
@@ -21,11 +22,11 @@ gsap.registerPlugin(ScrollTrigger)
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 const NAV = [
-  { label: 'SAT',      href: '/app/sat' },
-  { label: 'IELTS',    href: '/app/ielts' },
-  { label: 'CEFR',     href: '/app/cefr' },
-  { label: 'Features', href: '#features' },
-  { label: 'Pricing',  href: '#pricing' },
+  { label: 'SAT',         href: '/app/sat' },
+  { label: 'IELTS',       href: '/app/ielts' },
+  { label: 'CEFR',        href: '/app/cefr' },
+  { label: 'Games',       href: '/games', isNew: true },
+  { label: 'Study Tools', href: '/study', isNew: true },
 ]
 
 const EXAMS = [
@@ -213,9 +214,12 @@ function Navbar() {
           {NAV.map(item => (
             <Link
               key={item.label} to={item.href}
-              className="px-4 py-2 text-[13px] font-medium text-slate-600 hover:text-slate-900 transition-colors"
+              className="px-4 py-2 text-[13px] font-medium text-slate-600 hover:text-slate-900 transition-colors flex items-center gap-1.5"
             >
               {item.label}
+              {item.isNew && (
+                <span className="text-[9px] font-bold bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full leading-none">NEW</span>
+              )}
             </Link>
           ))}
         </div>
@@ -980,6 +984,10 @@ export default function HomePage() {
       className="relative overflow-x-hidden text-slate-900"
       style={{ fontFamily: "'Inter', system-ui, sans-serif", cursor: 'none' }}
     >
+      <Seo
+        path="/"
+        description="ExamBridge — IELTS, CEFR va SAT imtihonlariga onlayn tayyorgarlik. Haqiqiy formatdagi mock testlar, AI orqali speaking va writing baholash, natijalar tahlili va shaxsiy statistika."
+      />
       <style>{`@media(pointer:coarse){*{cursor:auto!important}}`}</style>
       <CustomCursor />
       <Navbar />

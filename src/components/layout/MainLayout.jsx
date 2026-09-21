@@ -4,6 +4,7 @@ import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom'
 import { Bell, X, Clock, ClipboardList } from 'lucide-react'
 import Sidebar from './Sidebar'
 import TopBar from './TopBar'
+import LazyBoundary from '../LazyBoundary'
 import { useCenterStudent } from '../../hooks/useCenterStudent'
 import { useQuery } from '@tanstack/react-query'
 import api from '../../api/client'
@@ -152,7 +153,10 @@ export default function MainLayout() {
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2, ease: 'easeOut' }}
               >
-                <Outlet />
+                {/* Sahifa kodi yuklanayotganda sidebar/tepa panel joyida qoladi */}
+                <LazyBoundary>
+                  <Outlet />
+                </LazyBoundary>
               </motion.div>
             </AnimatePresence>
           </div>

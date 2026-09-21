@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+
+# Logged-in areas hold no public content and would waste crawl budget
+Disallow: /app/
+Disallow: /exam/
+Disallow: /admin-panel/
+Disallow: /center/
+Disallow: /games/
+Disallow: /study/
+Disallow: /onboarding
+
+Sitemap: https://exambridge.uz/sitemap.xml

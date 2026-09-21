@@ -127,7 +127,6 @@ export default function CEFRHistory() {
   const { data = [], isLoading } = useQuery({
     queryKey: ['cefr-history'],
     queryFn: () => api.get('/cefr/history/').then(r => r.data),
-    staleTime: 30_000,
   })
 
   const filtered = useMemo(() => {

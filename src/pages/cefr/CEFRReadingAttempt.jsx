@@ -10,6 +10,8 @@ import {
 import api from '../../api/client'
 import { loadExam, saveExam, clearExam } from '../../utils/examPersist'
 import { useAuthStore } from '../../store/authStore'
+import { useAnswerReview } from '../../hooks/useAnswerReview'
+import AnswerReviewToggle from '../../components/exam/AnswerReviewToggle'
 
 function useTimer(initialSeconds, storageKey, frozen = false) {
   const intervalRef = useRef()
@@ -1189,7 +1191,8 @@ export default function CEFRReadingAttempt() {
   const passageTitle = decodeURIComponent(searchParams.get('title') || 'Reading')
   const reviewData = location.state?.reviewData || null
   const reviewMode = Boolean(reviewData)
-  const [showCorrectInReview, setShowCorrectInReview] = useState(true)
+  // Sozlama localStorage'da saqlanadi va to'rttala imtihon sahifasida bir xil
+  const [showCorrectInReview, toggleAnswerReview] = useAnswerReview()
 
   // Multi-passage support (full mock)
   const passageIds = useMemo(() => {
@@ -1487,18 +1490,7 @@ export default function CEFRReadingAttempt() {
 
         {reviewMode ? (
           <div className="ml-auto flex items-center gap-2 flex-shrink-0">
-            <button
-              type="button"
-              onClick={() => setShowCorrectInReview((p) => !p)}
-              className={`inline-flex items-center gap-2 px-2 py-1.5 rounded-xl border text-xs font-semibold ${
-                showCorrectInReview ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-gray-200 bg-white text-gray-600'
-              }`}
-            >
-              <span className={`w-9 h-5 rounded-full p-0.5 ${showCorrectInReview ? 'bg-emerald-500' : 'bg-gray-200'}`}>
-                <span className={`block w-4 h-4 rounded-full bg-white transition ${showCorrectInReview ? 'translate-x-4' : 'translate-x-0'}`} />
-              </span>
-              <span className="hidden lg:inline">Show Correct</span>
-            </button>
+            <AnswerReviewToggle enabled={showCorrectInReview} onToggle={toggleAnswerReview} />
             <button
               type="button"
               onClick={toggleFullscreen}

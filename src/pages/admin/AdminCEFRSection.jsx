@@ -7,6 +7,7 @@ import {
   Trash2, FileText, Music2, VolumeX, Eye, Crown, Clock, Search, Download,
 } from 'lucide-react'
 import api from '../../api/client'
+import CopyJsonButton from '../../components/admin/CopyJsonButton'
 
 // Yuklangan audioni admin kompyuteriga saqlash (download)
 async function downloadAudioFile(url, baseName = 'audio') {
@@ -1150,28 +1151,36 @@ function MockGroupRow({ testId, testTitle, testIsPremium, parts, section, colors
 
   return (
     <div className="border-b border-gray-50 last:border-0">
-      {/* Group header */}
-      <button onClick={() => setOpen(p => !p)}
-        className="w-full flex items-center gap-4 px-5 py-3.5 hover:bg-violet-50/40 transition-colors text-left group">
-        <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center flex-shrink-0">
-          <Layers size={16} className="text-violet-600" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="font-bold text-gray-900 text-sm">{testTitle}</p>
-            <span className="text-[11px] px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 font-semibold">Mock Test</span>
-            {testIsPremium && (
-              <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 font-semibold flex items-center gap-1">
-                <Crown size={9} /> Premium
-              </span>
-            )}
+      {/* Group header — ochish tugmasi va JSON tugmasi yonma-yon
+          (tugma ichiga tugma qo'yib bo'lmaydi, shuning uchun tashqi div) */}
+      <div className="w-full flex items-center gap-2 pr-5 hover:bg-violet-50/40 transition-colors">
+        <button onClick={() => setOpen(p => !p)}
+          className="flex-1 min-w-0 flex items-center gap-4 px-5 py-3.5 text-left group">
+          <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center flex-shrink-0">
+            <Layers size={16} className="text-violet-600" />
           </div>
-          <p className="text-xs text-gray-400 mt-0.5">{parts.length} {partWord}  ·  {totalQ} questions</p>
-        </div>
-        <span className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}>
-          <ChevronDown size={16} />
-        </span>
-      </button>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="font-bold text-gray-900 text-sm">{testTitle}</p>
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 font-semibold">Mock Test</span>
+              {testIsPremium && (
+                <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 font-semibold flex items-center gap-1">
+                  <Crown size={9} /> Premium
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-gray-400 mt-0.5">{parts.length} {partWord}  ·  {totalQ} questions</p>
+          </div>
+          <span className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}>
+            <ChevronDown size={16} />
+          </span>
+        </button>
+        {/* To'liq mock testni bitta JSON qilib nusxalash */}
+        <CopyJsonButton
+          url={`/admin/export/cefr/test/${testId}/?kind=${section}`}
+          title="To'liq mock testni import formatidagi JSON sifatida nusxalash"
+        />
+      </div>
 
       {/* Parts */}
       <AnimatePresence>
@@ -1208,6 +1217,9 @@ function MockGroupRow({ testId, testTitle, testIsPremium, parts, section, colors
                   </div>
                   {/* Actions */}
                   <div className="flex items-center gap-1 flex-shrink-0">
+                    {(section === 'reading' || section === 'listening') && (
+                      <CopyJsonButton url={`/admin/export/cefr/${section}/${item.id}/`} compact />
+                    )}
                     {section === 'listening' && (
                       <button onClick={() => onAudio(item)}
                         className={`p-1.5 rounded-lg transition ${hasAudio ? 'text-green-500 hover:bg-green-50' : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50'}`}>
@@ -1264,6 +1276,10 @@ function StandaloneRow({ item, index, section, colors, onAudio, onDelete }) {
         </div>
       </div>
       <div className="flex items-center gap-1 flex-shrink-0">
+        {/* Import formatidagi JSON nusxasi */}
+        {(section === 'reading' || section === 'listening') && (
+          <CopyJsonButton url={`/admin/export/cefr/${section}/${item.id}/`} />
+        )}
         {section === 'listening' && (
           <button onClick={() => onAudio(item)}
             className={`p-2 rounded-lg transition ${hasAudio ? 'text-green-500 hover:bg-green-50' : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50'}`}>

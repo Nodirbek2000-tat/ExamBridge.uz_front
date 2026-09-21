@@ -3,10 +3,10 @@ import { Link } from 'react-router-dom'
 import { Globe, FileText, Headphones, Mic, PenLine, ArrowRight } from 'lucide-react'
 
 const SKILLS = [
-  { icon: FileText, label: 'Reading', to: '/app/ielts/reading', desc: 'T/F/NG · MCQ · Gap fill · Matching', color: 'text-sky-500 bg-sky-50' },
-  { icon: Headphones, label: 'Listening', to: '/app/ielts/listening', desc: 'Section 1–4 · Real audio', color: 'text-slate-500 bg-slate-50' },
-  { icon: Mic, label: 'Speaking', to: '/app/ielts/speaking', desc: 'Part 1·2·3 · AI feedback', color: 'text-red-500 bg-red-50' },
-  { icon: PenLine, label: 'Writing', to: '/app/ielts/writing', desc: 'Task 1·2 · AI band score', color: 'text-sky-600 bg-sky-50' },
+  { icon: FileText, label: 'Reading', to: '/app/ielts/skills?tab=reading', desc: 'T/F/NG · MCQ · Gap fill · Matching', color: 'text-sky-500 bg-sky-50' },
+  { icon: Headphones, label: 'Listening', to: '/app/ielts/skills?tab=listening', desc: 'Section 1–4 · Real audio', color: 'text-slate-500 bg-slate-50' },
+  { icon: Mic, label: 'Speaking', to: '/app/ielts/skills?tab=speaking', desc: 'Part 1·2·3 · AI feedback', color: 'text-red-500 bg-red-50' },
+  { icon: PenLine, label: 'Writing', to: '/app/ielts/skills?tab=writing', desc: 'Task 1·2 · AI band score', color: 'text-sky-600 bg-sky-50' },
 ]
 
 export default function IELTSDashboard() {
@@ -60,7 +60,7 @@ export default function IELTSDashboard() {
           Complete IELTS simulation: Reading + Listening + Writing + Speaking
         </p>
         <Link
-          to="/app/ielts/tests"
+          to="/app/ielts/skills?tab=mock"
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl gradient-primary text-white font-bold text-sm shadow-glow hover:opacity-90 transition-opacity"
         >
           Start Full Mock <ArrowRight size={16} />

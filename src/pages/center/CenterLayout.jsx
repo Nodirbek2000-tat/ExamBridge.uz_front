@@ -10,6 +10,7 @@ import { useAuthStore } from '../../store/authStore'
 import { useQuery } from '@tanstack/react-query'
 import api from '../../api/client'
 import Logo from '../../components/Logo.jsx'
+import LazyBoundary from '../../components/LazyBoundary'
 
 function getNavForRole(role, centerId) {
   const base = `/center/${centerId}`
@@ -163,7 +164,9 @@ export default function CenterLayout() {
 
         {/* Page */}
         <main className="flex-1 overflow-y-auto p-6">
-          <Outlet context={{ center, myRole, stats: dashData?.stats, centerId, dashData }} />
+          <LazyBoundary>
+            <Outlet context={{ center, myRole, stats: dashData?.stats, centerId, dashData }} />
+          </LazyBoundary>
         </main>
       </div>
     </div>

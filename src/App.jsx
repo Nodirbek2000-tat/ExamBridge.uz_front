@@ -3,110 +3,134 @@ import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from './store/authStore'
 import { useThemeStore, applyTheme } from './store/themeStore'
+import { lazyWithPreload, preloadAll } from './utils/lazyWithPreload'
+import LazyBoundary from './components/LazyBoundary'
 
-// Layouts
+// ── Darhol yuklanadigan qismlar ──────────────────────────────────────────────
+// Layout'lar ilovaning karkasi — ular kechiksa sidebar/tepa panel "sakrab"
+// chiqadi. LoginPage esa eng ko'p ochiladigan sahifa.
 import MainLayout from './components/layout/MainLayout'
 import ExamLayout from './components/layout/ExamLayout'
-
-// Pages
-import HomePage from './pages/home/HomePage'
+import GamesLayout from './components/layout/GamesLayout'
+import StudyLayout from './components/layout/StudyLayout'
 import LoginPage from './pages/auth/LoginPage'
-import RegisterPage from './pages/auth/RegisterPage'
-import OnboardingPage from './pages/auth/OnboardingPage'
-
-// SAT
-import SATDashboard from './pages/sat/SATDashboard'
-import SATTestList from './pages/sat/SATTestList'
-import SATTestAttempt from './pages/sat/SATTestAttempt'
-import SATResult from './pages/sat/SATResult'
-import SATPractice from './pages/sat/SATPractice'
-import SATSavedQuestions from './pages/sat/SATSavedQuestions'
-import SATVocab from './pages/sat/SATVocab'
-import SATModuleList from './pages/sat/SATModuleList'
-import SATModuleResult from './pages/sat/SATModuleResult'
-import SATTestResults from './pages/sat/SATTestResults'
-import SATModuleHistory from './pages/sat/SATModuleHistory'
-import SATLeaderboard from './pages/sat/SATLeaderboard'
-
-// IELTS
-import IELTSDashboard from './pages/ielts/IELTSDashboard'
-import IELTSTestList from './pages/ielts/IELTSTestList'
-import IELTSAttempt from './pages/ielts/IELTSAttempt'
-import IELTSReadingList from './pages/ielts/IELTSReadingList'
-import IELTSReadingAttempt from './pages/ielts/IELTSReadingAttempt'
-import IELTSReadingResult from './pages/ielts/IELTSReadingResult'
-import IELTSListeningList from './pages/ielts/IELTSListeningList'
-import IELTSListeningAttempt from './pages/ielts/IELTSListeningAttempt'
-import IELTSListeningResult from './pages/ielts/IELTSListeningResult'
-import IELTSHistory from './pages/ielts/IELTSHistory'
-import IELTSWritingList from './pages/ielts/IELTSWritingList'
-import IELTSWritingAttempt from './pages/ielts/IELTSWritingAttempt'
-import IELTSWritingResult from './pages/ielts/IELTSWritingResult'
-import IELTSSpeakingList from './pages/ielts/IELTSSpeakingList'
-import IELTSSpeakingAttempt from './pages/ielts/IELTSSpeakingAttempt'
-import IELTSSpeakingResult from './pages/ielts/IELTSSpeakingResult'
-import IELTSSpeakingReview from './pages/ielts/IELTSSpeakingReview'
-import IELTSWritingReview from './pages/ielts/IELTSWritingReview'
-import BookmarksPage from './pages/ielts/BookmarksPage'
-
-// CEFR
-import CEFRDashboard from './pages/cefr/CEFRDashboard'
-import CEFRTestList from './pages/cefr/CEFRTestList'
-import CEFRReadingList from './pages/cefr/CEFRReadingList'
-import CEFRReadingAttempt from './pages/cefr/CEFRReadingAttempt'
-import CEFRListeningList from './pages/cefr/CEFRListeningList'
-import CEFRListeningAttempt from './pages/cefr/CEFRListeningAttempt'
-import CEFRReadingResult from './pages/cefr/CEFRReadingResult'
-import CEFRListeningResult from './pages/cefr/CEFRListeningResult'
-import CEFRHistory from './pages/cefr/CEFRHistory'
-import CEFRSpeakingList from './pages/cefr/CEFRSpeakingList'
-import CEFRSpeakingAttempt from './pages/cefr/CEFRSpeakingAttempt'
-import CEFRSpeakingResult from './pages/cefr/CEFRSpeakingResult'
-
-// AI
-import AIChatPage from './pages/ai/AIChatPage'
-
-// Other
-import ProfilePage from './pages/profile/ProfilePage'
-import SubscriptionPage from './pages/subscription/SubscriptionPage'
-import UniversitiesPage from './pages/universities/UniversitiesPage'
-import VocabularyPage from './pages/vocabulary/VocabularyPage'
 import NotFoundPage from './pages/NotFoundPage'
 
-// Admin Panel
-import AdminLayout from './pages/admin/AdminLayout'
-import AdminDashboard from './pages/admin/AdminDashboard'
-import AdminUsers from './pages/admin/AdminUsers'
-import AdminLeaderboard from './pages/admin/AdminLeaderboard'
-import AdminSAT from './pages/admin/AdminSAT'
-import AdminSATPractice from './pages/admin/AdminSATPractice'
-import AdminSATTests from './pages/admin/AdminSATTests'
-import AdminSATRealMock from './pages/admin/AdminSATRealMock'
-import AdminSATVocab from './pages/admin/AdminSATVocab'
-import AdminSATImportGuide from './pages/admin/AdminSATImportGuide'
-import AdminSATExamDate from './pages/admin/AdminSATExamDate'
-import AdminIELTSSection from './pages/admin/AdminIELTSSection'
-import AdminCEFR from './pages/admin/AdminCEFR'
-import AdminCEFRSection from './pages/admin/AdminCEFRSection'
-import AdminSystem from './pages/admin/AdminSystem'
-import AdminAIStructures from './pages/admin/AdminAIStructures'
-import AdminReports from './pages/admin/AdminReports'
-import AdminTestmakonUsers from './pages/admin/AdminTestmakonUsers'
-import AdminCenters from './pages/admin/AdminCenters'
-import AdminCenterDetail from './pages/admin/AdminCenterDetail'
+// ── Qolgan hammasi talab bo'yicha yuklanadi ──────────────────────────────────
+// Oldin 80+ sahifa bitta 2.5 MB faylga birikardi va login sahifasini ochgan
+// o'quvchi ham butun admin panelni yuklab olardi. Endi har sahifa alohida.
+const HomePage = lazyWithPreload(() => import('./pages/home/HomePage'))
+const RegisterPage = lazyWithPreload(() => import('./pages/auth/RegisterPage'))
+const OnboardingPage = lazyWithPreload(() => import('./pages/auth/OnboardingPage'))
+
+// SAT
+const SATDashboard = lazyWithPreload(() => import('./pages/sat/SATDashboard'))
+const SATTestList = lazyWithPreload(() => import('./pages/sat/SATTestList'))
+const SATTestAttempt = lazyWithPreload(() => import('./pages/sat/SATTestAttempt'))
+const SATResult = lazyWithPreload(() => import('./pages/sat/SATResult'))
+const SATPractice = lazyWithPreload(() => import('./pages/sat/SATPractice'))
+const SATSavedQuestions = lazyWithPreload(() => import('./pages/sat/SATSavedQuestions'))
+const SATVocab = lazyWithPreload(() => import('./pages/sat/SATVocab'))
+const SATModuleList = lazyWithPreload(() => import('./pages/sat/SATModuleList'))
+const SATModuleResult = lazyWithPreload(() => import('./pages/sat/SATModuleResult'))
+const SATTestResults = lazyWithPreload(() => import('./pages/sat/SATTestResults'))
+const SATModuleHistory = lazyWithPreload(() => import('./pages/sat/SATModuleHistory'))
+const SATLeaderboard = lazyWithPreload(() => import('./pages/sat/SATLeaderboard'))
+
+// IELTS
+const IELTSDashboard = lazyWithPreload(() => import('./pages/ielts/IELTSDashboard'))
+const IELTSTestList = lazyWithPreload(() => import('./pages/ielts/IELTSTestList'))
+const IELTSAttempt = lazyWithPreload(() => import('./pages/ielts/IELTSAttempt'))
+const IELTSReadingList = lazyWithPreload(() => import('./pages/ielts/IELTSReadingList'))
+const IELTSReadingAttempt = lazyWithPreload(() => import('./pages/ielts/IELTSReadingAttempt'))
+const IELTSReadingResult = lazyWithPreload(() => import('./pages/ielts/IELTSReadingResult'))
+const IELTSListeningList = lazyWithPreload(() => import('./pages/ielts/IELTSListeningList'))
+const IELTSListeningAttempt = lazyWithPreload(() => import('./pages/ielts/IELTSListeningAttempt'))
+const IELTSListeningResult = lazyWithPreload(() => import('./pages/ielts/IELTSListeningResult'))
+const IELTSHistory = lazyWithPreload(() => import('./pages/ielts/IELTSHistory'))
+const IELTSWritingList = lazyWithPreload(() => import('./pages/ielts/IELTSWritingList'))
+const IELTSWritingAttempt = lazyWithPreload(() => import('./pages/ielts/IELTSWritingAttempt'))
+const IELTSWritingResult = lazyWithPreload(() => import('./pages/ielts/IELTSWritingResult'))
+const IELTSSpeakingList = lazyWithPreload(() => import('./pages/ielts/IELTSSpeakingList'))
+const IELTSSpeakingAttempt = lazyWithPreload(() => import('./pages/ielts/IELTSSpeakingAttempt'))
+const IELTSSpeakingResult = lazyWithPreload(() => import('./pages/ielts/IELTSSpeakingResult'))
+const IELTSSpeakingReview = lazyWithPreload(() => import('./pages/ielts/IELTSSpeakingReview'))
+const IELTSWritingReview = lazyWithPreload(() => import('./pages/ielts/IELTSWritingReview'))
+const IELTSTestsHub = lazyWithPreload(() => import('./pages/ielts/IELTSTestsHub'))
+const BookmarksPage = lazyWithPreload(() => import('./pages/ielts/BookmarksPage'))
+
+// CEFR
+const CEFRDashboard = lazyWithPreload(() => import('./pages/cefr/CEFRDashboard'))
+const CEFRTestList = lazyWithPreload(() => import('./pages/cefr/CEFRTestList'))
+const CEFRReadingList = lazyWithPreload(() => import('./pages/cefr/CEFRReadingList'))
+const CEFRReadingAttempt = lazyWithPreload(() => import('./pages/cefr/CEFRReadingAttempt'))
+const CEFRListeningList = lazyWithPreload(() => import('./pages/cefr/CEFRListeningList'))
+const CEFRListeningAttempt = lazyWithPreload(() => import('./pages/cefr/CEFRListeningAttempt'))
+const CEFRReadingResult = lazyWithPreload(() => import('./pages/cefr/CEFRReadingResult'))
+const CEFRListeningResult = lazyWithPreload(() => import('./pages/cefr/CEFRListeningResult'))
+const CEFRHistory = lazyWithPreload(() => import('./pages/cefr/CEFRHistory'))
+const CEFRSpeakingList = lazyWithPreload(() => import('./pages/cefr/CEFRSpeakingList'))
+const CEFRSpeakingAttempt = lazyWithPreload(() => import('./pages/cefr/CEFRSpeakingAttempt'))
+const CEFRSpeakingResult = lazyWithPreload(() => import('./pages/cefr/CEFRSpeakingResult'))
+const CEFRTestsHub = lazyWithPreload(() => import('./pages/cefr/CEFRTestsHub'))
+
+// Games
+const GamesHub = lazyWithPreload(() => import('./pages/games/GamesHub'))
+const ShadowingGame = lazyWithPreload(() => import('./pages/games/shadowing/ShadowingGame'))
+
+// Study Tools
+const ArticlesPage = lazyWithPreload(() => import('./pages/study/ArticlesPage'))
+const WritingSamplesPage = lazyWithPreload(() => import('./pages/study/WritingSamplesPage'))
+const SpeakingSamplesPage = lazyWithPreload(() => import('./pages/study/SpeakingSamplesPage'))
+const PodcastsPage = lazyWithPreload(() => import('./pages/study/PodcastsPage'))
+const StudyShadowingPage = lazyWithPreload(() => import('./pages/study/StudyShadowingPage'))
+
+// AI
+const AIChatPage = lazyWithPreload(() => import('./pages/ai/AIChatPage'))
+
+// Other
+const ProfilePage = lazyWithPreload(() => import('./pages/profile/ProfilePage'))
+const SubscriptionPage = lazyWithPreload(() => import('./pages/subscription/SubscriptionPage'))
+const UniversitiesPage = lazyWithPreload(() => import('./pages/universities/UniversitiesPage'))
+const VocabularyPage = lazyWithPreload(() => import('./pages/vocabulary/VocabularyPage'))
+
+// Admin Panel — o'quvchilarga hech qachon yuklanmaydi
+const AdminLayout = lazyWithPreload(() => import('./pages/admin/AdminLayout'))
+const AdminDashboard = lazyWithPreload(() => import('./pages/admin/AdminDashboard'))
+const AdminUsers = lazyWithPreload(() => import('./pages/admin/AdminUsers'))
+const AdminLeaderboard = lazyWithPreload(() => import('./pages/admin/AdminLeaderboard'))
+const AdminSAT = lazyWithPreload(() => import('./pages/admin/AdminSAT'))
+const AdminSATPractice = lazyWithPreload(() => import('./pages/admin/AdminSATPractice'))
+const AdminSATTests = lazyWithPreload(() => import('./pages/admin/AdminSATTests'))
+const AdminSATRealMock = lazyWithPreload(() => import('./pages/admin/AdminSATRealMock'))
+const AdminSATVocab = lazyWithPreload(() => import('./pages/admin/AdminSATVocab'))
+const AdminSATImportGuide = lazyWithPreload(() => import('./pages/admin/AdminSATImportGuide'))
+const AdminSATExamDate = lazyWithPreload(() => import('./pages/admin/AdminSATExamDate'))
+const AdminIELTSSection = lazyWithPreload(() => import('./pages/admin/AdminIELTSSection'))
+const AdminStudyArticles = lazyWithPreload(() => import('./pages/admin/AdminStudyArticles'))
+const AdminStudyWritingSamples = lazyWithPreload(() => import('./pages/admin/AdminStudyWritingSamples'))
+const AdminStudyPodcasts = lazyWithPreload(() => import('./pages/admin/AdminStudyPodcasts'))
+const AdminCEFR = lazyWithPreload(() => import('./pages/admin/AdminCEFR'))
+const AdminCEFRSection = lazyWithPreload(() => import('./pages/admin/AdminCEFRSection'))
+const AdminSystem = lazyWithPreload(() => import('./pages/admin/AdminSystem'))
+const AdminAIStructures = lazyWithPreload(() => import('./pages/admin/AdminAIStructures'))
+const AdminReports = lazyWithPreload(() => import('./pages/admin/AdminReports'))
+const AdminTestmakonUsers = lazyWithPreload(() => import('./pages/admin/AdminTestmakonUsers'))
+const AdminCenters = lazyWithPreload(() => import('./pages/admin/AdminCenters'))
+const AdminCenterDetail = lazyWithPreload(() => import('./pages/admin/AdminCenterDetail'))
 
 // Center Portal
-import CenterLayout from './pages/center/CenterLayout'
-import CenterDashboard from './pages/center/CenterDashboard'
-import CenterMembers from './pages/center/CenterMembers'
-import CenterGroups from './pages/center/CenterGroups'
-import CenterTeacherDetail from './pages/center/CenterTeacherDetail'
-import CenterGroupDetail from './pages/center/CenterGroupDetail'
-import CenterMemberProfile from './pages/center/CenterMemberProfile'
-import CenterAssignments from './pages/center/CenterAssignments'
-import CenterNotifications from './pages/center/CenterNotifications'
-import MyCenters from './pages/center/MyCenters'
-import MyTasks from './pages/center/MyTasks'
+const CenterLayout = lazyWithPreload(() => import('./pages/center/CenterLayout'))
+const CenterDashboard = lazyWithPreload(() => import('./pages/center/CenterDashboard'))
+const CenterMembers = lazyWithPreload(() => import('./pages/center/CenterMembers'))
+const CenterGroups = lazyWithPreload(() => import('./pages/center/CenterGroups'))
+const CenterTeacherDetail = lazyWithPreload(() => import('./pages/center/CenterTeacherDetail'))
+const CenterGroupDetail = lazyWithPreload(() => import('./pages/center/CenterGroupDetail'))
+const CenterMemberProfile = lazyWithPreload(() => import('./pages/center/CenterMemberProfile'))
+const CenterAssignments = lazyWithPreload(() => import('./pages/center/CenterAssignments'))
+const CenterNotifications = lazyWithPreload(() => import('./pages/center/CenterNotifications'))
+const MyCenters = lazyWithPreload(() => import('./pages/center/MyCenters'))
+const MyTasks = lazyWithPreload(() => import('./pages/center/MyTasks'))
 
 function PrivateRoute({ children }) {
   const user = useAuthStore((s) => s.user)
@@ -148,10 +172,36 @@ function RouteProgressBar() {
   )
 }
 
+// ── Imtihon sahifalarini oldindan yuklash ────────────────────────────────────
+// Eng muhim xavfsizlik chorasi: o'quvchi test ro'yxatini ko'rib turganda
+// imtihon kodi fonda allaqachon yuklab qo'yiladi. Shunda "Start" bosgan payt
+// internet uzilsa ham imtihon ochiladi.
+const EXAM_CHUNKS = {
+  sat: [SATTestAttempt, SATResult],
+  ielts: [
+    IELTSAttempt, IELTSReadingAttempt, IELTSListeningAttempt,
+    IELTSWritingAttempt, IELTSSpeakingAttempt,
+  ],
+  cefr: [CEFRReadingAttempt, CEFRListeningAttempt, CEFRSpeakingAttempt],
+}
+
+function useExamPreload(pathname) {
+  useEffect(() => {
+    const match = pathname.match(/^\/app\/(sat|ielts|cefr)/)
+    if (!match) return
+    // Brauzer bo'sh turganda yuklaydi — joriy sahifaga xalaqit bermaydi.
+    // Cleanup qaytarilmaydi: preload bekor qilinmasligi kerak (lazyWithPreload.js)
+    preloadAll(EXAM_CHUNKS[match[1]])
+  }, [pathname])
+}
+
 export default function App() {
   const fetchUser = useAuthStore((s) => s.fetchUser)
   const user = useAuthStore((s) => s.user)
   const theme = useThemeStore((s) => s.theme)
+  const location = useLocation()
+
+  useExamPreload(location.pathname)
 
   // App ochilganda user ma'lumotlarini yangilash (is_staff, is_premium etc)
   useEffect(() => {
@@ -172,6 +222,7 @@ export default function App() {
   return (
     <>
     <RouteProgressBar />
+    <LazyBoundary>
     <Routes>
       {/* Public */}
       <Route path="/" element={<HomePage />} />
@@ -198,6 +249,7 @@ export default function App() {
 
         {/* IELTS */}
         <Route path="ielts" element={<IELTSDashboard />} />
+        <Route path="ielts/skills" element={<IELTSTestsHub />} />
         <Route path="ielts/tests" element={<IELTSTestList />} />
         <Route path="ielts/reading" element={<IELTSReadingList />} />
         <Route path="ielts/listening" element={<IELTSListeningList />} />
@@ -210,6 +262,7 @@ export default function App() {
 
         {/* CEFR */}
         <Route path="cefr" element={<CEFRDashboard />} />
+        <Route path="cefr/skills" element={<CEFRTestsHub />} />
         <Route path="cefr/tests" element={<CEFRTestList />} />
         <Route path="cefr/reading" element={<CEFRReadingList />} />
         <Route path="cefr/listening" element={<CEFRListeningList />} />
@@ -230,6 +283,27 @@ export default function App() {
         <Route path="vocabulary" element={<VocabularyPage />} />
         <Route path="my-centers" element={<MyCenters />} />
         <Route path="my-tasks" element={<MyTasks />} />
+      </Route>
+
+      {/* Games — its own full-screen world, no sidebar */}
+      <Route path="/games" element={<PrivateRoute><GamesLayout /></PrivateRoute>}>
+        <Route index element={<GamesHub />} />
+        <Route path="shadowing" element={<ShadowingGame />} />
+      </Route>
+
+      {/* Study Tools — its own section with a dedicated top nav */}
+      <Route path="/study" element={<PrivateRoute><StudyLayout /></PrivateRoute>}>
+        {/* Landing straight on Articles — no separate hub screen */}
+        <Route index element={<Navigate to="/study/articles" replace />} />
+        <Route path="articles" element={<ArticlesPage />} />
+        <Route path="articles/:articleId" element={<ArticlesPage />} />
+        <Route path="writing-samples" element={<WritingSamplesPage />} />
+        <Route path="writing-samples/:sampleId" element={<WritingSamplesPage />} />
+        <Route path="speaking-samples" element={<SpeakingSamplesPage />} />
+        <Route path="podcasts" element={<PodcastsPage />} />
+        <Route path="podcasts/:podcastId" element={<PodcastsPage />} />
+        <Route path="shadowing" element={<StudyShadowingPage />} />
+        <Route path="shadowing/:trackId" element={<StudyShadowingPage />} />
       </Route>
 
       {/* Exam mode — fullscreen, no sidebar */}
@@ -288,6 +362,14 @@ export default function App() {
           <Route path="grammar"   element={<AdminCEFRSection section="grammar" />} />
           <Route path="all"       element={<AdminCEFR />} />
         </Route>
+        {/* Study Tools */}
+        <Route path="study">
+          <Route index element={<Navigate to="/admin-panel/study/articles" replace />} />
+          <Route path="articles" element={<AdminStudyArticles />} />
+          <Route path="writing-samples" element={<AdminStudyWritingSamples />} />
+          <Route path="shadowing" element={<AdminStudyPodcasts section="shadowing" />} />
+          <Route path="podcasts" element={<AdminStudyPodcasts section="podcast" />} />
+        </Route>
         <Route path="testmakon-users" element={<AdminTestmakonUsers />} />
         <Route path="centers" element={<AdminCenters />} />
         <Route path="centers/:centerId" element={<AdminCenterDetail />} />
@@ -312,6 +394,7 @@ export default function App() {
 
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
+    </LazyBoundary>
     </>
   )
 }

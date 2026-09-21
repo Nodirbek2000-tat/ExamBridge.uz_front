@@ -5,6 +5,7 @@ import { useAuthStore } from '../../store/authStore'
 import { Eye, EyeOff } from 'lucide-react'
 import { GoogleLogin } from '@react-oauth/google'
 import Logo from '../../components/Logo.jsx'
+import Seo from '../../components/Seo.jsx'
 
 export default function RegisterPage() {
   const [form, setForm] = useState({ first_name: '', last_name: '', email: '', password: '' })
@@ -51,6 +52,11 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen bg-white flex items-center justify-center px-4 py-10">
+      <Seo
+        title="Ro'yxatdan o'tish"
+        path="/register"
+        description="Bepul ro'yxatdan o'ting va IELTS, CEFR, SAT mock testlarini boshlang. AI orqali speaking va writing baholash."
+      />
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 right-1/3 w-96 h-96 bg-slate-200 rounded-full blur-[100px] opacity-30" />
       </div>

@@ -29,6 +29,9 @@ services:
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - certbot_certs:/etc/letsencrypt:ro
       - certbot_webroot:/var/www/certbot:ro
+      # Media cache — redeploy qilinganda ham saqlanib qoladi, aks holda har
+      # deploydan keyin barcha audio qaytadan Django dan yuklanardi
+      - media_cache:/var/cache/nginx/media
     networks:
       - exambridge_net
     # Reload nginx every 6 hours to pick up renewed SSL certs
@@ -55,3 +58,4 @@ networks:
 volumes:
   certbot_certs:
   certbot_webroot:
+  media_cache:        # nginx media cache (audio/rasm) — deploylar orasida saqlanadi

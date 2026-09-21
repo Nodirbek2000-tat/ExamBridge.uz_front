@@ -35,7 +35,7 @@ function DifficultyBadge({ difficulty }) {
   )
 }
 
-export default function IELTSWritingList() {
+export default function IELTSWritingList({ embedded = false, accentBtn = 'bg-sky-500 hover:bg-sky-600' } = {}) {
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
   const [activeTask, setActiveTask] = useState('ALL')
@@ -45,7 +45,6 @@ export default function IELTSWritingList() {
   const { data, isLoading } = useQuery({
     queryKey: ['ielts-writing-tasks'],
     queryFn: () => api.get('/ielts/writing/').then((r) => r.data),
-    staleTime: 60_000,
   })
 
   const tasks = useMemo(() => {
@@ -71,18 +70,22 @@ export default function IELTSWritingList() {
   return (
     <div className="min-h-[60vh] max-w-6xl mx-auto space-y-6">
       {/* Top bar — skrinshot uslubi */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <button
-          type="button"
-          onClick={() => navigate('/app/ielts')}
-          className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-sky-600 transition w-fit"
-        >
-          <ChevronLeft size={18} />
-          Back
-        </button>
-        <h1 className="text-xl sm:text-2xl font-black text-gray-900 text-center sm:absolute sm:left-1/2 sm:-translate-x-1/2 sm:pointer-events-none">
-          Writing
-        </h1>
+      <div className={`flex flex-col sm:flex-row sm:items-center gap-4 ${embedded ? 'sm:justify-end' : 'sm:justify-between'}`}>
+        {!embedded && (
+          <>
+            <button
+              type="button"
+              onClick={() => navigate('/app/ielts')}
+              className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-sky-600 transition w-fit"
+            >
+              <ChevronLeft size={18} />
+              Back
+            </button>
+            <h1 className="text-xl sm:text-2xl font-black text-gray-900 text-center sm:absolute sm:left-1/2 sm:-translate-x-1/2 sm:pointer-events-none">
+              Writing
+            </h1>
+          </>
+        )}
         <div className="flex items-center gap-2 justify-end flex-wrap">
           <button
             type="button"
@@ -206,7 +209,7 @@ export default function IELTSWritingList() {
                       type="button"
                       onClick={() => handleStart(task)}
                       disabled={isStarting}
-                      className="w-full sm:w-auto px-5 h-10 rounded-lg text-sm font-bold transition disabled:opacity-60 bg-sky-500 hover:bg-sky-600 text-white"
+                      className={`w-full sm:w-auto px-5 h-10 rounded-lg text-sm font-bold transition disabled:opacity-60 text-white ${accentBtn}`}
                     >
                       {isStarting
                         ? <Loader2 size={15} className="animate-spin mx-auto" />

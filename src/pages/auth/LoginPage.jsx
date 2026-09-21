@@ -6,47 +6,17 @@ import api from '../../api/client'
 import { Eye, EyeOff, CheckCircle2 } from 'lucide-react'
 import { GoogleLogin } from '@react-oauth/google'
 import Logo from '../../components/Logo.jsx'
-
-const MAX_ATTEMPTS = 5
-const LOCKOUT_MS = 15 * 60 * 1000 // 15 daqiqa
-
-function getLoginAttempts() {
-  try {
-    return JSON.parse(localStorage.getItem('_la') || '{"c":0,"t":0}')
-  } catch { return { c: 0, t: 0 } }
-}
-function setLoginAttempts(c, t) {
-  localStorage.setItem('_la', JSON.stringify({ c, t }))
-}
-function clearLoginAttempts() {
-  localStorage.removeItem('_la')
-}
+import Seo from '../../components/Seo.jsx'
 
 export default function LoginPage() {
   const [form, setForm] = useState({ email: '', password: '' })
   const [showPw, setShowPw] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
-  const [lockoutLeft, setLockoutLeft] = useState(0)
   const login = useAuthStore((s) => s.login)
   const googleLogin = useAuthStore((s) => s.googleLogin)
   const loading = useAuthStore((s) => s.loading)
   const navigate = useNavigate()
-
-  // Check lockout on mount and keep timer updated
-  useState(() => {
-    const check = () => {
-      const { c, t } = getLoginAttempts()
-      if (c >= MAX_ATTEMPTS && t) {
-        const remaining = Math.max(0, LOCKOUT_MS - (Date.now() - t))
-        setLockoutLeft(remaining)
-        if (remaining === 0) clearLoginAttempts()
-      }
-    }
-    check()
-    const id = setInterval(check, 1000)
-    return () => clearInterval(id)
-  })
 
   const resolveLanding = async (user) => {
     if (user?.is_staff) return '/admin-panel'
@@ -62,7 +32,6 @@ export default function LoginPage() {
   }
 
   const handleSuccess = async (user) => {
-    clearLoginAttempts()
     setSuccess(true)
     const dest = await resolveLanding(user)
     setTimeout(() => navigate(dest), 1200)
@@ -72,35 +41,21 @@ export default function LoginPage() {
     e.preventDefault()
     setError('')
 
-    // Frontend lockout check
-    const { c, t } = getLoginAttempts()
-    if (c >= MAX_ATTEMPTS) {
-      const remaining = LOCKOUT_MS - (Date.now() - t)
-      if (remaining > 0) {
-        setLockoutLeft(remaining)
-        setError(`Juda ko'p urinish. ${Math.ceil(remaining / 60000)} daqiqadan keyin urinib ko'ring.`)
-        return
-      }
-      clearLoginAttempts()
-    }
-
     const res = await login(form.email, form.password)
     if (res.success) {
       handleSuccess(res.user)
     } else {
-      const newCount = c + 1
-      setLoginAttempts(newCount, newCount === 1 ? Date.now() : t)
-      const left = MAX_ATTEMPTS - newCount
-      setError(
-        left > 0
-          ? `${res.error} (${left} ta urinish qoldi)`
-          : `Juda ko'p urinish. 15 daqiqa kuting.`
-      )
+      setError(res.error)
     }
   }
 
   return (
     <div className="min-h-screen bg-white flex items-center justify-center px-4">
+      <Seo
+        title="Kirish"
+        path="/login"
+        description="ExamBridge hisobingizga kiring — IELTS, CEFR va SAT mock testlari, AI baholash va natijalaringiz."
+      />
       {/* Success toast */}
       <AnimatePresence>
         {success && (
@@ -205,14 +160,10 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              disabled={loading || lockoutLeft > 0}
+              disabled={loading}
               className="w-full py-3.5 rounded-xl gradient-primary text-white font-bold text-sm shadow-glow hover:opacity-90 transition-all disabled:opacity-50"
             >
-              {loading
-                ? 'Signing in...'
-                : lockoutLeft > 0
-                ? `Kutish: ${Math.ceil(lockoutLeft / 60000)} daq`
-                : 'Sign In'}
+              {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
 

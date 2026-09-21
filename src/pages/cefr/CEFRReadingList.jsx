@@ -32,7 +32,7 @@ function LevelBadge({ level }) {
   )
 }
 
-export default function CEFRReadingList() {
+export default function CEFRReadingList({ accentBtn = 'bg-sky-500 hover:bg-sky-600' } = {}) {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [level, setLevel] = useState('ALL')
@@ -42,7 +42,6 @@ export default function CEFRReadingList() {
   const { data = [], isLoading } = useQuery({
     queryKey: ['cefr-reading-list'],
     queryFn: () => api.get('/cefr/reading/').then((r) => r.data),
-    staleTime: 60_000,
   })
 
   const { passages, fullMocks } = useMemo(() => {
@@ -185,7 +184,7 @@ export default function CEFRReadingList() {
                     type="button"
                     onClick={() => isFullMock ? handleStartFullMock(item) : handleStartPassage(item)}
                     disabled={isStarting}
-                    className="px-5 h-10 rounded-lg bg-sky-500 text-white text-sm font-bold hover:bg-sky-600 transition disabled:opacity-60 shrink-0"
+                    className={`px-5 h-10 rounded-lg text-white text-sm font-bold transition disabled:opacity-60 shrink-0 ${accentBtn}`}
                   >
                     {isStarting ? <Loader2 size={15} className="animate-spin mx-auto" /> : isCompleted ? 'Re-do test' : 'Start test'}
                   </button>
