@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { Mic, MicOff, Loader2, Volume2, Check, Lightbulb, Upload } from 'lucide-react'
 import api from '../../api/client'
+import { preloadTts } from '../../utils/ttsPreload'
 
 // ── AI personas mapped to OpenAI TTS voices ────────────────────────────────
 // alloy=neutral, echo=male-clear, fable=male-warm, onyx=male-deep,
@@ -356,30 +357,20 @@ export default function IELTSSpeakingAttempt() {
 
   const TIME_UP_TEXT = "Your time is up. Start speaking now."
 
-  // Preload ALL question TTS as soon as questions are built — eliminates waiting
+  // Preload every examiner line in the order it will be spoken, a few at a time
   useEffect(() => {
     if (!questions.length) return
     const farewell = "That is the end of the speaking test. Thank you very much for your answers. Well done!"
     const greetText = `${persona.greeting} We have ${questions.length} question${questions.length > 1 ? 's' : ''} today.`
-    const allTexts = [
+    return preloadTts([
       greetText,
-      farewell,
-      TIME_UP_TEXT,
       ...questions.flatMap(q => [
         q.intro ? q.intro + ' ' + q.text : q.text,
         q.acceptPhrase,
       ].filter(Boolean)),
-    ]
-    allTexts.forEach(text => {
-      const cacheKey = `${persona.voice}:${text}`
-      if (ttsCacheRef.current.has(cacheKey)) return
-      api.post('/ielts/speaking/tts/',
-        { text, voice: persona.voice, speed: persona.speed },
-        { responseType: 'blob' }
-      ).then(r => {
-        ttsCacheRef.current.set(cacheKey, URL.createObjectURL(r.data))
-      }).catch(() => {})
-    })
+      TIME_UP_TEXT,
+      farewell,
+    ], { voice: persona.voice, speed: persona.speed, cache: ttsCacheRef.current })
   }, [questions])
 
   // 1-minute preparation timer for Part 2 cue card
