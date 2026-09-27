@@ -384,15 +384,15 @@ export default function ProfilePage() {
                 </div>
                 <div>
                   <p className="font-bold text-gray-900 dark:text-white">{user?.full_name || 'User'}</p>
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${
-                    isCenterStudent
-                      ? 'bg-green-50 text-green-700 border-green-200'
-                      : user?.is_premium
-                        ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-700'
-                        : 'bg-sky-50 text-sky-600 border-sky-200 dark:bg-sky-900/20 dark:text-sky-400 dark:border-sky-700'
-                  }`}>
-                    {isCenterStudent ? 'Center Student' : user?.is_premium ? '⚡ Premium' : 'Free'}
-                  </span>
+                  {(isCenterStudent || user?.is_premium) && (
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${
+                      isCenterStudent
+                        ? 'bg-green-50 text-green-700 border-green-200'
+                        : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-700'
+                    }`}>
+                      {isCenterStudent ? 'Center Student' : '⚡ Premium'}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -420,13 +420,13 @@ export default function ProfilePage() {
                 </div>
                 <ChevronRight size={15} className="text-gray-300 dark:text-gray-600" />
               </a>
-              <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-50 dark:border-gray-700/60 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition cursor-pointer">
+              <a href="https://t.me/Nodirbek_shukurov1" target="_blank" rel="noreferrer" className="flex items-center justify-between px-5 py-3.5 border-b border-gray-50 dark:border-gray-700/60 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition cursor-pointer">
                 <div>
                   <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">Telegram</p>
-                  <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">@exambridge_support</p>
+                  <p className="text-sm font-semibold text-sky-600 dark:text-sky-400">@Nodirbek_shukurov1</p>
                 </div>
                 <ChevronRight size={15} className="text-gray-300 dark:text-gray-600" />
-              </div>
+              </a>
             </Card>
 
             {/* Legal */}

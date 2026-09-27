@@ -69,9 +69,8 @@ const BOTTOM_LINKS = [
   { label: 'Games', to: '/games', icon: Gamepad2, isNew: true },
   { label: 'Study Tools', to: '/study', icon: GraduationCap, isNew: true },
   { label: 'AI Tutor', to: '/app/ai', icon: Sparkles },
-  { label: 'Universities', to: '/app/universities', icon: GraduationCap },
-  { label: 'Vocabulary', to: '/app/vocabulary', icon: Library },
-  { label: 'Pricing', to: '/app/subscription', icon: Crown, highlight: true },
+  // Universities, Pricing and the shared Vocabulary link are hidden for now —
+  // the routes still exist. SAT keeps its own Vocabulary item above.
 ]
 
 function examFromPath(pathname) {
@@ -321,11 +320,12 @@ function SidebarContent({ onClose, isCenterStudent, pendingCount }) {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{user?.full_name || user?.email}</p>
-            <p className={`text-[10px] font-semibold truncate ${
-              isCenterStudent ? 'text-green-600' : user?.is_premium ? 'text-amber-600 dark:text-amber-400' : 'text-sky-600 dark:text-sky-400'
-            }`}>
-              {isCenterStudent ? 'Center Student' : user?.is_premium ? '⚡ Premium' : 'Free'}
-            </p>
+            {/* Plan status is hidden for free accounts; premium/center still show */}
+            {(isCenterStudent || user?.is_premium) && (
+              <p className={`text-[10px] font-semibold truncate ${isCenterStudent ? 'text-green-600' : 'text-amber-600 dark:text-amber-400'}`}>
+                {isCenterStudent ? 'Center Student' : '⚡ Premium'}
+              </p>
+            )}
           </div>
           <ChevronRight size={14} className="text-gray-400 dark:text-gray-500 flex-shrink-0" />
         </button>

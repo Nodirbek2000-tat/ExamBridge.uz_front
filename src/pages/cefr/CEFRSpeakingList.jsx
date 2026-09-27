@@ -127,7 +127,7 @@ export default function CEFRSpeakingList({ embedded = false, accentBtn = 'bg-eme
                     onClick={() => handleStart(task)}
                     disabled={locked || isStarting}
                     className={`w-full sm:w-auto px-5 h-10 rounded-lg text-sm font-bold transition disabled:opacity-60 ${
-                      locked ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : `${accentBtn} text-white`
+                      locked ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : `btn-glass ${accentBtn} text-white`
                     }`}
                   >
                     {isStarting ? <Loader2 size={15} className="animate-spin mx-auto" />

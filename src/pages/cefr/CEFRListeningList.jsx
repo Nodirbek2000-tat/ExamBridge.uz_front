@@ -66,30 +66,6 @@ export default function CEFRListeningList({ accentBtn = 'bg-sky-500 hover:bg-sky
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div className="relative md:col-span-1">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search sections..."
-            className="w-full h-10 pl-9 pr-3 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-sky-100 focus:border-sky-400"
-          />
-        </div>
-
-        <select
-          value={level}
-          onChange={(e) => setLevel(e.target.value)}
-          className="h-10 px-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-700 md:col-span-2"
-        >
-          {LEVELS.map((l) => (
-            <option key={l} value={l}>
-              {l === 'ALL' ? 'All levels' : `Level ${l}`}
-            </option>
-          ))}
-        </select>
-      </div>
-
       <div className="rounded-2xl border border-gray-200 bg-white">
         <button
           type="button"
@@ -164,7 +140,7 @@ export default function CEFRListeningList({ accentBtn = 'bg-sky-500 hover:bg-sky
                       type="button"
                       onClick={() => handleStart(section)}
                       disabled={isStarting}
-                      className={`px-5 h-10 rounded-lg text-white text-sm font-bold transition disabled:opacity-60 shrink-0 ${accentBtn}`}
+                      className={`px-5 h-10 rounded-lg text-white text-sm font-bold transition disabled:opacity-60 shrink-0 btn-glass ${accentBtn}`}
                     >
                       {isStarting ? <Loader2 size={15} className="animate-spin mx-auto" /> : isCompleted ? 'Re-do test' : 'Start test'}
                     </button>

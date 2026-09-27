@@ -190,15 +190,7 @@ export default function TopBar({
           <LayoutDashboard size={14} />
           {user?.is_staff ? 'Admin Panel' : `${roleMeta?.label || 'Open'} Panel`}
         </button>
-      ) : !isCenterStudent && (
-        /* Regular user: Upgrade button */
-        <NavLink
-          to="/app/subscription"
-          className="hidden sm:flex items-center gap-2 px-4 py-1.5 rounded-full gradient-primary text-white text-sm font-semibold shadow-glow hover:opacity-90 transition-opacity"
-        >
-          <span>⚡</span> Upgrade
-        </NavLink>
-      )}
+      ) : null /* Upgrade button hidden while pricing is off */}
 
       {/* Notification bell — center students only */}
       {isCenterStudent && <NotifBell notifCount={notifCount} />}
@@ -229,11 +221,9 @@ export default function TopBar({
               <span className={`text-[10px] font-semibold truncate w-full ${roleMeta.text}`}>{roleMeta.label}</span>
             ) : isCenterStudent ? (
               <span className="text-[10px] font-semibold truncate w-full text-green-600">Center Student</span>
-            ) : (
-              <span className={`text-[10px] font-semibold truncate w-full ${user?.is_premium ? 'text-amber-600' : 'text-sky-600'}`}>
-                {user?.is_premium ? '⚡ Premium' : 'Free'}
-              </span>
-            )}
+            ) : user?.is_premium ? (
+              <span className="text-[10px] font-semibold truncate w-full text-amber-600">⚡ Premium</span>
+            ) : null}
           </span>
           <ChevronDown size={16} strokeWidth={2.25} className={`text-sky-500 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
@@ -265,15 +255,11 @@ export default function TopBar({
                     <span className="inline-flex mt-2 text-[10px] font-bold px-2 py-0.5 rounded-full border bg-green-50 text-green-700 border-green-200">
                       Center Student
                     </span>
-                  ) : (
-                    <span className={`inline-flex mt-2 text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                      user?.is_premium
-                        ? 'bg-amber-50 text-amber-800 border-amber-200'
-                        : 'bg-sky-100 text-sky-700 border-sky-200'
-                    }`}>
-                      {user?.is_premium ? '⚡ Premium' : 'Free'}
+                  ) : user?.is_premium ? (
+                    <span className="inline-flex mt-2 text-[10px] font-bold px-2 py-0.5 rounded-full border bg-amber-50 text-amber-800 border-amber-200">
+                      ⚡ Premium
                     </span>
-                  )}
+                  ) : null}
                 </div>
               </div>
             </div>

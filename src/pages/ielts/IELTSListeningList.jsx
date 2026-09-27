@@ -130,38 +130,6 @@ export default function IELTSListeningList({ accentBtn = 'bg-sky-500 hover:bg-sk
           </div>
         </div>
       )}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-        <div className="relative md:col-span-1">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search tests..."
-            className="w-full h-10 pl-9 pr-3 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-sky-100 focus:border-sky-400"
-          />
-        </div>
-
-        <select value={level} onChange={(e) => setLevel(e.target.value)} className="h-10 px-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-700">
-          <option value="ALL">All Levels</option>
-          <option value="EASY">Easy</option>
-          <option value="MEDIUM">Medium</option>
-          <option value="HARD">Hard</option>
-        </select>
-
-        <select value={type} onChange={(e) => setType(e.target.value)} className="h-10 px-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-700">
-          <option value="ALL">All Types</option>
-          <option value="MOCK">Mock</option>
-          <option value="PRACTICE">Practice</option>
-        </select>
-
-        <select value={sections} onChange={(e) => setSections(e.target.value)} className="h-10 px-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-700">
-          <option value="ALL">All Parts</option>
-          <option value="1">1 section</option>
-          <option value="2">2 sections</option>
-          <option value="3">3 sections</option>
-          <option value="4">4 sections</option>
-        </select>
-      </div>
 
       <div className="rounded-2xl border border-gray-200 bg-white">
         <button
@@ -255,7 +223,7 @@ export default function IELTSListeningList({ accentBtn = 'bg-sky-500 hover:bg-sk
                       <button
                         onClick={() => handleStart(item)}
                         disabled={isStarting}
-                        className={`w-full sm:w-auto px-5 h-10 rounded-lg text-sm font-bold transition disabled:opacity-60 text-white ${accentBtn}`}
+                        className={`w-full sm:w-auto px-5 h-10 rounded-lg text-sm font-bold transition disabled:opacity-60 text-white btn-glass ${accentBtn}`}
                       >
                         {isStarting
                           ? <Loader2 size={15} className="animate-spin mx-auto" />

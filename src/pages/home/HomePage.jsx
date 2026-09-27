@@ -999,7 +999,7 @@ export default function HomePage() {
       <SkillsSection />
       <FeaturesSection />
       <AISection />
-      <HomePricingTeaser />
+      {/* Pricing section hidden for now */}
       <CTASection />
       <footer className="py-12 px-6 border-t border-sky-800/50 bg-gradient-to-b from-sky-950 to-blue-950">
         <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 text-sm">
@@ -1016,7 +1016,6 @@ export default function HomePage() {
               <Link to="/app/sat" className="block text-sky-100/80 hover:text-cyan-300 transition-colors">SAT</Link>
               <Link to="/app/ielts" className="block text-sky-100/80 hover:text-cyan-300 transition-colors">IELTS</Link>
               <Link to="/app/cefr" className="block text-sky-100/80 hover:text-cyan-300 transition-colors">CEFR</Link>
-              <a href="#pricing" className="block text-sky-100/80 hover:text-cyan-300 transition-colors">Pricing</a>
             </div>
           </div>
 

@@ -44,7 +44,7 @@ function SampleCard({ sample, index, onOpen, busy }) {
           type="button"
           onClick={() => onOpen(sample)}
           disabled={busy}
-          className={`rounded-full px-5 py-2.5 text-sm font-bold text-white transition-colors disabled:opacity-60 ${
+          className={`btn-glass rounded-full px-5 py-2.5 text-sm font-bold text-white transition-colors disabled:opacity-60 ${
             locked ? 'bg-slate-400' : 'bg-sky-500 hover:bg-sky-600'
           }`}
         >

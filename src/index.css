@@ -39,6 +39,23 @@
 }
 
 @layer utilities {
+  /* Glassy action button (Start / Re-do / Continue): lighter at the top,
+     deeper at the bottom, over whatever bg-* colour the button already has. */
+  .btn-glass {
+    background-image: linear-gradient(180deg,
+      rgba(255, 255, 255, 0.30) 0%,
+      rgba(255, 255, 255, 0.08) 48%,
+      rgba(0, 0, 0, 0.14) 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.45),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.10),
+      0 6px 16px -8px rgba(15, 23, 42, 0.45);
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.12);
+    transition: filter .15s ease, transform .15s ease, box-shadow .15s ease;
+  }
+  .btn-glass:hover:not(:disabled) { filter: brightness(1.06) saturate(1.05); transform: translateY(-1px); }
+  .btn-glass:active:not(:disabled) { transform: translateY(0); filter: brightness(.97); }
+
   /* Answer highlight marks in reading/listening review */
   mark.answer-mark {
     background: #fde047;

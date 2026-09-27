@@ -956,7 +956,7 @@ export default function SATDashboard() {
               </div>
             </div>
             <div className="mt-4 flex gap-2">
-              <Link to="/app/sat/tests" className="flex-1 text-center rounded-xl bg-slate-900 text-white py-2 text-sm font-bold hover:bg-slate-700 transition">Start test</Link>
+              <Link to="/app/sat/tests" className="btn-glass flex-1 text-center rounded-xl bg-sky-500 text-white py-2 text-sm font-bold hover:bg-sky-600">Start test</Link>
               <Link to="/app/sat/vocab" className="flex-1 text-center rounded-xl bg-slate-100 text-slate-800 py-2 text-sm font-bold hover:bg-slate-200 transition">Study words</Link>
             </div>
           </div>

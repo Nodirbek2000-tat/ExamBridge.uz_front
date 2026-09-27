@@ -902,7 +902,7 @@ function TestCard({ test, idx, tab, user, modules, modulesLoading, onStartFull, 
               type="button"
               onClick={() => onStartFull(!!hasScore)}
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl font-black text-sm uppercase tracking-wide bg-sky-500 text-white shadow-[0_4px_0_0_#0369a1] hover:bg-sky-600 transition-all active:translate-y-[2px] active:shadow-[0_2px_0_0_#0369a1] disabled:opacity-50 disabled:pointer-events-none"
+              className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl font-black text-sm uppercase tracking-wide btn-glass bg-sky-500 text-white hover:bg-sky-600 disabled:opacity-50 disabled:pointer-events-none"
             >
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/30 bg-white/15">
                 <ChevronRight className="h-5 w-5 text-white" strokeWidth={3} />

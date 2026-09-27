@@ -311,7 +311,7 @@ export default function IELTSSpeakingList({ embedded = false, accentBtn = 'bg-sk
                       type="button"
                       onClick={() => handleStart(task)}
                       disabled={isStarting}
-                      className={`w-full sm:w-auto px-5 h-10 rounded-lg text-sm font-bold transition disabled:opacity-60 text-white ${accentBtn}`}
+                      className={`w-full sm:w-auto px-5 h-10 rounded-lg text-sm font-bold transition disabled:opacity-60 text-white btn-glass ${accentBtn}`}
                     >
                       {isStarting
                         ? <Loader2 size={15} className="animate-spin mx-auto" />

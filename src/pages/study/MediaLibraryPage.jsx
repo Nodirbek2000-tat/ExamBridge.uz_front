@@ -57,7 +57,7 @@ function PodcastCard({ podcast, index, onOpen, busy }) {
             type="button"
             onClick={() => onOpen(podcast)}
             disabled={busy}
-            className={`flex items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-bold text-white transition-colors disabled:opacity-60 ${
+            className={`flex items-center gap-1.5 btn-glass rounded-full px-5 py-2.5 text-sm font-bold text-white transition-colors disabled:opacity-60 ${
               locked ? 'bg-slate-400' : 'bg-sky-500 hover:bg-sky-600'
             }`}
           >
