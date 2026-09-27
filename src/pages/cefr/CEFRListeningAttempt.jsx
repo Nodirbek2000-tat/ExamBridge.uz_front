@@ -10,9 +10,8 @@ import {
 } from 'lucide-react'
 import api from '../../api/client'
 import { loadExam, saveExam, clearExam } from '../../utils/examPersist'
+import CefrPartNav from '../../components/exam/CefrPartNav'
 import { useAuthStore } from '../../store/authStore'
-import { useAnswerReview } from '../../hooks/useAnswerReview'
-import AnswerReviewToggle from '../../components/exam/AnswerReviewToggle'
 
 function Skeleton({ className = '' }) {
   return <div className={`animate-pulse rounded-lg bg-gray-200/70 ${className}`} />
@@ -1192,9 +1191,6 @@ function QuestionList({
                 }`}>
                   {q.number}
                 </span>
-                <span className={`text-sm font-semibold px-2 py-0.5 rounded-md ${D ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
-                  {q.question_type_display || q.question_type}
-                </span>
                 <div className="ml-auto flex items-center gap-1.5">
                   {answers[String(q.id)] && <CheckCircle2 size={13} className="text-green-500" />}
                 </div>
@@ -1337,7 +1333,8 @@ export default function CEFRListeningAttempt() {
   const reviewData = location.state?.reviewData || null
   const reviewMode = Boolean(reviewData)
   // Sozlama localStorage'da saqlanadi va to'rttala imtihon sahifasida bir xil
-  const [showCorrectInReview, toggleAnswerReview] = useAnswerReview()
+  // CEFR review always shows right/wrong — no toggle
+  const showCorrectInReview = true
 
   const answersStorageKey = reviewMode ? null : `cefr-listening-answers-${attemptId}`
   const audioStorageKey = reviewMode ? null : `cefr-listening-audio-${attemptId}`
@@ -1617,7 +1614,6 @@ export default function CEFRListeningAttempt() {
         )}
         {reviewMode ? (
           <div className="ml-auto flex items-center gap-2 flex-shrink-0">
-            <AnswerReviewToggle enabled={showCorrectInReview} onToggle={toggleAnswerReview} dark={D} />
             <button type="button" onClick={handleRedoFromReview} className="text-xs px-2 py-1 rounded-lg border border-gray-200 flex items-center gap-1">
               <RotateCcw size={12} /> Re-Do
             </button>
@@ -1794,51 +1790,36 @@ export default function CEFRListeningAttempt() {
         </div>
       )}
 
-      <div className={`fixed bottom-2 md:bottom-3 left-2 right-2 md:left-4 md:right-4 z-30 rounded-2xl border ${divider} ${D ? 'bg-gray-900/95' : 'bg-white/95'} backdrop-blur shadow-lg`}>
-        <div className="flex items-center gap-2 px-3 py-2 max-w-screen-lg mx-auto">
-          <div className="flex-1 overflow-x-auto [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
-            <div className="flex items-center gap-2 min-w-max">
-              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 border-sky-500 ${D ? 'bg-gray-800' : 'bg-white'}`}>
-                <span className="text-xs font-black text-sky-500 mr-0.5 whitespace-nowrap">Part 1</span>
-                {questions.map((q, i) => (
-                  <button
-                    key={q.id}
-                    type="button"
-                    onClick={() => goToQuestion(i)}
-                    className={`w-7 h-7 rounded-full text-[11px] font-bold transition flex items-center justify-center flex-shrink-0 ${
-                      answers[String(q.id)]
-                        ? 'bg-sky-500 text-white'
-                        : activeQ === i
-                          ? 'bg-sky-500 text-white ring-2 ring-sky-300'
-                          : D ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'
-                    }`}
-                  >
-                    {q.number}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-          {!reviewMode ? (
-            <button
-              type="button"
-              onClick={() => setShowConfirm(true)}
-              disabled={submitting}
-              className="flex-shrink-0 flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-black disabled:opacity-60 transition whitespace-nowrap"
-            >
-              <Send size={14} /> Finish test
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => navigate('/app/cefr/listening')}
-              className={`flex-shrink-0 px-4 py-2 border rounded-xl text-sm font-semibold transition whitespace-nowrap ${D ? 'border-gray-600 text-gray-300 hover:bg-gray-800' : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}
-            >
-              Tests
-            </button>
-          )}
-        </div>
-      </div>
+      <CefrPartNav
+        parts={[{ key: section?.id || 0, label: `Part ${section?.section_number || 1}`, questions }]}
+        activePart={0}
+        answers={answers}
+        activeQ={activeQ}
+        onGoToQ={goToQuestion}
+        statusOf={reviewMode ? (q) => {
+          const r = reviewMap[String(q.id)] || reviewMap[`n-${q.number}`]
+          return r ? (r.is_correct ? 'correct' : 'wrong') : null
+        } : undefined}
+        dark={D}
+        action={!reviewMode ? (
+          <button
+            type="button"
+            onClick={() => setShowConfirm(true)}
+            disabled={submitting}
+            className="flex items-center gap-2 whitespace-nowrap rounded-xl bg-gray-900 px-5 py-3 text-[15px] font-semibold text-white transition hover:bg-black disabled:opacity-60"
+          >
+            <Send size={14} /> Finish test
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => navigate('/app/cefr/skills?tab=listening')}
+            className={`whitespace-nowrap rounded-xl border px-5 py-3 text-[15px] font-semibold transition ${D ? 'border-gray-600 text-gray-300 hover:bg-gray-800' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'}`}
+          >
+            Tests
+          </button>
+        )}
+      />
 
       {/* Modals */}
       <AnimatePresence>

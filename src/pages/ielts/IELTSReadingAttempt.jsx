@@ -2597,9 +2597,6 @@ export default function IELTSReadingAttempt() {
                       }`}>
                         {q.number}
                       </span>
-                      <span className={`text-[0.85em] font-semibold px-1.5 py-0.5 rounded-md border ${D ? 'bg-gray-700 text-gray-200 border-gray-500' : 'bg-gray-50 text-gray-800 border-gray-300'}`}>
-                        {q.question_type_display || q.question_type}
-                      </span>
                       <div className="ml-auto flex items-center gap-1.5">
                         {answers[String(q.id)] && <CheckCircle2 size={13} className="text-green-500" />}
                         <QuestionBookmarkButton

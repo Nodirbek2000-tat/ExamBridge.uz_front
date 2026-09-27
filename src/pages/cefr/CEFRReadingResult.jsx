@@ -23,6 +23,9 @@ export default function CEFRReadingResult() {
 
   const title = decodeURIComponent(searchParams.get('title') || 'CEFR Reading')
   const passageId = Number(searchParams.get('passage') || 0)
+  // A full mock is identified by its list of part ids, not a single passage
+  const partsParam = searchParams.get('parts') || ''
+  const examQuery = partsParam ? `parts=${partsParam}` : `passage=${passageId}`
   const attemptId = location.pathname.split('/').filter(Boolean).at(-2)
   const result = location.state?.result
 
@@ -72,7 +75,8 @@ export default function CEFRReadingResult() {
   const iconBg = summary.cefrLevel === 'C1' ? 'bg-indigo-100 text-indigo-500' : summary.cefrLevel === 'B2' ? 'bg-emerald-100 text-emerald-500' : 'bg-sky-100 text-sky-500'
 
   const handleTryAgain = async () => {
-    if (!passageId) return
+    // A mock is restarted from its list card (that start call needs the test id)
+    if (partsParam || !passageId) { navigate('/app/cefr/skills?tab=reading'); return }
     setRetrying(true)
     try {
       const res = await api.post(`/cefr/reading/${passageId}/start/`)
@@ -226,7 +230,7 @@ export default function CEFRReadingResult() {
             <button
               type="button"
               onClick={() =>
-                navigate(`/exam/cefr/reading/${attemptId}?passage=${passageId}&title=${encodeURIComponent(title)}`, {
+                navigate(`/exam/cefr/reading/${attemptId}?${examQuery}&title=${encodeURIComponent(title)}`, {
                   state: { reviewData: result },
                 })
               }

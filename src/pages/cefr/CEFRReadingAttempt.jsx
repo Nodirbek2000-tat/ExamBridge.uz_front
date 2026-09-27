@@ -10,9 +10,8 @@ import {
 } from 'lucide-react'
 import api from '../../api/client'
 import { loadExam, saveExam, clearExam } from '../../utils/examPersist'
+import CefrPartNav from '../../components/exam/CefrPartNav'
 import { useAuthStore } from '../../store/authStore'
-import { useAnswerReview } from '../../hooks/useAnswerReview'
-import AnswerReviewToggle from '../../components/exam/AnswerReviewToggle'
 
 function useTimer(initialSeconds, storageKey, frozen = false) {
   const intervalRef = useRef()
@@ -1481,7 +1480,8 @@ export default function CEFRReadingAttempt() {
   const reviewData = location.state?.reviewData || null
   const reviewMode = Boolean(reviewData)
   // Sozlama localStorage'da saqlanadi va to'rttala imtihon sahifasida bir xil
-  const [showCorrectInReview, toggleAnswerReview] = useAnswerReview()
+  // CEFR review always shows right/wrong — no toggle
+  const showCorrectInReview = true
 
   // Multi-passage support (full mock)
   const passageIds = useMemo(() => {
@@ -1685,7 +1685,9 @@ export default function CEFRReadingAttempt() {
       }
 
       allowLeaveRef.current = true
-      navigate(`/exam/cefr/reading/${attemptId}/result?passage=${passageId}&title=${encodeURIComponent(passageTitle)}`, {
+      // Keep the part list so Review can reload every part of a mock
+      const examQuery = partsParam ? `parts=${partsParam}` : `passage=${passageId}`
+      navigate(`/exam/cefr/reading/${attemptId}/result?${examQuery}&title=${encodeURIComponent(passageTitle)}`, {
         state: { result: combinedResult }, replace: true,
       })
     } catch (e) {
@@ -1796,7 +1798,6 @@ export default function CEFRReadingAttempt() {
 
         {reviewMode ? (
           <div className="ml-auto flex items-center gap-2 flex-shrink-0">
-            <AnswerReviewToggle enabled={showCorrectInReview} onToggle={toggleAnswerReview} />
             <button
               type="button"
               onClick={toggleFullscreen}
@@ -1968,7 +1969,6 @@ export default function CEFRReadingAttempt() {
                       className={`group relative p-4 rounded-2xl border cursor-pointer transition ${qCard(activeQ === i, !!answers[String(q.id)])}`}>
                       <div className="flex items-center gap-2 mb-2">
                         <span className={`inline-flex items-center justify-center w-7 h-7 rounded-lg border text-sm font-black ${D ? 'border-gray-600 bg-gray-700 text-gray-100' : 'border-gray-300 bg-white text-gray-800'}`}>{q.number}</span>
-                        <span className={`text-xs font-medium px-1.5 py-0.5 rounded-md ${D ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-500'}`}>{q.question_type_display || q.question_type}</span>
                         <div className="ml-auto flex items-center gap-1.5">
                           {answers[String(q.id)] && <CheckCircle2 size={13} className="text-green-500" />}
                           {!reviewMode && <button onClick={e => toggleBookmark(q.id, e)} disabled={bmLoading} className={`p-1 rounded-lg transition ${bmLoading ? 'opacity-40' : ''} ${isBookmarked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}><Bookmark size={13} className={isBookmarked ? 'fill-red-500 text-red-500' : D ? 'text-gray-500' : 'text-gray-400'} /></button>}
@@ -2076,7 +2076,6 @@ export default function CEFRReadingAttempt() {
                       className={`group relative p-4 rounded-2xl border cursor-pointer transition ${qCard(activeQ === i, !!answers[String(q.id)])}`}>
                       <div className="flex items-center gap-2 mb-2">
                         <span className={`inline-flex items-center justify-center w-7 h-7 rounded-lg border text-sm font-black ${D ? 'border-gray-600 bg-gray-700 text-gray-100' : 'border-gray-300 bg-white text-gray-800'}`}>{q.number}</span>
-                        <span className={`text-xs font-medium px-1.5 py-0.5 rounded-md ${D ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-500'}`}>{q.question_type_display || q.question_type}</span>
                         <div className="ml-auto flex items-center gap-1.5">
                           {answers[String(q.id)] && <CheckCircle2 size={13} className="text-green-500" />}
                           {!reviewMode && <button onClick={e => toggleBookmark(q.id, e)} disabled={bmLoading} className={`p-1 rounded-lg transition ${bmLoading ? 'opacity-40' : ''} ${isBookmarked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}><Bookmark size={13} className={isBookmarked ? 'fill-red-500 text-red-500' : D ? 'text-gray-500' : 'text-gray-400'} /></button>}
@@ -2114,82 +2113,41 @@ export default function CEFRReadingAttempt() {
       )}
 
       {/* Bottom nav */}
-      <div className={`fixed bottom-2 md:bottom-3 left-2 right-2 md:left-4 md:right-4 z-30 rounded-2xl border ${divider} ${D ? 'bg-gray-900/95' : 'bg-white/95'} backdrop-blur shadow-lg`}>
-        {/* Part tabs row – only when multiple parts loaded */}
-        {passageIds.length > 1 && (
-          <div className={`flex items-center gap-1 px-3 pt-2 pb-1 border-b ${divider} overflow-x-auto [&::-webkit-scrollbar]:hidden`} style={{ scrollbarWidth: 'none' }}>
-            {passageIds.map((pid, idx) => {
-              const pData = allPassagesData[idx]
-              // count how many questions in this part are answered
-              const pQs = pData?.questions || []
-              const pAnswered = pQs.filter(q => answers[String(q.id)]).length
-              const isActive = idx === activePart
-              return (
-                <button
-                  key={pid}
-                  type="button"
-                  onClick={() => setActivePart(idx)}
-                  className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition border-2 ${
-                    isActive
-                      ? 'border-sky-500 bg-sky-500 text-white'
-                      : pAnswered === pQs.length && pQs.length > 0
-                        ? D ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400' : 'border-emerald-500 bg-emerald-50 text-emerald-600'
-                        : D ? 'border-gray-700 bg-gray-800 text-gray-400' : 'border-gray-200 bg-white text-gray-500'
-                  }`}
-                >
-                  <span>P{idx + 1}</span>
-                  {pQs.length > 0 && (
-                    <span className={`text-[10px] font-medium ${isActive ? 'text-sky-100' : pAnswered === pQs.length ? 'text-emerald-400' : D ? 'text-gray-500' : 'text-gray-400'}`}>
-                      {pAnswered}/{pQs.length}
-                    </span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
+      <CefrPartNav
+        parts={(passageIds.length ? passageIds : [0]).map((pid, idx) => ({
+          key: pid || idx,
+          label: `Part ${passageIds.length > 1 ? idx + 1 : (passage?.passage_number || 1)}`,
+          questions: (passageIds.length > 1 ? allPassagesData[idx]?.questions : questions) || [],
+        }))}
+        activePart={passageIds.length > 1 ? activePart : 0}
+        onSelectPart={setActivePart}
+        answers={answers}
+        activeQ={activeQ}
+        onGoToQ={goToQ}
+        statusOf={reviewMode ? (q) => {
+          const r = reviewMap[String(q.id)] || reviewMap[`n-${q.number}`]
+          return r ? (r.is_correct ? 'correct' : 'wrong') : null
+        } : undefined}
+        dark={D}
+        action={!reviewMode ? (
+          <button
+            type="button"
+            onClick={() => setShowConfirm(true)}
+            disabled={submitting}
+            className="whitespace-nowrap rounded-xl bg-gray-900 px-5 py-3 text-[15px] font-semibold text-white transition hover:bg-black disabled:opacity-60"
+          >
+            Finish test
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => navigate('/app/cefr/skills?tab=reading')}
+            className={`whitespace-nowrap rounded-xl border px-5 py-3 text-[15px] font-semibold transition ${D ? 'border-gray-600 text-gray-300 hover:bg-gray-800' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'}`}
+          >
+            Tests
+          </button>
         )}
-        <div className="flex items-center gap-2 px-3 py-2 max-w-screen-xl mx-auto">
-          <div className="flex-1 overflow-x-auto [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
-            <div className="flex items-center gap-2 min-w-max">
-              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 border-sky-500 ${D ? 'bg-gray-800' : 'bg-white'}`}>
-                <span className="text-xs font-black text-sky-500 mr-0.5 whitespace-nowrap">
-                  {passageIds.length > 1 ? `P${activePart + 1}` : `Part ${passage?.passage_number || 1}`}
-                </span>
-                {questions.map((q, i) => (
-                  <button key={q.id} onClick={() => goToQ(i)}
-                    className={`w-7 h-7 rounded-full text-[11px] font-bold transition flex items-center justify-center flex-shrink-0 ${
-                      answers[String(q.id)]
-                        ? 'bg-sky-500 text-white'
-                        : activeQ === i
-                          ? 'bg-sky-500 text-white ring-2 ring-sky-300'
-                          : D ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'
-                    }`}>
-                    {q.number}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-          {!reviewMode ? (
-            <button
-              type="button"
-              onClick={() => setShowConfirm(true)}
-              disabled={submitting}
-              className="flex-shrink-0 px-4 py-2 text-sm font-semibold rounded-xl bg-gray-900 text-white hover:bg-black disabled:opacity-60 transition whitespace-nowrap"
-            >
-              Finish test
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => navigate('/app/cefr/reading')}
-              className={`flex-shrink-0 px-4 py-2 border rounded-xl text-sm font-semibold transition whitespace-nowrap ${D ? 'border-gray-600 text-gray-300 hover:bg-gray-800' : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}
-            >
-              Tests
-            </button>
-          )}
-        </div>
-      </div>
+      />
 
       {/* Modals */}
       <AnimatePresence>

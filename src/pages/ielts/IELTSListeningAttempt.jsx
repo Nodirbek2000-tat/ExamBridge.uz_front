@@ -2674,9 +2674,6 @@ function QuestionList({
                   }`}>
                     {q.number}
                   </span>
-                  <span className={`text-sm font-semibold px-2 py-0.5 rounded-md border ${D ? 'bg-gray-700 text-gray-200 border-gray-500' : 'bg-gray-50 text-gray-800 border-gray-300'}`}>
-                    {q.question_type_display || q.question_type}
-                  </span>
                 </div>
                 <div className="ml-auto flex items-center gap-1.5">
                   {isAnswered(q.id) && <CheckCircle2 size={13} className="text-green-500" />}
