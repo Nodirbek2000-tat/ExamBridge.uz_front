@@ -1179,6 +1179,119 @@ function groupIntoSegments(questions) {
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
+// ── Part 1: gaps inside the passage text (PGAP) ──────────────────────────────
+// The passage itself holds [1]..[N] markers and each one becomes an inline
+// input. The completed text is never stored, so answers can't leak.
+const PGAP_DEFAULT_INSTRUCTION =
+  'Read the text. Fill in each gap with **ONE** word. You must use a word which is somewhere in the rest of the text.'
+
+const boldify = (str) => str.split(/\*\*(.*?)\*\*/g).map((p, i) => (i % 2 === 1 ? <strong key={i}>{p}</strong> : p))
+
+function PassageGapText({
+  passage, questions, answers, onAnswer, onFocusQ, registerRef,
+  dark, textSizeClass, reviewMode, reviewMap, showCorrectInReview,
+}) {
+  const byNumber = useMemo(() => Object.fromEntries(questions.map(q => [q.number, q])), [questions])
+  const nums = questions.map(q => q.number)
+  const range = nums.length > 1 ? `${Math.min(...nums)}–${Math.max(...nums)}` : `${nums[0]}`
+  // The header already says "Questions 1–6", so drop that prefix if the import repeats it
+  const instruction = (questions.find(q => q.group_instruction?.trim())?.group_instruction || PGAP_DEFAULT_INSTRUCTION)
+    .replace(/^\s*questions?\s*\d+\s*[–-]\s*\d+\s*[:.]?\s*/i, '')
+
+  const renderGap = (n, key) => {
+    const q = byNumber[n]
+    if (!q) return <span key={key}>[{n}]</span> // import guarantees a match; stay visible if not
+    const value = answers[String(q.id)] || ''
+    const rr = reviewMode && showCorrectInReview ? (reviewMap?.[String(q.id)] || reviewMap?.[`n-${q.number}`]) : null
+    const state = rr ? (rr.is_correct ? 'correct' : 'wrong') : value ? 'filled' : 'empty'
+    const tone = {
+      empty: dark ? 'border-gray-700 bg-gray-800 text-gray-100' : 'border-gray-200 bg-gray-100 text-gray-900',
+      filled: dark ? 'border-blue-500 bg-gray-900 text-gray-100' : 'border-blue-400 bg-white text-gray-900',
+      correct: 'border-green-500 bg-green-50 text-green-800',
+      wrong: 'border-red-400 bg-red-50 text-red-700',
+    }[state]
+
+    return (
+      <span
+        key={key}
+        id={`cq-${q.id}`}
+        ref={el => registerRef(q.id, el)}
+        className="mx-1 my-1 inline-flex scroll-mt-32 items-center gap-1.5 whitespace-nowrap align-middle"
+      >
+        <span className="inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-[13px] font-bold leading-none text-white">
+          {n}
+        </span>
+        <input
+          type="text"
+          value={value}
+          readOnly={reviewMode}
+          onChange={e => onAnswer(q.id, e.target.value)}
+          onFocus={() => onFocusQ(q)}
+          aria-label={`Gap ${n}`}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          // Grows with the word, within sensible bounds
+          style={{ width: `${Math.min(Math.max(value.length + 3, 7), 18)}ch`, fontSize: 'inherit' }}
+          className={`h-11 rounded-lg border px-2 text-center font-medium leading-none outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 ${tone} ${reviewMode ? 'cursor-default' : ''}`}
+        />
+        {rr && !rr.is_correct && (
+          <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[0.85em] font-semibold leading-snug text-emerald-700">
+            {String(rr.correct_answer || '').split('|')[0]}
+          </span>
+        )}
+      </span>
+    )
+  }
+
+  const paragraphs = String(passage?.content || '').split(/\n\s*\n/)
+
+  return (
+    <div className="px-4 py-6 sm:px-6">
+      {passage?.title && (
+        <h2 className={`mb-4 text-center text-xl ${dark ? 'text-gray-200' : 'text-gray-700'}`}>{passage.title}</h2>
+      )}
+      <div className={`mx-auto max-w-5xl rounded-3xl border px-5 py-6 sm:px-8 sm:py-7 ${dark ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+        <h3 className="mb-2 text-xl font-semibold text-blue-600">Questions {range}</h3>
+        <p className={`mb-5 leading-relaxed ${textSizeClass} ${dark ? 'text-gray-200' : 'text-gray-800'}`}>{boldify(instruction)}</p>
+
+        {passage?.image && (
+          <img src={passage.image} alt="" className="mb-5 max-h-64 w-full rounded-xl border border-gray-200 object-contain" />
+        )}
+
+        <div className={`leading-[2.75] ${textSizeClass} ${dark ? 'text-gray-100' : 'text-gray-900'}`}>
+          {paragraphs.map((para, pi) => (
+            <p key={pi} className="mb-4 last:mb-0">
+              {para.split('\n').map((line, li) => (
+                <span key={li}>
+                  {li > 0 && <br />}
+                  {line.split(/(\[\d+\])/g).map((seg, si) => {
+                    const m = seg.match(/^\[(\d+)\]$/)
+                    const key = `${pi}-${li}-${si}`
+                    return m ? renderGap(Number(m[1]), key) : <span key={key}>{boldify(seg)}</span>
+                  })}
+                </span>
+              ))}
+            </p>
+          ))}
+        </div>
+
+        {reviewMode && showCorrectInReview && questions.some(q => q.answer_review) && (
+          <div className={`mt-6 space-y-1.5 border-t pt-4 ${dark ? 'border-gray-700' : 'border-gray-100'}`}>
+            {questions.filter(q => q.answer_review).map(q => (
+              <div key={q.id} className="flex gap-2.5 rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm leading-relaxed text-yellow-900">
+                <span className="font-bold">{q.number}</span>
+                <span>{q.answer_review}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function CEFRReadingAttempt() {
   const { attemptId } = useParams()
   const [searchParams] = useSearchParams()
@@ -1262,7 +1375,10 @@ export default function CEFRReadingAttempt() {
   const passage = allPassagesData[activePart] || null
 
   const timerStorageKey = `cefr-reading-timer-${attemptId}-${passageId || 'x'}`
-  const timer = useTimer((passage?.time_limit || 20) * 60, reviewMode ? null : timerStorageKey, reviewMode)
+  // Frozen until the passage arrives: otherwise the 20-min placeholder got
+  // persisted on first render and then "resumed", so every test ran 20 min
+  // no matter what time_limit it had.
+  const timer = useTimer((passage?.time_limit || 20) * 60, reviewMode ? null : timerStorageKey, reviewMode || !passage)
 
   // Persist answers across refresh
   useEffect(() => {
@@ -1291,6 +1407,13 @@ export default function CEFRReadingAttempt() {
       })
       .filter(Boolean)
   }, [questions, reviewMode, showCorrectInReview])
+
+  // Part 1 style: the gaps live inside the passage text itself
+  const gapQuestions = useMemo(() => questions.filter(q => q.question_type === 'PGAP'), [questions])
+  const listQuestions = useMemo(
+    () => (gapQuestions.length ? questions.filter(q => q.question_type !== 'PGAP') : questions),
+    [questions, gapQuestions],
+  )
 
   useEffect(() => {
     if (!reviewData?.results) return
@@ -1403,7 +1526,9 @@ export default function CEFRReadingAttempt() {
     setActiveQ(i)
     const q = questions[i]
     const el = questionRefs.current[q?.id] || document.getElementById(`cq-${q?.id}`)
-    el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    el?.scrollIntoView({ behavior: 'smooth', block: q?.question_type === 'PGAP' ? 'center' : 'start' })
+    // A gap is a text box — jump straight into it
+    if (q?.question_type === 'PGAP') el?.querySelector('input')?.focus({ preventScroll: true })
   }
 
   const toggleFullscreen = () => {
@@ -1414,7 +1539,8 @@ export default function CEFRReadingAttempt() {
   const D = darkMode
   const passageNum = passage?.passage_number || 0
   // Parts 1-3: vertical (passage on top, questions below). Parts 4-5: split layout.
-  const isVerticalLayout = passageNum >= 1 && passageNum <= 3
+  // A text with gaps is always read top-to-bottom, whatever part it is.
+  const isVerticalLayout = (passageNum >= 1 && passageNum <= 3) || gapQuestions.length > 0
   const textSizeClass = textSize === 'extra_large' ? 'text-[1.3rem]' : textSize === 'large' ? 'text-[1.18rem]' : 'text-[1.08rem]'
   const questionTextSizeClass = textSize === 'extra_large' ? 'text-[1.28rem]' : textSize === 'large' ? 'text-[1.14rem]' : 'text-[1.05rem]'
   const questionZoom = textSize === 'extra_large' ? 1.18 : textSize === 'large' ? 1.1 : 1
@@ -1579,9 +1705,23 @@ export default function CEFRReadingAttempt() {
       {/* Body: Parts 1-3 = single scroll, Parts 4-5 = split */}
       {isVerticalLayout ? (
         /* ── Single scroll: passage on top, questions below (parts 1-3) ── */
-        <div className="flex-1 overflow-y-auto pb-44">
-          {/* Passage */}
-          {passage?.content && (
+        <div className={`flex-1 overflow-y-auto pb-44 ${gapQuestions.length ? (D ? 'bg-gray-950' : 'bg-slate-50') : ''}`}>
+          {/* Passage — as a gapped text (Part 1) or as plain reading text */}
+          {gapQuestions.length > 0 ? (
+            <PassageGapText
+              passage={passage}
+              questions={gapQuestions}
+              answers={answers}
+              onAnswer={setAnswer}
+              onFocusQ={q => setActiveQ(questions.indexOf(q))}
+              registerRef={(id, el) => { questionRefs.current[id] = el }}
+              dark={D}
+              textSizeClass={textSizeClass}
+              reviewMode={reviewMode}
+              reviewMap={reviewMap}
+              showCorrectInReview={showCorrectInReview}
+            />
+          ) : passage?.content && (
             <div className={`p-5 border-b ${divider}`}>
               <div className="max-w-4xl mx-auto">
                 {passage?.image && (
@@ -1592,10 +1732,11 @@ export default function CEFRReadingAttempt() {
             </div>
           )}
           {/* Questions */}
+          {listQuestions.length > 0 && (
           <div className="p-4" style={{ zoom: questionZoom }}>
             <div className="max-w-4xl mx-auto">
             <div className="space-y-3">
-              {groupIntoSegments(questions).map((seg, si) => {
+              {groupIntoSegments(listQuestions).map((seg, si) => {
                 if (seg.type === 'grid') return (
                   <div key={`grid-${si}`} ref={el => { seg.questions.forEach(q => { questionRefs.current[q.id] = el }) }}>
                     <MatchGridBlock questions={seg.questions} answers={answers} onAnswer={(qId, val) => setAnswer(qId, val)} dark={D} reviewMode={reviewMode} reviewMap={reviewMap} showCorrectInReview={showCorrectInReview} bookmarkedIds={bookmarkedIds} toggleBookmark={toggleBookmark} />
@@ -1666,6 +1807,7 @@ export default function CEFRReadingAttempt() {
             </div>
             </div>
           </div>
+          )}
         </div>
       ) : (
         /* ── Split layout (parts 4-5): passage left, questions right ── */

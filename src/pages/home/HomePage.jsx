@@ -982,7 +982,9 @@ export default function HomePage() {
   return (
     <div
       className="relative overflow-x-hidden text-slate-900"
-      style={{ fontFamily: "'Inter', system-ui, sans-serif", cursor: 'none' }}
+      // The landing page keeps its own look: Inter at normal weight, not the
+      // app-wide Quicksand 500 set on <body> in index.css
+      style={{ fontFamily: "'Inter', system-ui, sans-serif", fontWeight: 400, cursor: 'none' }}
     >
       <Seo
         path="/"

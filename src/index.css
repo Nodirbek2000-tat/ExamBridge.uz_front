@@ -9,7 +9,9 @@
   --color-amber-dark: #1E293B;
   --color-cream: #F8FAFC;
   --color-surface: #FFFFFF;
-  --font-sans: 'Manrope', system-ui, sans-serif;
+  /* Site-wide typeface — every page except the landing page, which keeps
+     Inter via its own inline style (HomePage.jsx). Loaded in index.html. */
+  --font-sans: 'Quicksand', system-ui, sans-serif;
 }
 
 @layer base {
@@ -17,7 +19,10 @@
   body {
     background: #FFFFFF;
     color: #1A1A1A;
-    font-family: 'Manrope', system-ui, sans-serif;
+    font-family: var(--font-sans);
+    /* Quicksand at 400 is too thin for long reading passages; 500 matches the
+       exam-page reference. Explicit font-* classes still override it. */
+    font-weight: 500;
     -webkit-font-smoothing: antialiased;
   }
   .dark body {

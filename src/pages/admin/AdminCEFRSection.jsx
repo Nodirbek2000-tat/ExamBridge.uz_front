@@ -41,6 +41,7 @@ const LEVEL_COLORS = {
 const LEVELS = ['ALL', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2']
 
 const QT_COLORS = {
+  PGAP:'bg-blue-600 text-white',
   MCQ:'bg-blue-100 text-blue-700', MULTI:'bg-violet-100 text-violet-700',
   GAP:'bg-slate-100 text-slate-700', TABLE:'bg-sky-100 text-sky-700',
   TFNG:'bg-green-100 text-green-700', YNNG:'bg-teal-100 text-teal-700',
@@ -53,6 +54,7 @@ const QT_COLORS = {
   TRANS:'bg-sky-100 text-sky-700',
 }
 const QT_LABEL = {
+  PGAP:'Part 1 Gap',
   MCQ:'MCQ', MULTI:'Multi', GAP:'Gap', TABLE:'Table', TFNG:'T/F/NG',
   YNNG:'Y/N/NG', MATCH:'Headings', MINFO:'M.Info', MFEAT:'M.Feat',
   MEND:'M.End', SENT:'Sentence', SHORT:'Short', SUMM:'Summary',
@@ -68,6 +70,7 @@ function QtBadge({ qt }) {
 
 // ── Question type reference data ──────────────────────────────────────────────
 const CEFR_READING_QT_REF = [
+  { qt:'PGAP',  label:'Part 1 — Gap in the text',    desc:"Bo'sh joylar matnning o'zida: content ichida [1]..[6]. Savolda faqat javob",  answer:'"turtles" yoki "turtles|animals"', fields:'passage.content [N]', extra:"content kerak emas — import [N] va savollarni solishtiradi" },
   { qt:'TFNG',  label:'True / False / Not Given',    desc:'Matn asosida — TRUE, FALSE yoki NOT GIVEN',                               answer:'"TRUE" | "FALSE" | "NOT GIVEN"', fields:'group_instruction', extra:null },
   { qt:'YNNG',  label:'Yes / No / Not Given',        desc:"Muallif fikriga ko'ra — YES, NO yoki NOT GIVEN",                          answer:'"YES" | "NO" | "NOT GIVEN"',     fields:'group_instruction', extra:null },
   { qt:'MCQ',   label:'Multiple Choice',             desc:'A, B, C, D variantlardan bittasini tanlash',                              answer:'"A" | "B" | "C" | "D"',         fields:'choices[], group_instruction', extra:null },
@@ -187,6 +190,41 @@ const READING_EXAMPLE = `// ═════════════════�
 //   → UI inline gap-fill formatida ko'rsatiladi
 // TABLE uchun: content da | col | format + [N] marker → markdown jadval blok
 // ═══════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════
+// PART 1 — MATN ICHIDA BO'SH JOYLAR (question_type: "PGAP")
+// ═══════════════════════════════════════════════════════
+// • Bo'sh joylar passage.content ICHIDA: [1], [2] ... [6]
+// • Savollarda "content" YO'Q — faqat number + correct_answer
+// • Javob — BITTA so'z, matnning boshqa joyida uchraydigan so'z
+// • Muqobil javob: "turtles|animals" (| bilan) — ikkalasi ham to'g'ri
+// • Katta-kichik harf va bo'sh joy farqi hisobga olinmaydi
+// • group_instruction faqat 1-savolda yetarli (bo'lmasa standart matn chiqadi)
+// • TEKSHIRUV: har [N] ga bitta savol va har savolga [N] bo'lishi SHART,
+//   aks holda import xato qaytaradi
+// • To'liq mock ichida: parts[0] ga xuddi shu passage + questions qo'yiladi
+{
+  "type": "reading",
+  "level": "B1",
+  "title": "Reading Test 1 — Part 1",
+  "time_limit": 60,
+  "is_premium": false,
+  "passage": {
+    "title": "Sea turtles",
+    "passage_number": 1,
+    "content": "Sea turtles are amazing animals. Sea [1] have lived in our oceans for millions of years. However, today, these [2] face many dangers. One of these [3] comes from non-natural light. When baby sea turtles, also called hatchlings, come out of their eggs, they need to find the ocean quickly. They usually do this by following the natural [4] of the Moon and stars reflecting off the water. But in many places, artificial lights – from streets, buildings, and homes are much brighter than the [5]. These lights can confuse [6] sea turtles and make it hard for them to find their way to the ocean. This causes them to lose their way and head toward the land instead of the sea. When this happens, the baby turtles can get lost, dehydrated, or even be eaten by other animals."
+  },
+  "questions": [
+    { "number": 1, "question_type": "PGAP", "correct_answer": "turtles",
+      "answer_review": "the baby turtles can get lost",
+      "group_instruction": "Read the text. Fill in each gap with **ONE** word. You must use a word which is somewhere in the rest of the text." },
+    { "number": 2, "question_type": "PGAP", "correct_answer": "turtles|animals", "answer_review": "Sea turtles are amazing animals." },
+    { "number": 3, "question_type": "PGAP", "correct_answer": "dangers", "answer_review": "face many dangers" },
+    { "number": 4, "question_type": "PGAP", "correct_answer": "light", "answer_review": "One of these dangers comes from non-natural light." },
+    { "number": 5, "question_type": "PGAP", "correct_answer": "Moon", "answer_review": "the natural light of the Moon and stars" },
+    { "number": 6, "question_type": "PGAP", "correct_answer": "baby", "answer_review": "When baby sea turtles, also called hatchlings" }
+  ]
+}
 
 // ── OPTION 1: Single Practice Passage ───────────────────
 {
