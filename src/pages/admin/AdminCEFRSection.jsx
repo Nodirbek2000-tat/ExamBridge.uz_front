@@ -72,15 +72,15 @@ function QtBadge({ qt }) {
 const CEFR_READING_QT_REF = [
   { qt:'PGAP',  label:'Part 1 — Gap in the text',    desc:"Bo'sh joylar matnning o'zida: content ichida [1]..[6]. Savolda faqat javob",  answer:'"turtles" yoki "turtles|animals"', fields:'passage.content [N]', extra:"content kerak emas — import [N] va savollarni solishtiradi" },
   { qt:'TMATCH',label:'Part 2–3 — Match text',       desc:"Tepada A–J variantlar (options bir marta), pastda matnlar — har biriga bitta variant", answer:'"D"', fields:'options[] (part), content', extra:"options bir marta yoziladi — har savolga o'zi biriktiriladi" },
-  { qt:'TFNG',  label:'True / False / Not Given',    desc:'Matn asosida — TRUE, FALSE yoki NOT GIVEN',                               answer:'"TRUE" | "FALSE" | "NOT GIVEN"', fields:'group_instruction', extra:null },
-  { qt:'YNNG',  label:'Yes / No / Not Given',        desc:"Muallif fikriga ko'ra — YES, NO yoki NOT GIVEN",                          answer:'"YES" | "NO" | "NOT GIVEN"',     fields:'group_instruction', extra:null },
-  { qt:'MCQ',   label:'Multiple Choice',             desc:'A, B, C, D variantlardan bittasini tanlash',                              answer:'"A" | "B" | "C" | "D"',         fields:'choices[], group_instruction', extra:null },
+  { qt:'MCQ',   label:'Part 4–5 — Multiple Choice',  desc:'A, B, C, D variantlardan bittasi. Javob harfi choices ichida bo\'lishi shart', answer:'"A" | "B" | "C" | "D"',         fields:'choices[], group_instruction', extra:null },
+  { qt:'TFNG',  label:'Part 4 — True / False / Not Given', desc:'Matn asosida. Tugmalar o\'zi chiqadi — choices kerak emas',          answer:'"TRUE" | "FALSE" | "NOT GIVEN"', fields:'group_instruction', extra:null },
+  { qt:'YNNG',  label:'Part 4 — Yes / No / Not Given', desc:"Muallif fikriga ko'ra — YES, NO yoki NOT GIVEN",                        answer:'"YES" | "NO" | "NOT GIVEN"',     fields:'group_instruction', extra:null },
+  { qt:'NOTE',  label:'Part 5 — Summary gaps',       desc:"Summary matni 1-savol group_instruction'ida, ichida [30]..[33]. Savolda faqat javob", answer:'"coffee" yoki "light-brown|light brown"', fields:'group_instruction [N]', extra:"[N] belgisi summary'da bo'lishi shart — import tekshiradi" },
   { qt:'MULTI', label:'Multiple Select',             desc:"Bir necha variant — javoblar | bilan ajratiladi",                         answer:'"A|C" yoki "B|D"',               fields:'choices[], max_selections', extra:'max_selections: 2' },
   { qt:'GAP',   label:'Gap Fill',                    desc:"___ joy — matndan 1-2 so'z",                                             answer:'"21st"',                          fields:'group_instruction', extra:'choices kerak emas' },
   { qt:'SENT',  label:'Sentence Completion',         desc:"Jumlaning oxirini to'ldirish — matndan ibora",                            answer:'"social media"',                  fields:'group_instruction', extra:null },
   { qt:'TABLE', label:'Table Completion',            desc:"Jadval yacheykasini to'ldirish — bitta so'z",                             answer:'"annual"',                        fields:'group_instruction', extra:null },
   { qt:'SUMM',  label:'Summary Completion',          desc:"Xulosa bo'shliqlarini to'ldirish — word_bank bilan drag-and-drop",        answer:'"communication"',                 fields:'word_bank:[], group_instruction', extra:"word_bank = so'zlar ro'yxati" },
-  { qt:'NOTE',  label:'Notes / Diagram Completion',  desc:"Konspekt yoki diagrammadagi bo'shliqlarni to'ldirish",                    answer:'"21st century"',                  fields:'group_instruction', extra:null },
   { qt:'FLOW',  label:'Flowchart Completion',        desc:"Oqim-jadval bo'shliqlarini to'ldirish",                                   answer:'"published"',                     fields:'group_instruction', extra:null },
   { qt:'MATCH', label:'Matching Headings',           desc:"Paragrafga mos sarlavhani topish — choices = sarlavhalar ro'yxati",       answer:'"ii"',                            fields:'choices[], group_instruction', extra:"UI: sarlavhalar ro'yxati" },
   { qt:'MINFO', label:'Matching Information',        desc:'Tavsif qaysi paragrafda — harf (A, B, C...)',                            answer:'"C"',                             fields:'choices[], group_instruction', extra:null },
@@ -175,585 +175,255 @@ function QtReferencePanel({ section }) {
 
 // ── JSON Examples ─────────────────────────────────────────────────────────────
 const READING_EXAMPLE = `// ═══════════════════════════════════════════════════════
-// CEFR READING — BARCHA 15 SAVOL TURLARINING TO'LIQ QOLLANMASI
+// CEFR MULTILEVEL READING — IMPORT QO'LLANMASI (Part 1–5)
 // ═══════════════════════════════════════════════════════
 //
-// OPTION 1: Bitta mashq (passage)
-// OPTION 2: To'liq mock test (parts massivi)
+// TUZILISHI (35 savol, 60 daqiqa):
+//   Part 1 | 1–6   | PGAP       | matn ichida bo'sh joy, 1 so'z
+//   Part 2 | 7–14  | TMATCH     | 8 qisqa matn ↔ A–J gaplar (2 ortiqcha)
+//   Part 3 | 15–20 | TMATCH     | 6 paragraf ↔ A–H sarlavhalar (2 ortiqcha)
+//   Part 4 | 21–29 | MCQ + TFNG | chapda matn, o'ngda savollar
+//   Part 5 | 30–35 | NOTE + MCQ | summary bo'shliqlari + MCQ
 //
-// group_instruction: **bold**, • bullet, \\n newline qo'llab-quvvatlanadi
-// answer_review: MAJBURIY — har qanday savol turiga qo'shish kerak
-//   → Passage/transcript dan to'g'ridan javobni isbotlovchi aniq matnni ko'chiring
-//   → Review modeda o'sha matn passage ichida sariq highlight + qizil raqam doirasi bilan ko'rsatiladi
-//   → Misol: "the six weeks after his resounding defeat at the Battle of Worcester"
-//   → Listening uchun: transcript dan aynan shu gapni ko'chiring
-// NOTE / SUMM uchun MUHIM: group_instruction ichida [N] marker ishlatilsa
-//   → UI inline gap-fill formatida ko'rsatiladi
-// TABLE uchun: content da | col | format + [N] marker → markdown jadval blok
+// IKKI XIL IMPORT:
+//   A) Bitta part  → "passage": {...}  +  "questions": [...]
+//   B) To'liq mock → "parts": [ {part1}, {part2}, ... ]  (1–5 tagacha)
+//
+// UMUMIY QOIDALAR:
+//   • "type": "reading" — shart
+//   • "level": A1 | A2 | B1 | B2 | C1 | C2
+//   • "passage_number": 1–5 — qaysi part ekanini bildiradi
+//   • content ichida paragraflar bo'sh qator bilan: "...\\n\\n..."
+//   • **qalin** matn: group_instruction va summary'da ishlaydi
+//   • answer_review — matndan AYNAN ko'chirilgan jumla (review'da
+//     sariq bo'lib belgilanadi). Tavsiya etiladi.
+//   • Matnli javoblarda muqobil: "light-brown|light brown"
+//     Katta-kichik harf va ortiqcha bo'sh joy hisobga olinmaydi.
+//   • group_instruction faqat guruhning 1-savoliga yoziladi —
+//     keyingi savollar (bo'sh qoldirilsa) o'sha guruhga qo'shiladi.
+//
+// IMPORT TEKSHIRUVI (xato bo'lsa HECH NARSA saqlanmaydi):
+//   ✗ PGAP: [N] belgisi va savol soni mos emas
+//   ✗ TMATCH: options yo'q / content bo'sh / javob harfi options'da yo'q
+//   ✗ MCQ: javob harfi choices ichida yo'q
+//   ✗ TFNG: javob TRUE / FALSE / NOT GIVEN dan boshqa
+//   ✗ YNNG: javob YES / NO / NOT GIVEN dan boshqa
+//   ✗ NOTE: summary matnida [N] belgisi yo'q
+//   → Xato xabari qaysi part va nechanchi savol ekanini aytadi.
 // ═══════════════════════════════════════════════════════
 
+
 // ═══════════════════════════════════════════════════════
-// PART 1 — MATN ICHIDA BO'SH JOYLAR (question_type: "PGAP")
+// PART 1 — MATN ICHIDA BO'SH JOYLAR  (PGAP, savollar 1–6)
 // ═══════════════════════════════════════════════════════
 // • Bo'sh joylar passage.content ICHIDA: [1], [2] ... [6]
-// • Savollarda "content" YO'Q — faqat number + correct_answer
-// • Javob — BITTA so'z, matnning boshqa joyida uchraydigan so'z
-// • Muqobil javob: "turtles|animals" (| bilan) — ikkalasi ham to'g'ri
-// • Katta-kichik harf va bo'sh joy farqi hisobga olinmaydi
-// • group_instruction faqat 1-savolda yetarli (bo'lmasa standart matn chiqadi)
-// • TEKSHIRUV: har [N] ga bitta savol va har savolga [N] bo'lishi SHART,
-//   aks holda import xato qaytaradi
-// • To'liq mock ichida: parts[0] ga xuddi shu passage + questions qo'yiladi
+// • Savolda "content" YO'Q — faqat number + correct_answer
+// • Javob — bitta so'z (matnning boshqa joyida uchraydi)
+// • Har [N] ga bitta savol, har savolga bitta [N] — SHART
 {
   "type": "reading",
-  "level": "B1",
-  "title": "Reading Test 1 — Part 1",
-  "time_limit": 60,
-  "is_premium": false,
+  "level": "B2",
+  "title": "Reading Practice — Part 1",
+  "time_limit": 10,
   "passage": {
     "title": "Sea turtles",
     "passage_number": 1,
-    "content": "Sea turtles are amazing animals. Sea [1] have lived in our oceans for millions of years. However, today, these [2] face many dangers. One of these [3] comes from non-natural light. When baby sea turtles, also called hatchlings, come out of their eggs, they need to find the ocean quickly. They usually do this by following the natural [4] of the Moon and stars reflecting off the water. But in many places, artificial lights – from streets, buildings, and homes are much brighter than the [5]. These lights can confuse [6] sea turtles and make it hard for them to find their way to the ocean. This causes them to lose their way and head toward the land instead of the sea. When this happens, the baby turtles can get lost, dehydrated, or even be eaten by other animals."
+    "content": "Sea turtles are amazing animals. Sea [1] have lived in our oceans for millions of years. However, today, these [2] face many dangers. One of these [3] comes from non-natural light. ... following the natural [4] of the Moon and stars ... much brighter than the [5]. These lights can confuse [6] sea turtles ..."
   },
   "questions": [
     { "number": 1, "question_type": "PGAP", "correct_answer": "turtles",
       "answer_review": "the baby turtles can get lost",
       "group_instruction": "Read the text. Fill in each gap with **ONE** word. You must use a word which is somewhere in the rest of the text." },
-    { "number": 2, "question_type": "PGAP", "correct_answer": "turtles|animals", "answer_review": "Sea turtles are amazing animals." },
-    { "number": 3, "question_type": "PGAP", "correct_answer": "dangers", "answer_review": "face many dangers" },
-    { "number": 4, "question_type": "PGAP", "correct_answer": "light", "answer_review": "One of these dangers comes from non-natural light." },
-    { "number": 5, "question_type": "PGAP", "correct_answer": "Moon", "answer_review": "the natural light of the Moon and stars" },
-    { "number": 6, "question_type": "PGAP", "correct_answer": "baby", "answer_review": "When baby sea turtles, also called hatchlings" }
+    { "number": 2, "question_type": "PGAP", "correct_answer": "turtles|animals" },
+    { "number": 3, "question_type": "PGAP", "correct_answer": "dangers" },
+    { "number": 4, "question_type": "PGAP", "correct_answer": "light" },
+    { "number": 5, "question_type": "PGAP", "correct_answer": "Moon" },
+    { "number": 6, "question_type": "PGAP", "correct_answer": "baby" }
   ]
 }
 
+
 // ═══════════════════════════════════════════════════════
-// PART 2 va PART 3 — MATNNI VARIANTGA MOSLASH (question_type: "TMATCH")
+// PART 2 — MATNNI GAPGA MOSLASH  (TMATCH, savollar 7–14)
 // ═══════════════════════════════════════════════════════
-// • Part 2: 8 ta qisqa matn + A–J gaplar (2 tasi ortiqcha)
-// • Part 3: xuddi shu format — faqat matnlar uzunroq, variantlar = sarlavhalar (A–H)
-// • "options" — BIR MARTA yoziladi, avtomatik har savolga biriktiriladi
-//   (bitta mashqda: yuqori darajada; mock'da: har part ichida)
-// • Har savol: "content" = matnning o'zi, "correct_answer" = harf ("D")
-// • UI: tepada variantlar ro'yxati, pastda raqamli matn + o'ngda tanlash;
-//   bir variant boshqa savolda tanlangan bo'lsa ro'yxatda "Q7" deb ko'rinadi
-// • group_instruction faqat birinchi savolda (bo'lmasa avtomatik yoziladi,
-//   ortiqcha variantlar sonini o'zi hisoblaydi)
-// • TEKSHIRUV: options bo'lishi, content bo'sh bo'lmasligi va javob harfi
-//   options ichida bo'lishi SHART
-//
-// ── To'liq mock: Part 1 + Part 2 + Part 3 ──────────────
+// • "options" BIR MARTA yoziladi (A–J) → har savolga o'zi biriktiriladi
+//   (bitta part: yuqori darajada; mock'da: part ichida)
+// • Har savol: "content" = qisqa matn, "correct_answer" = harf
+// • UI: tepada variantlar, pastda matn + tanlash ro'yxati;
+//   boshqa savolda tanlangan variant "Q7" deb xira ko'rinadi
 {
   "type": "reading",
   "level": "B2",
-  "title": "Reading Test 1",
-  "time_limit": 60,
-  "parts": [
-    {
-      "passage_number": 1,
-      "title": "Sea turtles",
-      "content": "... [1] ... [6] ...",
-      "questions": [ { "number": 1, "question_type": "PGAP", "correct_answer": "turtles" } ]
-    },
-    {
-      "passage_number": 2,
-      "title": "Global Perspectives on Modern Life",
-      "options": [
-        { "option": "A", "text": "You want to do different leisure activities with your family." },
-        { "option": "B", "text": "You need a rural escape for the purpose of The Romantic Retreat." },
-        { "option": "C", "text": "You take your children and parents to spend a holiday watching waves." },
-        { "option": "D", "text": "You need a hotel in a city center during your business trip." },
-        { "option": "E", "text": "You need a place that is convenient to take adventures." },
-        { "option": "F", "text": "You want to stay away from the rural area." },
-        { "option": "G", "text": "You want to have some information about the past." },
-        { "option": "H", "text": "You need a hotel that is friendly for the environment." },
-        { "option": "I", "text": "You have limited budget so you need a reasonable hotel." },
-        { "option": "J", "text": "You need a hotel to organize a seminar." }
-      ],
-      "questions": [
-        { "number": 7, "question_type": "TMATCH", "correct_answer": "D",
-          "answer_review": "Perfect for business travelers",
-          "group_instruction": "Read the texts 7-14 and statements A-J. Decide which situation described in the statements matches with the given texts. Each statement can be used **ONCE** only. There are **TWO** extra statements which you do not need to use.",
-          "content": "Nestled in the heart of bustling London, The Mayfair Hotel offers a stylish and sophisticated experience. ... Perfect for business travelers and those seeking a vibrant urban adventure." },
-        { "number": 8, "question_type": "TMATCH", "correct_answer": "C",
-          "content": "Escape to the sun-drenched shores of the Mediterranean at The Coral Beach Resort. ..." }
-      ]
-    },
-    {
-      "passage_number": 3,
-      "title": "Why we dream",
-      "options": [
-        { "option": "A", "text": "A process that protects the brain" },
-        { "option": "B", "text": "Dreams as a rehearsal for danger" },
-        { "option": "C", "text": "Remembering dreams more easily" }
-      ],
-      "questions": [
-        { "number": 15, "question_type": "TMATCH", "correct_answer": "A",
-          "group_instruction": "Read the text. Choose the correct heading for each paragraph from the list of headings A-H. There are **TWO** extra headings which you do not need to use.",
-          "content": "Another important job of sleep is cleaning. While we rest, the brain's drainage system removes waste products ..." }
-      ]
-    }
+  "title": "Reading Practice — Part 2",
+  "time_limit": 15,
+  "passage": { "title": "Hotels around the world", "passage_number": 2, "content": "" },
+  "options": [
+    { "option": "A", "text": "You want to do different leisure activities with your family." },
+    { "option": "B", "text": "You need a rural escape for a romantic retreat." },
+    { "option": "C", "text": "You want a holiday watching the waves." },
+    { "option": "D", "text": "You need a hotel in a city center during your business trip." },
+    { "option": "E", "text": "..." }, { "option": "F", "text": "..." },
+    { "option": "G", "text": "..." }, { "option": "H", "text": "..." },
+    { "option": "I", "text": "..." }, { "option": "J", "text": "..." }
+  ],
+  "questions": [
+    { "number": 7, "question_type": "TMATCH", "correct_answer": "D",
+      "group_instruction": "Read the texts 7-14 and statements A-J. Decide which situation matches each text. Each statement can be used **ONCE** only. There are **TWO** extra statements which you do not need to use.",
+      "content": "Nestled in the heart of bustling London, The Mayfair Hotel ... Perfect for business travelers.",
+      "answer_review": "Perfect for business travelers" },
+    { "number": 8, "question_type": "TMATCH", "correct_answer": "C",
+      "content": "Escape to the sun-drenched shores of the Mediterranean ..." }
   ]
 }
 
-// ── OPTION 1: Single Practice Passage ───────────────────
+
+// ═══════════════════════════════════════════════════════
+// PART 3 — PARAGRAFGA SARLAVHA  (TMATCH, savollar 15–20)
+// ═══════════════════════════════════════════════════════
+// • Part 2 bilan BIR XIL format — faqat matnlar uzunroq,
+//   options = sarlavhalar (A–H, 2 tasi ortiqcha)
 {
   "type": "reading",
   "level": "B2",
-  "title": "B2 Reading Practice — Urban Farming",
+  "title": "Reading Practice — Part 3",
+  "time_limit": 15,
+  "passage": { "title": "Why we dream", "passage_number": 3, "content": "" },
+  "options": [
+    { "option": "A", "text": "A process that protects the brain" },
+    { "option": "B", "text": "Dreams as a rehearsal for danger" },
+    { "option": "C", "text": "Remembering dreams more easily" },
+    { "option": "D", "text": "..." }, { "option": "E", "text": "..." },
+    { "option": "F", "text": "..." }, { "option": "G", "text": "..." },
+    { "option": "H", "text": "..." }
+  ],
+  "questions": [
+    { "number": 15, "question_type": "TMATCH", "correct_answer": "A",
+      "group_instruction": "Read the text. Choose the correct heading for each paragraph from the list of headings A-H. There are **TWO** extra headings which you do not need to use.",
+      "content": "Another important job of sleep is cleaning. While we rest, the brain's drainage system removes waste products ..." }
+  ]
+}
+
+
+// ═══════════════════════════════════════════════════════
+// PART 4 — MCQ + TRUE/FALSE/NOT GIVEN  (savollar 21–29)
+// ═══════════════════════════════════════════════════════
+// • Ekran: chapda matn (content), o'ngda savollar
+// • MCQ: "choices" A–D, correct_answer = harf
+// • TFNG: choices KERAK EMAS — tugmalar o'zi chiqadi
+//   (muallif fikri so'ralsa YNNG: YES / NO / NOT GIVEN)
+{
+  "type": "reading",
+  "level": "B2",
+  "title": "Reading Practice — Part 4",
   "time_limit": 20,
-  "difficulty": "MEDIUM",
-  "is_premium": false,
-  "is_mock": false,
   "passage": {
-    "title": "The Rise of Urban Farming",
-    "content": "Paragraph A\\nUrban farming is growing rapidly in cities worldwide...\\n\\nParagraph B\\nResearchers Smith and Jones both studied city gardens...\\n\\nParagraph C\\nGovernments have begun to support rooftop cultivation...\\n\\nParagraph D\\nHowever, critics point out high setup costs...\\n\\nParagraph E\\nHydroponics allows crops to grow without soil...\\n\\nParagraph F\\nCommunity gardens provide social as well as nutritional benefits.",
-    "passage_number": 1,
-    "is_standalone": true
+    "title": "Deadly humid heatwaves",
+    "passage_number": 4,
+    "content": "Life-threatening periods of high heat and humidity will spread rapidly ...\\n\\nNormally, the human body cools itself by producing sweat ...\\n\\n..."
   },
   "questions": [
-
-    // ─── 1. TFNG ─────────────────────────────────────────
-    // True / False / Not Given
-    {
-      "number": 1,
-      "question_type": "TFNG",
-      "content": "Urban farming has declined in popularity over the past decade.",
+    { "number": 21, "question_type": "MCQ",
+      "group_instruction": "For questions 21-24, choose the correct answer **A, B, C or D**.",
+      "content": "What is the main concern highlighted in the study regarding global temperatures?",
+      "choices": [
+        { "option": "A", "text": "High temperatures will remain stable, with little impact on human health." },
+        { "option": "B", "text": "Long seasons of hot and damp weather will spread quickly, causing more deaths." },
+        { "option": "C", "text": "The increase in global temperatures will have no effect on the climate crisis." },
+        { "option": "D", "text": "The number of deaths will decrease with a rise in temperatures." }
+      ],
+      "correct_answer": "B",
+      "answer_review": "Life-threatening periods of high heat and humidity will spread rapidly across the world" },
+    { "number": 25, "question_type": "TFNG",
+      "group_instruction": "For questions 25-29, decide if the following statements agree with the information given.\\n\\n**TRUE** if the statement agrees with the information\\n**FALSE** if the statement contradicts the information\\n**NOT GIVEN** if there is no information on this",
+      "content": "The research found that extreme heat stress has been experienced equally across all regions of the world since 1970.",
       "correct_answer": "FALSE",
-      "answer_review": "Urban farming is growing rapidly in cities worldwide",
-      "group_instruction": "Questions 1–2: TRUE, FALSE or NOT GIVEN?"
-    },
-    {
-      "number": 2,
-      "question_type": "TFNG",
-      "content": "Some governments provide financial support for rooftop farming.",
-      "correct_answer": "TRUE",
-      "answer_review": "Governments have begun to support rooftop cultivation",
-      "group_instruction": "Questions 1–2: TRUE, FALSE or NOT GIVEN?"
-    },
-
-    // ─── 2. YNNG ─────────────────────────────────────────
-    // Yes / No / Not Given (muallif fikriga ko'ra)
-    {
-      "number": 3,
-      "question_type": "YNNG",
-      "content": "The author believes the costs of urban farming outweigh its benefits.",
-      "correct_answer": "NO",
-      "answer_review": "'Community gardens provide social as well as nutritional benefits' — muallif foydalarni ta'kidlagan",
-      "group_instruction": "Question 3: Does this statement agree with the views of the writer?\\nYES, NO or NOT GIVEN?"
-    },
-
-    // ─── 3. MCQ ──────────────────────────────────────────
-    // Multiple choice — ONE correct answer
-    {
-      "number": 4,
-      "question_type": "MCQ",
-      "content": "What does Paragraph E mainly discuss?",
-      "correct_answer": "B",
-      "answer_review": "Hydroponics allows crops to grow without soil",
-      "group_instruction": "Questions 4–5: Choose the correct answer A, B, C or D.",
-      "choices": [
-        {"option": "A", "text": "Traditional soil farming"},
-        {"option": "B", "text": "Soil-free growing methods"},
-        {"option": "C", "text": "Government subsidies"},
-        {"option": "D", "text": "Community social events"}
-      ]
-    },
-
-    // ─── 4. MULTI ────────────────────────────────────────
-    // Multiple choice — select TWO answers
-    {
-      "number": 5,
-      "question_type": "MULTI",
-      "content": "Which TWO benefits of community gardens are mentioned?",
-      "correct_answer": "B,D",
-      "answer_review": "Community gardens provide social as well as nutritional benefits",
-      "max_selections": 2,
-      "group_instruction": "Question 5: Choose TWO letters A–E.",
-      "choices": [
-        {"option": "A", "text": "Lower food prices city-wide"},
-        {"option": "B", "text": "Social connection among residents"},
-        {"option": "C", "text": "Reduction in air pollution"},
-        {"option": "D", "text": "Improved nutrition for participants"},
-        {"option": "E", "text": "Increased government revenue"}
-      ]
-    },
-
-    // ─── 5. GAP ──────────────────────────────────────────
-    // Sentence gap-fill — ONE or TWO WORDS
-    {
-      "number": 6,
-      "question_type": "GAP",
-      "content": "Hydroponics allows plants to grow without ___.",
-      "correct_answer": "soil",
-      "answer_review": "Hydroponics allows crops to grow without soil",
-      "group_instruction": "Questions 6–7: Complete the sentences.\\nUse ONE WORD ONLY from the passage."
-    },
-    {
-      "number": 7,
-      "question_type": "GAP",
-      "content": "Critics highlight the high ___ costs of setting up urban farms.",
-      "correct_answer": "setup",
-      "answer_review": "critics point out high setup costs",
-      "group_instruction": "Questions 6–7: Complete the sentences.\\nUse ONE WORD ONLY from the passage."
-    },
-
-    // ─── 6. SENT ─────────────────────────────────────────
-    // Sentence completion
-    {
-      "number": 8,
-      "question_type": "SENT",
-      "content": "Urban farming is said to be growing rapidly in cities ___.",
-      "correct_answer": "worldwide",
-      "answer_review": "Urban farming is growing rapidly in cities worldwide",
-      "group_instruction": "Question 8: Complete the sentence with ONE WORD from the passage."
-    },
-
-    // ─── 7. NOTE ─────────────────────────────────────────
-    // Notes completion — group_instruction ichida [N] marker → inline input box
-    // UI: bold header + bullet + [N] o'rnida text input
-    //
-    // QOIDA: barcha NOTE savollar BITTA group_instruction share qiladi
-    //        [N] marker = tegishli question.number bilan mos kelishi kerak
-    {
-      "number": 9,
-      "question_type": "NOTE",
-      "correct_answer": "rooftop",
-      "answer_review": "Governments have begun to support rooftop cultivation",
-      "group_instruction": "Questions 9–11: Complete the notes. ONE WORD ONLY.\\n\\n**Urban Farming Notes**\\n**Methods:**\\n• Hydroponics: no [9] needed\\n• Setup costs are very [10]\\n**Government role:**\\n• Support [11] cultivation"
-    },
-    {
-      "number": 10,
-      "question_type": "NOTE",
-      "correct_answer": "high",
-      "answer_review": "critics point out high setup costs",
-      "group_instruction": "Questions 9–11: Complete the notes. ONE WORD ONLY.\\n\\n**Urban Farming Notes**\\n**Methods:**\\n• Hydroponics: no [9] needed\\n• Setup costs are very [10]\\n**Government role:**\\n• Support [11] cultivation"
-    },
-    {
-      "number": 11,
-      "question_type": "NOTE",
-      "correct_answer": "soil",
-      "answer_review": "Hydroponics allows crops to grow without soil",
-      "group_instruction": "Questions 9–11: Complete the notes. ONE WORD ONLY.\\n\\n**Urban Farming Notes**\\n**Methods:**\\n• Hydroponics: no [9] needed\\n• Setup costs are very [10]\\n**Government role:**\\n• Support [11] cultivation"
-    },
-
-    // ─── 8. SUMM ─────────────────────────────────────────
-    // Summary completion — group_instruction: to'liq paragraf + [N] gap marker
-    // UI: paragraf matn inline dashed box [N] + pastda word bank
-    //
-    // QOIDA: barcha SUMM savollar BITTA group_instruction share qiladi
-    //        word_bank BARCHA savollarda bir xil bo'lishi SHART
-    //        [N] = question.number bilan mos kelishi kerak
-    {
-      "number": 12,
-      "question_type": "SUMM",
-      "correct_answer": "growing",
-      "answer_review": "Urban farming is growing rapidly in cities worldwide",
-      "word_bank": ["growing", "declining", "expensive", "rare", "illegal", "regulated", "supported", "banned"],
-      "group_instruction": "Questions 12–13: Complete the summary. Choose words from the box.\\n\\nUrban farming is [12] rapidly across the world. Community gardens are particularly valued because they provide [13] benefits alongside improved nutrition."
-    },
-    {
-      "number": 13,
-      "question_type": "SUMM",
-      "correct_answer": "supported",
-      "answer_review": "Community gardens provide social as well as nutritional benefits",
-      "word_bank": ["growing", "declining", "expensive", "rare", "illegal", "regulated", "supported", "banned"],
-      "group_instruction": "Questions 12–13: Complete the summary. Choose words from the box.\\n\\nUrban farming is [12] rapidly across the world. Community gardens are particularly valued because they provide [13] benefits alongside improved nutrition."
-    },
-
-    // ─── 9. TABLE ────────────────────────────────────────
-    // Table completion — content da markdown jadval + [N] marker
-    // UI: HTML jadval, ustun sarlavhalari qalin, ichida inline input
-    //
-    // QOIDA: barcha TABLE savollar BITTA content va group_instruction share qiladi
-    //        content = "| **Col1** | **Col2** |\\n| matn | [N] |" formatida
-    {
-      "number": 14,
-      "question_type": "TABLE",
-      "correct_answer": "soil",
-      "answer_review": "Hydroponics allows crops to grow without soil",
-      "group_instruction": "Questions 14–16: Complete the table. ONE WORD ONLY from the passage.",
-      "content": "| **Method** | **Key feature** | **Location in text** |\\n| Hydroponics | no [14] needed | Paragraph E |\\n| Rooftop farming | government [15] | Paragraph C |\\n| Community gardens | provides [16] benefits | Paragraph F |"
-    },
-    {
-      "number": 15,
-      "question_type": "TABLE",
-      "correct_answer": "support",
-      "answer_review": "Governments have begun to support rooftop cultivation",
-      "group_instruction": "Questions 14–16: Complete the table. ONE WORD ONLY from the passage.",
-      "content": "| **Method** | **Key feature** | **Location in text** |\\n| Hydroponics | no [14] needed | Paragraph E |\\n| Rooftop farming | government [15] | Paragraph C |\\n| Community gardens | provides [16] benefits | Paragraph F |"
-    },
-    {
-      "number": 16,
-      "question_type": "TABLE",
-      "correct_answer": "social",
-      "answer_review": "Community gardens provide social as well as nutritional benefits",
-      "group_instruction": "Questions 14–16: Complete the table. ONE WORD ONLY from the passage.",
-      "content": "| **Method** | **Key feature** | **Location in text** |\\n| Hydroponics | no [14] needed | Paragraph E |\\n| Rooftop farming | government [15] | Paragraph C |\\n| Community gardens | provides [16] benefits | Paragraph F |"
-    },
-
-    // ─── 10. FLOW ────────────────────────────────────────
-    // Flowchart completion
-    // UI: vertikal qutchalar ⬇ strelkalar bilan bog'langan
-    // YANGI FORMAT: har bir FLOW savol = bitta qutcha (box)
-    // content ichida ___ = javob kiritish joyi
-    // ___ bo'lmasa → faqat fon matn qutchasi
-    // Bitta group_instruction → bitta flowchart
-    {
-      "number": 17,
-      "question_type": "FLOW",
-      "content": "City grows and land becomes scarce",
-      "correct_answer": "",
-      "group_instruction": "Questions 17–19: Complete the flowchart.\\nONE WORD ONLY from the passage."
-    },
-    {
-      "number": 18,
-      "question_type": "FLOW",
-      "content": "Urban farming rises — governments begin to ___ it",
-      "correct_answer": "support",
-      "answer_review": "Governments have begun to support rooftop cultivation",
-      "group_instruction": "Questions 17–19: Complete the flowchart.\\nONE WORD ONLY from the passage."
-    },
-    {
-      "number": 19,
-      "question_type": "FLOW",
-      "content": "More rooftop gardens appear across the city",
-      "correct_answer": "",
-      "group_instruction": "Questions 17–19: Complete the flowchart.\\nONE WORD ONLY from the passage."
-    },
-
-    // ─── 11. MATCH ───────────────────────────────────────
-    // Matching headings — choices roman raqamlar (i, ii, iii...)
-    {
-      "number": 18,
-      "question_type": "MATCH",
-      "content": "Paragraph D",
-      "correct_answer": "iii",
-      "answer_review": "'critics point out high setup costs' → Arguments against urban farming",
-      "group_instruction": "Questions 18–19: Choose the correct heading for each paragraph.",
-      "choices": [
-        {"option": "i",   "text": "How soil-free farming works"},
-        {"option": "ii",  "text": "Government backing for new methods"},
-        {"option": "iii", "text": "Arguments against urban farming"},
-        {"option": "iv",  "text": "Social advantages of shared spaces"},
-        {"option": "v",   "text": "The global spread of urban agriculture"}
-      ]
-    },
-    {
-      "number": 19,
-      "question_type": "MATCH",
-      "content": "Paragraph F",
-      "correct_answer": "iv",
-      "answer_review": "'Community gardens provide social as well as nutritional benefits' → Social advantages",
-      "group_instruction": "Questions 18–19: Choose the correct heading for each paragraph.",
-      "choices": [
-        {"option": "i",   "text": "How soil-free farming works"},
-        {"option": "ii",  "text": "Government backing for new methods"},
-        {"option": "iii", "text": "Arguments against urban farming"},
-        {"option": "iv",  "text": "Social advantages of shared spaces"},
-        {"option": "v",   "text": "The global spread of urban agriculture"}
-      ]
-    },
-
-    // ─── 12. MINFO ───────────────────────────────────────
-    // Matching information → paragraph letter (A–F)
-    // UI: GRID MATRIX — row=savol, col=A..F, radio button
-    // QOIDA: barcha MINFO savollar BITTA group_instruction da bo'lishi kerak
-    {
-      "number": 20,
-      "question_type": "MINFO",
-      "content": "A description of a growing method that does not use soil.",
-      "correct_answer": "E",
-      "answer_review": "Hydroponics allows crops to grow without soil",
-      "choices": [
-        {"option":"A","text":""},{"option":"B","text":""},{"option":"C","text":""},
-        {"option":"D","text":""},{"option":"E","text":""},{"option":"F","text":""}
-      ],
-      "group_instruction": "Questions 20–21: The passage has six paragraphs A–F.\\nWhich paragraph contains the following information?\\nWrite the correct letter A–F."
-    },
-    {
-      "number": 21,
-      "question_type": "MINFO",
-      "content": "A mention of financial obstacles to urban farming.",
-      "correct_answer": "D",
-      "answer_review": "critics point out high setup costs",
-      "choices": [
-        {"option":"A","text":""},{"option":"B","text":""},{"option":"C","text":""},
-        {"option":"D","text":""},{"option":"E","text":""},{"option":"F","text":""}
-      ],
-      "group_instruction": "Questions 20–21: The passage has six paragraphs A–F.\\nWhich paragraph contains the following information?\\nWrite the correct letter A–F."
-    },
-
-    // ─── 13. MFEAT ───────────────────────────────────────
-    // Matching features → researcher/category
-    // choices legend yuqorida bir marta ko'rsatiladi, har savol uchun dropdown
-    // QOIDA: barcha MFEAT savollar BITTA group_instruction + BIR XIL choices
-    {
-      "number": 22,
-      "question_type": "MFEAT",
-      "content": "Found that urban gardens reduce stress levels among participants.",
-      "correct_answer": "A",
-      "answer_review": "'Researchers Smith and Jones both studied city gardens' — Smith social outcomes tadqiq qilgan",
-      "group_instruction": "Questions 22–23: Match each finding to the correct researcher.\\n**Researchers:**",
-      "choices": [
-        {"option": "A", "text": "Smith — social outcomes study"},
-        {"option": "B", "text": "Jones — yield comparison study"},
-        {"option": "C", "text": "Both Smith and Jones"}
-      ]
-    },
-    {
-      "number": 23,
-      "question_type": "MFEAT",
-      "content": "Measured crop output in hydroponic versus soil-based systems.",
-      "correct_answer": "B",
-      "answer_review": "'Jones' yield comparison study'",
-      "group_instruction": "Questions 22–23: Match each finding to the correct researcher.\\n**Researchers:**",
-      "choices": [
-        {"option": "A", "text": "Smith — social outcomes study"},
-        {"option": "B", "text": "Jones — yield comparison study"},
-        {"option": "C", "text": "Both Smith and Jones"}
-      ]
-    },
-
-    // ─── 14. MEND ────────────────────────────────────────
-    // Matching sentence endings → letter A–E
-    // UI: GRID MATRIX — row=savol, col=A..E, radio button
-    // QOIDA: barcha MEND savollar BITTA group_instruction + BIR XIL choices
-    //
-    // group_list (TAVSIYA ETILADI):
-    // → endings to'liq matn sifatida qalin ro'yxatda ko'rsatiladi
-    // → group_instruction ostida A. ...text, B. ...text ko'rinishida chiqadi
-    // → choices → faqat GRID uchun (A, B, C... harflar)
-    {
-      "number": 24,
-      "question_type": "MEND",
-      "content": "Hydroponics is particularly useful in cities because ...",
-      "correct_answer": "C",
-      "answer_review": "Hydroponics allows crops to grow without soil",
-      "group_instruction": "Questions 24–25: Complete each sentence with the correct ending A–E.",
-      "group_list": [
-        {"option": "A", "text": "... it requires large outdoor spaces."},
-        {"option": "B", "text": "... governments fund it entirely."},
-        {"option": "C", "text": "... it needs no soil to function."},
-        {"option": "D", "text": "... it is cheaper than traditional farming."},
-        {"option": "E", "text": "... it was developed in rural areas."}
-      ],
-      "choices": [
-        {"option": "A", "text": "A"},
-        {"option": "B", "text": "B"},
-        {"option": "C", "text": "C"},
-        {"option": "D", "text": "D"},
-        {"option": "E", "text": "E"}
-      ]
-    },
-    {
-      "number": 25,
-      "question_type": "MEND",
-      "content": "Critics argue that urban farming projects are problematic because ...",
-      "correct_answer": "D",
-      "answer_review": "critics point out high setup costs",
-      "group_instruction": "Questions 24–25: Complete each sentence with the correct ending A–E.",
-      "group_list": [
-        {"option": "A", "text": "... it requires large outdoor spaces."},
-        {"option": "B", "text": "... governments fund it entirely."},
-        {"option": "C", "text": "... it needs no soil to function."},
-        {"option": "D", "text": "... it is cheaper than traditional farming."},
-        {"option": "E", "text": "... it was developed in rural areas."}
-      ],
-      "choices": [
-        {"option": "A", "text": "A"},
-        {"option": "B", "text": "B"},
-        {"option": "C", "text": "C"},
-        {"option": "D", "text": "D"},
-        {"option": "E", "text": "E"}
-      ]
-    },
-
-    // ─── 15. SHORT ───────────────────────────────────────
-    // Short-answer questions (max 3 so'z)
-    {
-      "number": 26,
-      "question_type": "SHORT",
-      "content": "What TWO benefits do community gardens provide according to the passage?",
-      "correct_answer": "social and nutritional",
-      "answer_review": "Community gardens provide social as well as nutritional benefits",
-      "group_instruction": "Question 26: Answer using NO MORE THAN THREE WORDS from the passage."
-    }
+      "answer_review": "these have been confined to date to hot places" },
+    { "number": 26, "question_type": "TFNG",
+      "content": "Germany would undergo unprecedented heat stress conditions.",
+      "correct_answer": "TRUE" }
   ]
 }
 
-// ── OPTION 2: Full Mock Test (parts) ────────────────────
+
+// ═══════════════════════════════════════════════════════
+// PART 5 — SUMMARY + MCQ  (savollar 30–35)
+// ═══════════════════════════════════════════════════════
+// • Summary matni 30-savolning group_instruction'ida:
+//   yo'riqnoma → bo'sh qator → matn ichida [30] [31] [32] [33]
+// • NOTE savollarida "content" YO'Q — faqat javob
+//   (31–33 da group_instruction yozilmaydi — o'zi qo'shiladi)
+// • Keyin MCQ 34–35 — o'z group_instruction'i bilan
 {
   "type": "reading",
   "level": "B2",
-  "title": "B2 Reading Full Mock 1",
-  "time_limit": 90,
-  "is_mock": true,
-  "is_premium": true,
-  "parts": [
-    {
-      "passage_number": 1,
-      "title": "Passage 1 — Urban Farming",
-      "content": "Full passage text here...",
-      "questions": [
-        {"number": 1, "question_type": "TFNG", "content": "...", "correct_answer": "TRUE",
-         "answer_review": "...",
-         "group_instruction": "Questions 1–3: TRUE, FALSE or NOT GIVEN?"},
-        {"number": 4, "question_type": "NOTE", "correct_answer": "soil",
-         "answer_review": "Hydroponics allows crops to grow without soil",
-         "group_instruction": "Questions 4–5: ONE WORD ONLY.\\n\\n**Notes**\\n• Method: no [4] needed\\n• Government: provide [5]"}
-      ]
-    },
-    {
-      "passage_number": 2,
-      "title": "Passage 2 — Digital Education",
-      "content": "Full passage text...",
-      "questions": [
-        {"number": 15, "question_type": "MEND", "content": "Online learning is effective because ...",
-         "correct_answer": "A",
-         "answer_review": "...",
-         "group_instruction": "Questions 15–17: Match sentence endings A–E.",
-         "choices": [
-           {"option": "A", "text": "... it offers flexible schedules."},
-           {"option": "B", "text": "... it requires no internet."}
-         ]}
-      ]
-    }
+  "title": "Reading Practice — Part 5",
+  "time_limit": 20,
+  "passage": {
+    "title": "The History of Cod Liver Oil",
+    "passage_number": 5,
+    "content": "Cod liver oil is a type of fish oil ...\\n\\nLudovicus Josephus de Jongh ...\\n\\n..."
+  },
+  "questions": [
+    { "number": 30, "question_type": "NOTE", "correct_answer": "northern",
+      "group_instruction": "For questions 30-33, fill in the missing information in the numbered spaces.\\nWrite no more than **ONE WORD** for each question.\\n\\nCod liver oil was traditionally used by [30] Europeans long before ... Ludovicus de Jongh concluded that the [31] oil was the healthiest ... Every bottle featured de Jongh's [32] and an official seal ... it was commonly mixed with [33], though ...",
+      "answer_review": "northern European fishing communities used cod liver for centuries" },
+    { "number": 31, "question_type": "NOTE", "correct_answer": "light-brown|light brown" },
+    { "number": 32, "question_type": "NOTE", "correct_answer": "signature" },
+    { "number": 33, "question_type": "NOTE", "correct_answer": "coffee" },
+    { "number": 34, "question_type": "MCQ",
+      "group_instruction": "For questions 34-35, choose the correct answer **A, B, C or D**.",
+      "content": "What was a key factor in the success of Scott and Bowne's cod liver oil product?",
+      "choices": [
+        { "option": "A", "text": "They successfully promoted the product through advertising." },
+        { "option": "B", "text": "Leading physicians publicly supported the product." },
+        { "option": "C", "text": "Their product was more affordable than others on the market." },
+        { "option": "D", "text": "They were the pioneers in selling cod liver oil in Asian markets." }
+      ],
+      "correct_answer": "A" }
   ]
 }
 
+
 // ═══════════════════════════════════════════════════════
-// CEFR READING — QISQACHA JADVAL
+// TO'LIQ MOCK — 5 PART BITTA JSON'DA
 // ═══════════════════════════════════════════════════════
-// question_type | UI ko'rinishi                | choices kerakmi?
-// ──────────────────────────────────────────────────────────
-// TFNG          | 3 tugma (T/F/NG)             | yo'q
-// YNNG          | 3 tugma (Y/N/NG)             | yo'q
-// MCQ           | radio buttons                | HA (A,B,C,D)
-// MULTI         | checkbox + max_selections    | HA + max_selections
-// GAP           | matn kiritish                | yo'q
-// SENT          | matn kiritish                | yo'q
-// NOTE          | inline [N] gap blok ★        | yo'q  (group_instruction da [N] bo'lsa)
-// SUMM          | inline [N] + word bank ★     | word_bank massiv
-// TABLE         | markdown jadval [N] ★★       | yo'q  (content da | formatda)
-// FLOW          | flowchart qutchalar ★★★      | yo'q  (bitta group → bitta oqim)
-// MATCH         | dropdown (roman: i,ii,iii)   | HA
-// MINFO         | GRID MATRIX ★                | HA (A–F yoki A–H)
-// MFEAT         | dropdown + legend            | HA (A,B,C...)
-// MEND          | GRID MATRIX ★                | HA — group_list bilan endings ro'yxat
-// SHORT         | matn kiritish                | yo'q
-//
-// ★ NOTE/SUMM: group_instruction ichida [9],[10]... marker → inline gap blok
-//              marker yo'q bo'lsa → oddiy card
-// ★★ TABLE: content ichida | col | format + [N] marker → markdown jadval gap blok
-//           Barcha TABLE savollar BITTA content va group_instruction share qiladi
-// ★★★ FLOW: Bitta group_instruction ostidagi FLOW savollar → vertikal flowchart
-//            har bir savol = bitta qutcha, ⬇ strelka bilan bog'langan
-//            content ichida ___ → inline input
-//            ___ bo'lmasa → faqat fon matn qutchasi
-// group_list (YANGI): group_instruction ostida A. text, B. text... ro'yxat
-//   → MEND uchun tavsiya: endings to'liq matn + choices faqat A,B,C harflar
-// answer_review: MAJBURIY — passage/transcript dan aynan shu matn → sariq highlight
+// • "passage" o'rniga "parts" massivi
+// • Har part: passage_number, title, content, questions
+//   (+ Part 2/3 da "options")
+// • Savol raqamlari mock bo'yicha davom etadi: 1–6, 7–14, 15–20, 21–29, 30–35
+// • Bitta part xato bo'lsa — butun mock import bo'lmaydi
+{
+  "type": "reading",
+  "level": "B2",
+  "title": "Reading Mock Test 1",
+  "time_limit": 60,
+  "is_premium": false,
+  "parts": [
+    { "passage_number": 1, "title": "Sea turtles", "content": "... [1] ... [6] ...",
+      "questions": [ { "number": 1, "question_type": "PGAP", "correct_answer": "turtles" } ] },
+    { "passage_number": 2, "title": "Hotels", "content": "",
+      "options": [ { "option": "A", "text": "..." } ],
+      "questions": [ { "number": 7, "question_type": "TMATCH", "content": "...", "correct_answer": "D" } ] },
+    { "passage_number": 3, "title": "Why we dream", "content": "",
+      "options": [ { "option": "A", "text": "..." } ],
+      "questions": [ { "number": 15, "question_type": "TMATCH", "content": "...", "correct_answer": "A" } ] },
+    { "passage_number": 4, "title": "Deadly humid heatwaves", "content": "...",
+      "questions": [ { "number": 21, "question_type": "MCQ", "...": "..." } ] },
+    { "passage_number": 5, "title": "The History of Cod Liver Oil", "content": "...",
+      "questions": [ { "number": 30, "question_type": "NOTE", "...": "..." } ] }
+  ]
+}
+
+
+// ═══════════════════════════════════════════════════════
+// QO'SHIMCHA (eski IELTS-uslub turlar ham import bo'ladi)
+// ═══════════════════════════════════════════════════════
+// MULTI  — bir nechta javob: "A|C", + "max_selections": 2
+// SUMM   — summary + "word_bank": ["...", "..."] (so'z banki bilan)
+// GAP / SENT / SHORT / TABLE / FLOW — matnli javob
+// MATCH / MINFO / MFEAT / MEND — choices bilan moslash
+// ⚠ Bu turlar Part 4–5 da bo'lsa, o'sha part eski ko'rinishda chiqadi.
+//   Multilevel format uchun yuqoridagi 5 part shablonidan foydalaning.
 // ═══════════════════════════════════════════════════════`
 
 const LISTENING_EXAMPLE = `// ═══════════════════════════════════════════════════════
