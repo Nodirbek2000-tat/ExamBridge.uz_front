@@ -41,7 +41,7 @@ const LEVEL_COLORS = {
 const LEVELS = ['ALL', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2']
 
 const QT_COLORS = {
-  PGAP:'bg-blue-600 text-white',
+  PGAP:'bg-blue-600 text-white', TMATCH:'bg-blue-500 text-white',
   MCQ:'bg-blue-100 text-blue-700', MULTI:'bg-violet-100 text-violet-700',
   GAP:'bg-slate-100 text-slate-700', TABLE:'bg-sky-100 text-sky-700',
   TFNG:'bg-green-100 text-green-700', YNNG:'bg-teal-100 text-teal-700',
@@ -54,7 +54,7 @@ const QT_COLORS = {
   TRANS:'bg-sky-100 text-sky-700',
 }
 const QT_LABEL = {
-  PGAP:'Part 1 Gap',
+  PGAP:'Part 1 Gap', TMATCH:'Part 2–3 Match',
   MCQ:'MCQ', MULTI:'Multi', GAP:'Gap', TABLE:'Table', TFNG:'T/F/NG',
   YNNG:'Y/N/NG', MATCH:'Headings', MINFO:'M.Info', MFEAT:'M.Feat',
   MEND:'M.End', SENT:'Sentence', SHORT:'Short', SUMM:'Summary',
@@ -71,6 +71,7 @@ function QtBadge({ qt }) {
 // ── Question type reference data ──────────────────────────────────────────────
 const CEFR_READING_QT_REF = [
   { qt:'PGAP',  label:'Part 1 — Gap in the text',    desc:"Bo'sh joylar matnning o'zida: content ichida [1]..[6]. Savolda faqat javob",  answer:'"turtles" yoki "turtles|animals"', fields:'passage.content [N]', extra:"content kerak emas — import [N] va savollarni solishtiradi" },
+  { qt:'TMATCH',label:'Part 2–3 — Match text',       desc:"Tepada A–J variantlar (options bir marta), pastda matnlar — har biriga bitta variant", answer:'"D"', fields:'options[] (part), content', extra:"options bir marta yoziladi — har savolga o'zi biriktiriladi" },
   { qt:'TFNG',  label:'True / False / Not Given',    desc:'Matn asosida — TRUE, FALSE yoki NOT GIVEN',                               answer:'"TRUE" | "FALSE" | "NOT GIVEN"', fields:'group_instruction', extra:null },
   { qt:'YNNG',  label:'Yes / No / Not Given',        desc:"Muallif fikriga ko'ra — YES, NO yoki NOT GIVEN",                          answer:'"YES" | "NO" | "NOT GIVEN"',     fields:'group_instruction', extra:null },
   { qt:'MCQ',   label:'Multiple Choice',             desc:'A, B, C, D variantlardan bittasini tanlash',                              answer:'"A" | "B" | "C" | "D"',         fields:'choices[], group_instruction', extra:null },
@@ -223,6 +224,75 @@ const READING_EXAMPLE = `// ═════════════════�
     { "number": 4, "question_type": "PGAP", "correct_answer": "light", "answer_review": "One of these dangers comes from non-natural light." },
     { "number": 5, "question_type": "PGAP", "correct_answer": "Moon", "answer_review": "the natural light of the Moon and stars" },
     { "number": 6, "question_type": "PGAP", "correct_answer": "baby", "answer_review": "When baby sea turtles, also called hatchlings" }
+  ]
+}
+
+// ═══════════════════════════════════════════════════════
+// PART 2 va PART 3 — MATNNI VARIANTGA MOSLASH (question_type: "TMATCH")
+// ═══════════════════════════════════════════════════════
+// • Part 2: 8 ta qisqa matn + A–J gaplar (2 tasi ortiqcha)
+// • Part 3: xuddi shu format — faqat matnlar uzunroq, variantlar = sarlavhalar (A–H)
+// • "options" — BIR MARTA yoziladi, avtomatik har savolga biriktiriladi
+//   (bitta mashqda: yuqori darajada; mock'da: har part ichida)
+// • Har savol: "content" = matnning o'zi, "correct_answer" = harf ("D")
+// • UI: tepada variantlar ro'yxati, pastda raqamli matn + o'ngda tanlash;
+//   bir variant boshqa savolda tanlangan bo'lsa ro'yxatda "Q7" deb ko'rinadi
+// • group_instruction faqat birinchi savolda (bo'lmasa avtomatik yoziladi,
+//   ortiqcha variantlar sonini o'zi hisoblaydi)
+// • TEKSHIRUV: options bo'lishi, content bo'sh bo'lmasligi va javob harfi
+//   options ichida bo'lishi SHART
+//
+// ── To'liq mock: Part 1 + Part 2 + Part 3 ──────────────
+{
+  "type": "reading",
+  "level": "B2",
+  "title": "Reading Test 1",
+  "time_limit": 60,
+  "parts": [
+    {
+      "passage_number": 1,
+      "title": "Sea turtles",
+      "content": "... [1] ... [6] ...",
+      "questions": [ { "number": 1, "question_type": "PGAP", "correct_answer": "turtles" } ]
+    },
+    {
+      "passage_number": 2,
+      "title": "Global Perspectives on Modern Life",
+      "options": [
+        { "option": "A", "text": "You want to do different leisure activities with your family." },
+        { "option": "B", "text": "You need a rural escape for the purpose of The Romantic Retreat." },
+        { "option": "C", "text": "You take your children and parents to spend a holiday watching waves." },
+        { "option": "D", "text": "You need a hotel in a city center during your business trip." },
+        { "option": "E", "text": "You need a place that is convenient to take adventures." },
+        { "option": "F", "text": "You want to stay away from the rural area." },
+        { "option": "G", "text": "You want to have some information about the past." },
+        { "option": "H", "text": "You need a hotel that is friendly for the environment." },
+        { "option": "I", "text": "You have limited budget so you need a reasonable hotel." },
+        { "option": "J", "text": "You need a hotel to organize a seminar." }
+      ],
+      "questions": [
+        { "number": 7, "question_type": "TMATCH", "correct_answer": "D",
+          "answer_review": "Perfect for business travelers",
+          "group_instruction": "Read the texts 7-14 and statements A-J. Decide which situation described in the statements matches with the given texts. Each statement can be used **ONCE** only. There are **TWO** extra statements which you do not need to use.",
+          "content": "Nestled in the heart of bustling London, The Mayfair Hotel offers a stylish and sophisticated experience. ... Perfect for business travelers and those seeking a vibrant urban adventure." },
+        { "number": 8, "question_type": "TMATCH", "correct_answer": "C",
+          "content": "Escape to the sun-drenched shores of the Mediterranean at The Coral Beach Resort. ..." }
+      ]
+    },
+    {
+      "passage_number": 3,
+      "title": "Why we dream",
+      "options": [
+        { "option": "A", "text": "A process that protects the brain" },
+        { "option": "B", "text": "Dreams as a rehearsal for danger" },
+        { "option": "C", "text": "Remembering dreams more easily" }
+      ],
+      "questions": [
+        { "number": 15, "question_type": "TMATCH", "correct_answer": "A",
+          "group_instruction": "Read the text. Choose the correct heading for each paragraph from the list of headings A-H. There are **TWO** extra headings which you do not need to use.",
+          "content": "Another important job of sleep is cleaning. While we rest, the brain's drainage system removes waste products ..." }
+      ]
+    }
   ]
 }
 

@@ -6,6 +6,7 @@ import {
   Clock, ChevronLeft, Send, CheckCircle2, AlertTriangle,
   Star, ChevronUp, ChevronDown, Bookmark,
   Maximize2, Minimize2, Sun, Moon, Menu, XCircle, Lock, ArrowDown,
+  ChevronsUpDown, Check,
 } from 'lucide-react'
 import api from '../../api/client'
 import { loadExam, saveExam, clearExam } from '../../utils/examPersist'
@@ -1292,6 +1293,181 @@ function PassageGapText({
   )
 }
 
+// ── Parts 2–3: texts matched to one shared option list (TMATCH) ──────────────
+const ROMAN = { i: 1, ii: 2, iii: 3, iv: 4, v: 5, vi: 6, vii: 7, viii: 8, ix: 9, x: 10, xi: 11, xii: 12 }
+// Choices come back sorted as strings — fine for A–J, wrong for i..x headings
+const sortOptions = (opts) => [...opts].sort((a, b) => {
+  const ra = ROMAN[String(a.option).toLowerCase()], rb = ROMAN[String(b.option).toLowerCase()]
+  return ra && rb ? ra - rb : String(a.option).localeCompare(String(b.option))
+})
+
+function OptionDropdown({ value, options, usedBy, onChange, dark, reviewMode, rr }) {
+  const [open, setOpen] = useState(false)
+  const [up, setUp] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    const close = (e) => { if (!ref.current?.contains(e.target)) setOpen(false) }
+    const esc = (e) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', close)
+    document.addEventListener('keydown', esc)
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', esc) }
+  }, [open])
+
+  const toggle = () => {
+    if (reviewMode) return
+    // Near the bottom (above the fixed nav) the list opens upwards
+    const r = ref.current?.getBoundingClientRect()
+    setUp(r ? window.innerHeight - r.bottom < 360 : false)
+    setOpen(o => !o)
+  }
+
+  const tone = rr
+    ? rr.is_correct ? 'border-green-500 bg-green-50 text-green-800' : 'border-red-400 bg-red-50 text-red-700'
+    : value
+      ? dark ? 'border-blue-500 bg-gray-900 text-gray-100' : 'border-blue-400 bg-white text-gray-900'
+      : dark ? 'border-gray-700 bg-gray-800 text-gray-400' : 'border-gray-200 bg-gray-100 text-gray-500'
+
+  return (
+    <div ref={ref} className="relative flex-shrink-0">
+      <button
+        type="button"
+        onClick={toggle}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className={`flex h-11 w-full items-center justify-between gap-2 rounded-lg border px-3 text-left transition sm:w-44 ${tone} ${reviewMode ? 'cursor-default' : 'hover:border-blue-400'}`}
+      >
+        <span className={`truncate ${value ? 'font-bold' : ''}`}>{value || 'Select an option'}</span>
+        {rr && !rr.is_correct
+          ? <span className="rounded bg-emerald-100 px-1.5 text-sm font-bold text-emerald-700">{String(rr.correct_answer || '').toUpperCase()}</span>
+          : !reviewMode && <ChevronsUpDown size={15} className="flex-shrink-0 opacity-60" />}
+      </button>
+
+      {open && (
+        <div
+          role="listbox"
+          className={`absolute right-0 z-40 max-h-80 w-[min(88vw,34rem)] overflow-y-auto rounded-xl border p-1.5 shadow-2xl ${up ? 'bottom-full mb-2' : 'top-full mt-2'} ${dark ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}
+        >
+          {options.map(o => {
+            const selected = value === o.option
+            const takenBy = usedBy[o.option]
+            return (
+              <button
+                key={o.option}
+                type="button"
+                role="option"
+                aria-selected={selected}
+                onClick={() => { onChange(selected ? '' : o.option); setOpen(false) }}
+                className={`flex w-full items-start gap-2.5 rounded-lg border px-3 py-2.5 text-left transition ${
+                  selected
+                    ? 'border-blue-400 bg-blue-50 text-blue-900'
+                    : dark ? 'border-transparent text-gray-200 hover:bg-gray-800' : 'border-transparent text-gray-800 hover:bg-gray-50'
+                } ${takenBy && !selected ? 'opacity-50' : ''}`}
+              >
+                <span className="w-5 flex-shrink-0 font-bold">{o.option}</span>
+                <span className="flex-1 leading-snug">{o.text}</span>
+                {selected && <Check size={16} className="mt-0.5 flex-shrink-0 text-blue-600" />}
+                {takenBy && !selected && <span className="mt-0.5 flex-shrink-0 text-xs font-semibold">Q{takenBy}</span>}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function OptionMatchBlock({
+  passage, questions, answers, onAnswer, onFocusQ, registerRef,
+  dark, textSizeClass, reviewMode, reviewMap, showCorrectInReview,
+}) {
+  const options = useMemo(() => sortOptions(questions.find(q => q.choices?.length)?.choices || []), [questions])
+  const nums = questions.map(q => q.number)
+  const range = nums.length > 1 ? `${Math.min(...nums)}–${Math.max(...nums)}` : `${nums[0]}`
+  const first = options[0]?.option, last = options[options.length - 1]?.option
+  const extra = options.length - questions.length
+  const fallback = `Read the texts ${range} and statements ${first}–${last}. Decide which situation described in the statements matches with the given texts. Each statement can be used **ONCE** only.` +
+    (extra > 0 ? ` There ${extra === 1 ? 'is' : 'are'} **${extra === 1 ? 'ONE' : extra === 2 ? 'TWO' : extra}** extra statement${extra === 1 ? '' : 's'} which you do not need to use.` : '')
+  const instruction = (questions.find(q => q.group_instruction?.trim())?.group_instruction || fallback)
+    .replace(/^\s*questions?\s*\d+\s*[–-]\s*\d+\s*[:.]?\s*/i, '')
+
+  // Which question already took each option — "each statement can be used once"
+  const usedBy = {}
+  for (const q of questions) { const a = answers[String(q.id)]; if (a) usedBy[a] = q.number }
+
+  return (
+    <div className="px-4 py-6 sm:px-6">
+      {passage?.title && (
+        <h2 className={`mb-4 text-center text-xl ${dark ? 'text-gray-200' : 'text-gray-700'}`}>{passage.title}</h2>
+      )}
+      <div className={`mx-auto max-w-5xl rounded-3xl border px-5 py-6 sm:px-8 sm:py-7 ${dark ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+        <h3 className="mb-2 text-xl font-semibold text-blue-600">Questions {range}</h3>
+        <p className={`mb-5 leading-relaxed ${textSizeClass} ${dark ? 'text-gray-200' : 'text-gray-800'}`}>{boldify(instruction)}</p>
+
+        {passage?.content?.trim() && (
+          <p className={`mb-5 whitespace-pre-line leading-relaxed ${textSizeClass} ${dark ? 'text-gray-200' : 'text-gray-800'}`}>{passage.content}</p>
+        )}
+
+        {/* The shared statement list, shown once */}
+        <div className={`mb-6 space-y-2 rounded-2xl border px-4 py-4 sm:px-5 ${textSizeClass} ${dark ? 'border-gray-700 bg-gray-800/60 text-gray-100' : 'border-blue-100 bg-blue-50/50 text-gray-900'}`}>
+          {options.map(o => (
+            <div key={o.option} className="flex gap-2 leading-relaxed">
+              <span className="flex-shrink-0 font-bold">{o.option}</span>
+              <span className="flex-shrink-0">-</span>
+              <span>{o.text}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="space-y-5">
+          {questions.map(q => {
+            const rr = reviewMode && showCorrectInReview ? (reviewMap?.[String(q.id)] || reviewMap?.[`n-${q.number}`]) : null
+            return (
+              <div
+                key={q.id}
+                id={`cq-${q.id}`}
+                ref={el => registerRef(q.id, el)}
+                onFocus={() => onFocusQ(q)}
+                className="flex scroll-mt-32 flex-col gap-3 sm:flex-row sm:items-start sm:gap-5"
+              >
+                <div className="flex min-w-0 flex-1 gap-2.5">
+                  <span className="mt-0.5 inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-[13px] font-bold leading-none text-white">
+                    {q.number}
+                  </span>
+                  <p className={`min-w-0 flex-1 whitespace-pre-line leading-relaxed ${textSizeClass} ${dark ? 'text-gray-100' : 'text-gray-900'}`}>{q.content}</p>
+                </div>
+                <div className="pl-9 sm:pl-0">
+                  <OptionDropdown
+                    value={answers[String(q.id)] || ''}
+                    options={options}
+                    usedBy={usedBy}
+                    onChange={v => onAnswer(q.id, v)}
+                    dark={dark}
+                    reviewMode={reviewMode}
+                    rr={rr}
+                  />
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {reviewMode && showCorrectInReview && questions.some(q => q.answer_review) && (
+          <div className={`mt-6 space-y-1.5 border-t pt-4 ${dark ? 'border-gray-700' : 'border-gray-100'}`}>
+            {questions.filter(q => q.answer_review).map(q => (
+              <div key={q.id} className="flex gap-2.5 rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm leading-relaxed text-yellow-900">
+                <span className="font-bold">{q.number}</span>
+                <span>{q.answer_review}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function CEFRReadingAttempt() {
   const { attemptId } = useParams()
   const [searchParams] = useSearchParams()
@@ -1410,10 +1586,13 @@ export default function CEFRReadingAttempt() {
 
   // Part 1 style: the gaps live inside the passage text itself
   const gapQuestions = useMemo(() => questions.filter(q => q.question_type === 'PGAP'), [questions])
+  // Parts 2–3 style: texts matched against one shared option list
+  const matchQuestions = useMemo(() => questions.filter(q => q.question_type === 'TMATCH'), [questions])
   const listQuestions = useMemo(
-    () => (gapQuestions.length ? questions.filter(q => q.question_type !== 'PGAP') : questions),
-    [questions, gapQuestions],
+    () => questions.filter(q => q.question_type !== 'PGAP' && q.question_type !== 'TMATCH'),
+    [questions],
   )
+  const customPart = gapQuestions.length > 0 || matchQuestions.length > 0
 
   useEffect(() => {
     if (!reviewData?.results) return
@@ -1526,9 +1705,10 @@ export default function CEFRReadingAttempt() {
     setActiveQ(i)
     const q = questions[i]
     const el = questionRefs.current[q?.id] || document.getElementById(`cq-${q?.id}`)
-    el?.scrollIntoView({ behavior: 'smooth', block: q?.question_type === 'PGAP' ? 'center' : 'start' })
-    // A gap is a text box — jump straight into it
-    if (q?.question_type === 'PGAP') el?.querySelector('input')?.focus({ preventScroll: true })
+    const inline = q?.question_type === 'PGAP' || q?.question_type === 'TMATCH'
+    el?.scrollIntoView({ behavior: 'smooth', block: inline ? 'center' : 'start' })
+    // Jump straight to the gap box / option picker
+    if (inline) el?.querySelector('input, button')?.focus({ preventScroll: true })
   }
 
   const toggleFullscreen = () => {
@@ -1540,7 +1720,7 @@ export default function CEFRReadingAttempt() {
   const passageNum = passage?.passage_number || 0
   // Parts 1-3: vertical (passage on top, questions below). Parts 4-5: split layout.
   // A text with gaps is always read top-to-bottom, whatever part it is.
-  const isVerticalLayout = (passageNum >= 1 && passageNum <= 3) || gapQuestions.length > 0
+  const isVerticalLayout = (passageNum >= 1 && passageNum <= 3) || customPart
   const textSizeClass = textSize === 'extra_large' ? 'text-[1.3rem]' : textSize === 'large' ? 'text-[1.18rem]' : 'text-[1.08rem]'
   const questionTextSizeClass = textSize === 'extra_large' ? 'text-[1.28rem]' : textSize === 'large' ? 'text-[1.14rem]' : 'text-[1.05rem]'
   const questionZoom = textSize === 'extra_large' ? 1.18 : textSize === 'large' ? 1.1 : 1
@@ -1694,7 +1874,7 @@ export default function CEFRReadingAttempt() {
           <div className="max-w-6xl mx-auto">
             <div className="flex items-center gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
               <div className={`flex items-center gap-2 rounded-xl border px-3 py-1.5 whitespace-nowrap ${D ? 'border-gray-600 text-gray-200' : 'border-gray-200 text-gray-800 bg-white'}`}>
-                <span className="font-semibold">Part 1</span>
+                <span className="font-semibold">Part {passageIds.length > 1 ? activePart + 1 : (passage?.passage_number || 1)}</span>
                 <span className={`text-xs ${textSub}`}>{questions.length} questions</span>
               </div>
             </div>
@@ -1705,9 +1885,23 @@ export default function CEFRReadingAttempt() {
       {/* Body: Parts 1-3 = single scroll, Parts 4-5 = split */}
       {isVerticalLayout ? (
         /* ── Single scroll: passage on top, questions below (parts 1-3) ── */
-        <div className={`flex-1 overflow-y-auto pb-44 ${gapQuestions.length ? (D ? 'bg-gray-950' : 'bg-slate-50') : ''}`}>
-          {/* Passage — as a gapped text (Part 1) or as plain reading text */}
-          {gapQuestions.length > 0 ? (
+        <div className={`flex-1 overflow-y-auto pb-44 ${customPart ? (D ? 'bg-gray-950' : 'bg-slate-50') : ''}`}>
+          {/* Passage — gapped text (Part 1), matching texts (Parts 2–3), or plain reading text */}
+          {matchQuestions.length > 0 && gapQuestions.length === 0 ? (
+            <OptionMatchBlock
+              passage={passage}
+              questions={matchQuestions}
+              answers={answers}
+              onAnswer={setAnswer}
+              onFocusQ={q => setActiveQ(questions.indexOf(q))}
+              registerRef={(id, el) => { questionRefs.current[id] = el }}
+              dark={D}
+              textSizeClass={textSizeClass}
+              reviewMode={reviewMode}
+              reviewMap={reviewMap}
+              showCorrectInReview={showCorrectInReview}
+            />
+          ) : gapQuestions.length > 0 ? (
             <PassageGapText
               passage={passage}
               questions={gapQuestions}
@@ -1959,7 +2153,7 @@ export default function CEFRReadingAttempt() {
             <div className="flex items-center gap-2 min-w-max">
               <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 border-sky-500 ${D ? 'bg-gray-800' : 'bg-white'}`}>
                 <span className="text-xs font-black text-sky-500 mr-0.5 whitespace-nowrap">
-                  {passageIds.length > 1 ? `P${activePart + 1}` : 'Part 1'}
+                  {passageIds.length > 1 ? `P${activePart + 1}` : `Part ${passage?.passage_number || 1}`}
                 </span>
                 {questions.map((q, i) => (
                   <button key={q.id} onClick={() => goToQ(i)}
