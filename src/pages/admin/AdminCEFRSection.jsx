@@ -440,7 +440,14 @@ const LISTENING_EXAMPLE = `// ════════════════�
 //   Part 6 | 30–35 | NOTE va/yoki MCQ — faqat gap filling YOKI aralash
 //
 // • Bitta part: "section": {...} + "questions": [...]
-// • Audio: "audio_url" yoki import'dan keyin admin'da yuklanadi
+// • To'liq mock: "sections": [ {part 1}, ..., {part 6} ] — bitta test bo'lib tushadi
+// • Audio 2 xil:
+//   1) Har partga alohida — part qatoridagi ♪ tugmasi (yoki part "audio_url")
+//   2) Butun test uchun BITTA audio — mock qatoridagi "Bitta audio" tugmasi
+//      (yoki mock JSON'ning yuqorisida "audio_url"). Bor bo'lsa u o'ynaydi,
+//      partlar o'rtasida uzilmaydi; audio tugashi bilan test yakunlanadi.
+// • transcript (Review'da chapda chiqadi): har gap yangi qatordan ("\\n"),
+//   "EXAMINER:", "SPEAKER 1:", "Woman:" kabi nomlar avtomatik QALIN bo'ladi
 // • Matnli javobda muqobil: "5:30|5.30" (harf/bo'sh joy farqi yo'q)
 // • group_instruction faqat 1-savolda — qolganlari o'zi qo'shiladi
 // • TEKSHIRUV: MCQ/TMATCH javob harfi variantlarda bo'lishi,
@@ -1001,7 +1008,8 @@ function AudioUploadModal({ item, section, onClose, onSuccess }) {
     const form = new FormData()
     form.append('audio', file)
     try {
-      await api.post(config.audioEndpoint(item.id), form, { headers: { 'Content-Type': 'multipart/form-data' } })
+      // A mock's single recording has its own endpoint; parts use the section one
+      await api.post(item.audioEndpoint || config.audioEndpoint(item.id), form, { headers: { 'Content-Type': 'multipart/form-data' } })
       setStatus({ ok: true, msg: 'Audio yuklandi!' })
       setTimeout(() => onSuccess?.(), 900)
     } catch (err) {
@@ -1091,7 +1099,9 @@ function MockGroupRow({ testId, testTitle, testIsPremium, parts, section, colors
   // Collapsed by default — one row per mock, click to see its parts
   const [open, setOpen] = useState(false)
   const totalQ = parts.reduce((s, p) => s + (p.question_count ?? 0), 0)
-  const partWord = section === 'listening' ? 'sections' : 'parts'
+  const partWord = section === 'listening' ? 'parts' : 'parts'
+  // Listening mock: one recording for all parts (optional)
+  const mockHasAudio = section === 'listening' && !!parts[0]?.test_has_audio
   const pLabel = section === 'listening' ? 'S' : 'P'
 
   return (
@@ -1113,6 +1123,11 @@ function MockGroupRow({ testId, testTitle, testIsPremium, parts, section, colors
                   <Crown size={9} /> Premium
                 </span>
               )}
+              {mockHasAudio && (
+                <span className="text-[11px] px-2 py-0.5 rounded-full bg-green-50 text-green-700 font-semibold flex items-center gap-1">
+                  <Music2 size={9} /> To'liq audio
+                </span>
+              )}
             </div>
             <p className="text-xs text-gray-400 mt-0.5">{parts.length} {partWord}  ·  {totalQ} questions</p>
           </div>
@@ -1120,6 +1135,19 @@ function MockGroupRow({ testId, testTitle, testIsPremium, parts, section, colors
             <ChevronDown size={16} />
           </span>
         </button>
+        {/* Listening mock: bitta audio butun test uchun (har partga alohida ham bo'lishi mumkin) */}
+        {section === 'listening' && (
+          <button type="button"
+            onClick={() => onAudio({
+              id: testId,
+              title: `${testTitle} — butun test uchun bitta audio`,
+              audioEndpoint: `/admin/cefr/tests/${testId}/audio/`,
+            })}
+            title={mockHasAudio ? "To'liq audio bor — almashtirish" : "Butun test uchun bitta audio yuklash"}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-semibold transition ${mockHasAudio ? 'border-green-200 bg-green-50 text-green-700 hover:bg-green-100' : 'border-gray-200 text-gray-500 hover:text-purple-600 hover:bg-purple-50'}`}>
+            <Music2 size={13} /> {mockHasAudio ? "To'liq audio" : 'Bitta audio'}
+          </button>
+        )}
         {/* To'liq mock testni bitta JSON qilib nusxalash */}
         <CopyJsonButton
           url={`/admin/export/cefr/test/${testId}/?kind=${section}`}

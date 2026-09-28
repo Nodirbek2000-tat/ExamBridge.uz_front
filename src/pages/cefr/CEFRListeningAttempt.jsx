@@ -141,7 +141,7 @@ function SkipBtn({ dir, dark, onSkip }) {
   return (
     <button type="button" onClick={() => onSkip(dir * 5)}
       title={dir < 0 ? '5 soniya orqaga' : '5 soniya oldinga'}
-      className={`relative w-8 h-8 rounded-full flex items-center justify-center transition ${dark ? 'text-gray-300 hover:bg-gray-700' : 'text-emerald-700 hover:bg-emerald-50'}`}>
+      className={`relative w-8 h-8 rounded-full flex items-center justify-center transition ${dark ? 'text-gray-300 hover:bg-gray-700' : 'text-blue-700 hover:bg-blue-50'}`}>
       {dir < 0 ? <RotateCcw size={18} /> : <RotateCw size={18} />}
       <span className="absolute inset-0 flex items-center justify-center text-[8px] font-black mt-[1px]">5</span>
     </button>
@@ -156,6 +156,9 @@ function ReviewAudioPlayer({ audioUrl, dark }) {
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [muted, setMuted] = useState(false)
+  // Playback speed survives the blob swap and part changes of one recording
+  const [rate, setRate] = useState(1)
+  const rateRef = useRef(1)
   // Holat emas, ref: bosgandan keyingi birinchi sichqoncha harakati
   // eskirgan qiymatni ko'rib e'tiborsiz qolmasin
   const draggingRef = useRef(false)
@@ -195,6 +198,7 @@ function ReviewAudioPlayer({ audioUrl, dark }) {
     if (!audio || !blobUrl) return
     const { time, playing: wasPlaying } = resumeRef.current
     const restore = () => {
+      audio.playbackRate = rateRef.current
       if (time > 0) { try { audio.currentTime = time } catch { /* */ } }
       if (wasPlaying) audio.play().catch(() => {})
     }
@@ -238,7 +242,7 @@ function ReviewAudioPlayer({ audioUrl, dark }) {
   }, [audioUrl, blobUrl])
 
   if (!audioUrl) return (
-    <div className={`rounded-full border px-4 py-2 text-center text-xs max-w-md mx-auto ${dark ? 'bg-gray-800 border-gray-700 text-gray-500' : 'bg-white border-emerald-100 text-gray-400'}`}>
+    <div className={`rounded-full border px-4 py-2 text-center text-xs max-w-md mx-auto ${dark ? 'bg-gray-800 border-gray-700 text-gray-500' : 'bg-white border-blue-100 text-gray-400'}`}>
       No audio for this section
     </div>
   )
@@ -270,7 +274,7 @@ function ReviewAudioPlayer({ audioUrl, dark }) {
   }
 
   return (
-    <div className={`flex items-center gap-2.5 sm:gap-3 rounded-full border shadow-sm px-3 py-1.5 max-w-2xl mx-auto ${D ? 'bg-gray-800/90 border-gray-700' : 'bg-white border-emerald-200'}`}>
+    <div className={`flex items-center gap-2.5 sm:gap-3 rounded-full border shadow-sm px-3 py-1.5 max-w-2xl mx-auto ${D ? 'bg-gray-800/90 border-gray-700' : 'bg-white border-blue-200'}`}>
       {/* preload="auto" — Django Range so'rovlarini qo'llamaydi, shuning uchun
           fayl to'liq yuklanmasa audio ichiga o'tkazib bo'lmaydi */}
       <audio ref={audioRef} src={blobUrl || audioUrl} preload="auto" />
@@ -280,7 +284,7 @@ function ReviewAudioPlayer({ audioUrl, dark }) {
         if (!a) return
         if (a.paused) a.play().catch(() => {})
         else a.pause()
-      }} className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 flex items-center justify-center text-white shadow-md transition flex-shrink-0">
+      }} className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 flex items-center justify-center text-white shadow-md transition flex-shrink-0">
         {playing ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}
       </button>
       <SkipBtn dir={1} dark={D} onSkip={skip} />
@@ -310,10 +314,10 @@ function ReviewAudioPlayer({ audioUrl, dark }) {
           if (e.key === 'ArrowLeft') { e.preventDefault(); skip(-5) }
         }}
       >
-        <div className={`relative h-1.5 rounded-full ${D ? 'bg-gray-600' : 'bg-emerald-100'}`}>
-          <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-600 rounded-full" style={{ width: `${pct}%` }} />
+        <div className={`relative h-1.5 rounded-full ${D ? 'bg-gray-600' : 'bg-blue-100'}`}>
+          <div className="h-full bg-gradient-to-r from-blue-500 to-blue-700 rounded-full" style={{ width: `${pct}%` }} />
           <span
-            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-white border-2 border-emerald-500 shadow"
+            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-white border-2 border-blue-600 shadow"
             style={{ left: `${pct}%` }}
           />
         </div>
@@ -321,13 +325,26 @@ function ReviewAudioPlayer({ audioUrl, dark }) {
       <span className={`text-[11px] font-mono tabular-nums flex-shrink-0 ${D ? 'text-gray-400' : 'text-gray-500'}`}>
         {fmt(currentTime)} / {fmt(duration)}
       </span>
+      <select
+        value={rate}
+        onChange={(e) => {
+          const v = Number(e.target.value)
+          rateRef.current = v
+          setRate(v)
+          if (audioRef.current) audioRef.current.playbackRate = v
+        }}
+        aria-label="Playback speed"
+        className={`h-8 flex-shrink-0 rounded-lg border px-1.5 text-xs font-semibold outline-none ${D ? 'border-gray-600 bg-gray-800 text-gray-200' : 'border-blue-100 bg-white text-gray-700'}`}
+      >
+        {[0.75, 1, 1.25, 1.5, 1.75, 2].map(v => <option key={v} value={v}>{v}x</option>)}
+      </select>
       <button type="button" onClick={() => {
         const a = audioRef.current
         if (!a) return
         a.muted = !a.muted
         setMuted(a.muted)
       }}
-        className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition ${D ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-400 hover:bg-emerald-50'}`}>
+        className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition ${D ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-400 hover:bg-blue-50'}`}>
         {muted ? <VolumeX size={15} /> : <Volume2 size={15} />}
       </button>
     </div>
@@ -639,6 +656,10 @@ function renderLineContent(line, evidenceItems, keyPrefix) {
   return nodes.length ? nodes : [<span key={`${keyPrefix}r`}>{line}</span>]
 }
 
+// Upper-case names ("EXAMINER", "SPEAKER 1") or common roles in any case ("Speaker 2", "Woman")
+const SPEAKER_UPPER = /^([A-Z][A-Z0-9'’.-]*(?:\s[A-Z0-9][A-Z0-9'’.-]*){0,2})\s*:\s*(.*)$/
+const SPEAKER_ROLE = /^((?:speaker|examiner|narrator|interviewer|presenter|host|man|woman|boy|girl)(?:\s*\d+)?)\s*:\s*(.*)$/i
+
 function TranscriptWithEvidence({ text, dark, evidenceItems = [], large }) {
   const D = dark
   const lines = (text || '').split('\n')
@@ -659,6 +680,15 @@ function TranscriptWithEvidence({ text, dark, evidenceItems = [], large }) {
               <span className={`mt-[0.6em] w-1.5 h-1.5 rounded-full flex-shrink-0 ${D ? 'bg-emerald-400' : 'bg-emerald-500'}`} />
               <span className="flex-1">{renderLineContent(m[1], ev, `l${i}`)}</span>
             </div>
+          )
+        }
+        // "EXAMINER:", "SPEAKER 1:", "Woman:" … — the speaker stands out
+        if ((m = line.match(SPEAKER_UPPER) || line.match(SPEAKER_ROLE))) {
+          return (
+            <p key={i} className="mt-3 mb-1">
+              <strong className={`font-extrabold ${D ? 'text-white' : 'text-gray-900'}`}>{m[1]}:</strong>{' '}
+              {renderLineContent(m[2], ev, `l${i}`)}
+            </p>
           )
         }
         return <p key={i} className="my-1">{renderLineContent(line, ev, `l${i}`)}</p>
@@ -1385,6 +1415,8 @@ export default function CEFRListeningAttempt() {
   const isLoading = sectionIds.length === 0 || sectionQueries.some(q => q.isLoading)
   const section = allSections[activePart] || null
   const allQuestions = allSections.flatMap(s => s?.questions || [])
+  // A mock may carry one recording for every part — then it replaces the parts' own audio
+  const mockAudio = allSections[0]?.mock_audio_url || null
 
   const timerStorageKey = `cefr-listening-timer-${attemptId}-${partsParam || sectionId || 'x'}`
   // Every part of a mock carries the mock's total time; frozen until the test starts
@@ -1403,8 +1435,8 @@ export default function CEFRListeningAttempt() {
     const now = Date.now()
     if (now - lastAudioSaveRef.current < 1500) return
     lastAudioSaveRef.current = now
-    saveExam(audioStorageKey, { part: audioPart, currentTime: t })
-  }, [audioStorageKey, audioStarted, audioPart])
+    saveExam(audioStorageKey, { part: mockAudio ? 0 : audioPart, currentTime: t })
+  }, [audioStorageKey, audioStarted, audioPart, mockAudio])
 
   // Next part that has audio, or -1 when the recording is over
   const nextAudioPart = useCallback((from) => {
@@ -1412,20 +1444,31 @@ export default function CEFRListeningAttempt() {
     return -1
   }, [allSections])
   // follow: the screen moves with the recording (real "ended"); a silent skip leaves it alone
+  // When the recording is over the listening test ends, like the real exam
+  const finishRef = useRef(null)
+  const audioPlayedRef = useRef(false)
   const advanceAudio = useCallback((follow) => {
     const next = nextAudioPart(audioPart)
-    if (next < 0) { setAudioPart(allSections.length); return }
+    if (next < 0) {
+      setAudioPart(allSections.length)
+      if (follow || audioPlayedRef.current) finishRef.current?.()
+      return
+    }
     setAudioPart(next)
     if (follow) { setActivePart(next); setActiveQ(0) }   // like the real exam
     if (audioStorageKey) saveExam(audioStorageKey, { part: next, currentTime: 0 })
   }, [audioPart, nextAudioPart, allSections.length, audioStorageKey])
-  const handleAudioEnded = useCallback(() => advanceAudio(true), [advanceAudio])
-  // A part without audio is skipped straight away
+  const handleAudioEnded = useCallback(() => {
+    audioPlayedRef.current = true
+    if (mockAudio) { finishRef.current?.(); return }   // one recording: it ending ends the test
+    advanceAudio(true)
+  }, [advanceAudio, mockAudio])
+  // A part without audio is skipped straight away (not when the mock has one recording)
   useEffect(() => {
-    if (!audioStarted || reviewMode || isLoading) return
+    if (!audioStarted || reviewMode || isLoading || mockAudio) return
     const cur = allSections[audioPart]
     if (cur && !cur.audio_url) advanceAudio(false)
-  }, [audioStarted, reviewMode, isLoading, allSections, audioPart, advanceAudio])
+  }, [audioStarted, reviewMode, isLoading, allSections, audioPart, advanceAudio, mockAudio])
 
   // Total audio length for the start screen
   //
@@ -1433,7 +1476,7 @@ export default function CEFRListeningAttempt() {
   // Oldin 'metadata' edi: faqat davomiyligi o'qilardi, ovoz esa Start
   // bosilgandan keyin yuklana boshlardi va o'quvchi bir necha soniya kutardi.
   const preloaderRef = useRef(null)
-  const audioUrlsKey = allSections.map(s => s?.audio_url || '').join('|')
+  const audioUrlsKey = mockAudio || allSections.map(s => s?.audio_url || '').join('|')
   useEffect(() => {
     const urls = audioUrlsKey.split('|').filter(Boolean)
     if (!urls.length) { setAudioTotalSec(0); return }
@@ -1576,6 +1619,8 @@ export default function CEFRListeningAttempt() {
       setSubmitting(false)
     }
   }
+
+  finishRef.current = () => { if (!submitting && !allowLeaveRef.current) handleSubmit() }
 
   const handleBackToList = () => {
     allowLeaveRef.current = true
@@ -1766,15 +1811,15 @@ export default function CEFRListeningAttempt() {
       )}
 
       {/* Sticky top review audio player — always visible at top in review */}
-      {reviewMode && section?.audio_url && (
-        <div className={`sticky top-0 z-20 border-b px-3 py-2 ${D ? 'bg-gray-900/95 border-gray-700 backdrop-blur' : 'bg-emerald-50/80 border-emerald-100 backdrop-blur'}`}>
-          <ReviewAudioPlayer key={section.audio_url} audioUrl={section.audio_url} dark={D} />
+      {reviewMode && (mockAudio || section?.audio_url) && (
+        <div className={`sticky top-0 z-20 border-b px-3 py-2 ${D ? 'bg-gray-900/95 border-gray-700 backdrop-blur' : 'bg-blue-50/70 border-blue-100 backdrop-blur'}`}>
+          <ReviewAudioPlayer key={mockAudio || section.audio_url} audioUrl={mockAudio || section.audio_url} dark={D} />
         </div>
       )}
 
       {/* One player for the whole test — switching the visible part never cuts the audio */}
       <HiddenExamAudio
-        src={!reviewMode && audioStarted ? allSections[audioPart]?.audio_url || null : null}
+        src={!reviewMode && audioStarted ? (mockAudio || allSections[audioPart]?.audio_url || null) : null}
         active={!reviewMode && audioStarted}
         seekTo={pendingSeekRef.current}
         onProgress={handleAudioProgress}
@@ -1782,8 +1827,21 @@ export default function CEFRListeningAttempt() {
       />
 
       {/* Body */}
+      {/* Review: audioscript on the left, questions on the right (wide screens) */}
+      <div key={`part-${activePart}`} className={reviewMode ? 'flex min-h-0 flex-1 overflow-hidden' : 'contents'}>
+      {reviewMode && (
+        <aside className={`hidden w-[45%] flex-shrink-0 overflow-y-auto border-r pb-44 md:block ${D ? 'border-gray-800 bg-gray-950' : 'border-gray-200 bg-slate-50'}`}>
+          <div className={`m-3 rounded-3xl border px-6 py-6 lg:m-4 ${D ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+            <p className={`text-sm font-semibold ${textSub}`}>Audioscript</p>
+            {section?.title && <h2 className={`mb-4 mt-3 text-center text-2xl font-semibold ${D ? 'text-gray-100' : 'text-gray-900'}`}>{section.title}</h2>}
+            {section?.transcript
+              ? <TranscriptWithEvidence text={section.transcript} dark={D} evidenceItems={evidenceItems} large />
+              : <p className={`py-10 text-center text-sm ${textSub}`}>No audioscript for this part</p>}
+          </div>
+        </aside>
+      )}
       {/* keyed by part: switching parts starts the new one from the top */}
-      <div key={`part-${activePart}`} className="contents">
+      <div className={reviewMode ? 'flex min-w-0 flex-1 flex-col overflow-hidden' : 'contents'}>
       {/* Part 4 with image: split layout (image left, questions right) */}
       {section?.image && section?.section_number === 4 && !matchPart ? (
         <div className="flex flex-1 overflow-hidden flex-col md:flex-row">
@@ -1848,7 +1906,7 @@ export default function CEFRListeningAttempt() {
               image={section?.image || null}
             />
             {reviewMode && section?.transcript && (
-              <div className={`mx-4 mb-6 max-w-5xl rounded-3xl border px-5 py-5 sm:mx-auto sm:px-8 ${D ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+              <div className={`mx-4 mb-6 max-w-5xl rounded-3xl border md:hidden px-5 py-5 sm:mx-auto sm:px-8 ${D ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
                 <h3 className="mb-2 text-xl font-semibold text-blue-600">Transcript</h3>
                 <TranscriptWithEvidence text={section.transcript} dark={D} evidenceItems={evidenceItems} />
               </div>
@@ -1863,7 +1921,7 @@ export default function CEFRListeningAttempt() {
               <h2 className={`mb-4 text-center text-xl font-semibold ${D ? 'text-gray-100' : 'text-gray-800'}`}>{section.title}</h2>
             )}
             {reviewMode && section?.transcript && (
-              <div className={`mb-5 rounded-3xl border px-5 py-5 sm:px-6 ${D ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+              <div className={`mb-5 rounded-3xl border px-5 py-5 sm:px-6 md:hidden ${D ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
                 <h3 className="mb-2 text-xl font-semibold text-blue-600">Transcript</h3>
                 <TranscriptWithEvidence text={section.transcript} dark={D} evidenceItems={evidenceItems} />
               </div>
@@ -1885,7 +1943,7 @@ export default function CEFRListeningAttempt() {
       ) : (
         <div className={`flex-1 overflow-y-auto p-4 w-full space-y-4 pb-40 ${fontCls}`} style={{ zoom: questionZoom }}>
           {reviewMode && section?.transcript && (
-            <div className={`rounded-xl border p-3 mb-2 ${D ? 'bg-gray-800/80 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+            <div className={`rounded-xl border p-3 mb-2 md:hidden ${D ? 'bg-gray-800/80 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
               <p className={`text-sm font-semibold mb-2 ${textMain}`}>Transcript</p>
               <div className={`rounded-lg p-3 border ${D ? 'border-gray-600' : 'border-gray-200'}`}>
                 <TranscriptWithEvidence
@@ -1922,6 +1980,7 @@ export default function CEFRListeningAttempt() {
           />
         </div>
       )}
+      </div>
       </div>
 
       <CefrPartNav
