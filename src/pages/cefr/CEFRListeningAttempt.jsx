@@ -1714,7 +1714,7 @@ export default function CEFRListeningAttempt() {
 
       {/* Body */}
       {/* Part 4 with image: split layout (image left, questions right) */}
-      {section?.image && section?.section_number === 4 ? (
+      {section?.image && section?.section_number === 4 && !matchPart ? (
         <div className="flex flex-1 overflow-hidden flex-col md:flex-row">
           {/* Image panel */}
           <div className={`overflow-y-auto border-b md:border-b-0 md:border-r flex-shrink-0 ${divider}`}
@@ -1735,6 +1735,11 @@ export default function CEFRListeningAttempt() {
                 Listen and answer all questions. Audio plays in the background (player hidden).
               </div>
             )}
+            {panelPart ? (
+              <CefrQuestionPanel questions={questions} answers={answers} onAnswer={setAnswer}
+                onFocusQ={q => setActiveQ(questions.indexOf(q))} registerRef={(id, el) => { questionRefs.current[id] = el }}
+                dark={D} textSizeClass={fontCls} reviewMode={reviewMode} reviewMap={reviewMap} radio />
+            ) : (
             <QuestionList
               questions={questions}
               answers={answers}
@@ -1752,6 +1757,7 @@ export default function CEFRListeningAttempt() {
               reviewMap={reviewMap}
               questionRefs={questionRefs}
             />
+            )}
           </div>
         </div>
       ) : matchPart ? (
@@ -1770,6 +1776,7 @@ export default function CEFRListeningAttempt() {
               reviewMode={reviewMode}
               reviewMap={reviewMap}
               showCorrectInReview={showCorrectInReview}
+              image={section?.image || null}
             />
             {reviewMode && section?.transcript && (
               <div className={`mx-4 mb-6 max-w-5xl rounded-3xl border px-5 py-5 sm:mx-auto sm:px-8 ${D ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
@@ -1803,6 +1810,7 @@ export default function CEFRListeningAttempt() {
               textSizeClass={fontCls}
               reviewMode={reviewMode}
               reviewMap={reviewMap}
+              radio
             />
           </div>
         </div>

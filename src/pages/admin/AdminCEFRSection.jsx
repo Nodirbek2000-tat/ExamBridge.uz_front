@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   BookOpen, Headphones, GraduationCap, Layers, ChevronDown,
   Upload, X, AlertCircle, FileJson, Loader2, Check,
-  Trash2, FileText, Music2, VolumeX, Eye, Crown, Clock, Search, Download,
+  Trash2, FileText, Music2, VolumeX, Eye, Crown, Clock, Search, Download, ImageIcon,
 } from 'lucide-react'
 import api from '../../api/client'
 import CopyJsonButton from '../../components/admin/CopyJsonButton'
@@ -92,7 +92,8 @@ const CEFR_READING_QT_REF = [
 const CEFR_LISTENING_QT_REF = [
   { qt:'MCQ',   label:'Part 1 — Multiple Choice',    desc:"A, B, C javoblardan biri. Part 1 da savol matni (content) yo'q — faqat variantlar", answer:'"B"', fields:'choices[], group_instruction', extra:null },
   { qt:'NOTE',  label:'Part 2 — Form / Notes',       desc:"Forma 1-savol group_instruction'ida, har qator \\n bilan, bo'sh joy [N]. Savolda faqat javob", answer:'"Wednesday" yoki "5:30|5.30"', fields:'group_instruction [N]', extra:"[N] belgisi matnda bo'lishi shart — import tekshiradi" },
-  { qt:'TMATCH',label:'Part 3 — Match speaker',      desc:"Tepada A–F ro'yxat (options bir marta), pastda Speaker 1..4 — har biriga bitta harf", answer:'"A"', fields:'options[], content', extra:"options har savolga o'zi biriktiriladi" },
+  { qt:'TMATCH',label:'Part 3–4 — Match / Map',      desc:"Part 3: A–F ro'yxat + Speaker 1..4. Part 4: options faqat harflar [\"A\",...,\"G\"] + joy nomlari, xarita rasmi admin'da yuklanadi", answer:'"A"', fields:'options[], content', extra:"options har savolga o'zi biriktiriladi" },
+  { qt:'MCQ',   label:'Part 5–6 — Savol + A/B/C',    desc:"content = savol matni, choices A–C. Part 6 da NOTE bilan aralash bo'lishi mumkin", answer:'"B"', fields:'content, choices[], group_instruction', extra:null },
   { qt:'MULTI', label:'Multiple Select',             desc:"Bir necha variant — javoblar | bilan ajratiladi",                        answer:'"A|C" yoki "B|D"',               fields:'choices[], max_selections', extra:'max_selections: 2' },
   { qt:'GAP',   label:'Gap Fill',                    desc:"___ joy — transcript'da [N] belgisi kerak",                              answer:'"Mr Thompson"',                   fields:'group_instruction', extra:'transcript [N] marker' },
   { qt:'TABLE', label:'Table / Form Completion',     desc:"Jadval yoki anketa bo'shliqlarini to'ldirish",                           answer:'"Monday"',                        fields:'group_instruction', extra:null },
@@ -434,7 +435,9 @@ const LISTENING_EXAMPLE = `// ════════════════�
 //   Part 1 | 1–8   | MCQ    | savol matni YO'Q — faqat A/B/C javoblar
 //   Part 2 | 9–14  | NOTE   | forma: "Start date: [9]" — bo'sh joyga yozish
 //   Part 3 | 15–18 | TMATCH | tepada A–F ro'yxat, pastda Speaker 1..4 tanlash
-//   Part 4–6 — tez orada
+//   Part 4 | 19–23 | TMATCH | xarita: rasm chapda, joy nomi + A–G tanlash
+//   Part 5 | 24–29 | MCQ    | savol matni + A/B/C (radio qatorlar)
+//   Part 6 | 30–35 | NOTE va/yoki MCQ — faqat gap filling YOKI aralash
 //
 // • Bitta part: "section": {...} + "questions": [...]
 // • Audio: "audio_url" yoki import'dan keyin admin'da yuklanadi
@@ -492,6 +495,63 @@ const LISTENING_EXAMPLE = `// ════════════════�
     { "number": 15, "question_type": "TMATCH", "content": "Speaker 1", "correct_answer": "A",
       "group_instruction": "You will hear people talking about their first employment experiences.\\nFor questions 15-18, choose from the list **(A-F)** what each person says about it. Use the letters only once." },
     { "number": 16, "question_type": "TMATCH", "content": "Speaker 2", "correct_answer": "B" }
+  ]
+}
+
+
+// ── PART 4 — xarita (TMATCH, variantlar faqat harf) ─────
+// • "options": ["A","B",...,"G"] — matnsiz harflar yetarli
+// • "content" = joy nomi ("Car park 3")
+// • RASM: import'dan keyin admin ro'yxatida Part 4 qatori yonidagi
+//   🖼 tugmasi → PNG/JPG/WEBP (5 MB gacha). Yashil = rasm bor.
+{
+  "type": "listening", "level": "B2", "title": "Listening — Part 4", "time_limit": 10,
+  "section": { "title": "Test 1 - Part 4", "section_number": 4, "audio_url": "" },
+  "options": ["A", "B", "C", "D", "E", "F", "G"],
+  "questions": [
+    { "number": 19, "question_type": "TMATCH", "content": "Car park 3", "correct_answer": "B",
+      "group_instruction": "You will hear someone giving a talk. Label the places (19-23) on the map **(A-G)**.
+There are **TWO** extra options which you do not need to use." },
+    { "number": 20, "question_type": "TMATCH", "content": "Changing room", "correct_answer": "D" }
+  ]
+}
+
+// ── PART 5 — 3 ta parcha, har biriga 2 savol (MCQ) ──────
+{
+  "type": "listening", "level": "B2", "title": "Listening — Part 5", "time_limit": 10,
+  "section": { "title": "Test 1 - Part 5", "section_number": 5, "audio_url": "" },
+  "questions": [
+    { "number": 24, "question_type": "MCQ", "correct_answer": "B",
+      "group_instruction": "You will hear three different extracts. For questions 24-29, choose the answer **(A, B or C)** which fits best according to what you hear. There are two questions for each extract.",
+      "content": "Extract One: What is Colin's opinion of their new boss?",
+      "choices": [
+        { "option": "A", "text": "She fails to consult with colleagues." },
+        { "option": "B", "text": "She is too keen to establish new working practices." },
+        { "option": "C", "text": "She has little understanding of the organisation's history." }
+      ] }
+  ]
+}
+
+// ── PART 6 — gap filling (NOTE), kerak bo'lsa + MCQ ─────
+// Har gap alohida qator ("
+"), bo'sh joy [N]. Aralash bo'lsa:
+// avval NOTE savollar, keyin MCQ o'z group_instruction'i bilan —
+// sahifada ikkita alohida "Questions" bloki bo'lib chiqadi.
+{
+  "type": "listening", "level": "B2", "title": "Listening — Part 6", "time_limit": 10,
+  "section": { "title": "Test 1 - Part 6", "section_number": 6, "audio_url": "" },
+  "questions": [
+    { "number": 30, "question_type": "NOTE", "correct_answer": "signs",
+      "group_instruction": "You will hear a part of a lecture. For each question, fill in the missing information in the numbered space.
+Write no more than **ONE WORD** for each answer.
+
+Brad says there are no [30] to warn extreme snowboarders of dangers.
+Brad advises snowboarders always to follow the [31] when descending." },
+    { "number": 31, "question_type": "NOTE", "correct_answer": "guide" },
+    { "number": 33, "question_type": "MCQ", "correct_answer": "B",
+      "group_instruction": "For questions 33-35, choose the correct answer **(A, B or C)**.",
+      "content": "What does Brad say about beginners?",
+      "choices": [ { "option": "A", "text": "..." }, { "option": "B", "text": "..." }, { "option": "C", "text": "..." } ] }
   ]
 }
 
@@ -990,6 +1050,42 @@ function AudioUploadModal({ item, section, onClose, onSuccess }) {
   )
 }
 
+// ── Listening Part 4: map / picture upload ───────────────────────────────────
+// Green when the part already has an image. Click → pick a file (replaces it);
+// the list refreshes itself, so no props need to be threaded through.
+function ImageButton({ item, compact = false }) {
+  const fileRef = useRef()
+  const queryClient = useQueryClient()
+  const [busy, setBusy] = useState(false)
+  const has = !!item.image
+
+  const upload = async (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setBusy(true)
+    try {
+      const fd = new FormData()
+      fd.append('image', file)
+      await api.post(`/admin/cefr/listening/${item.id}/image/`, fd)
+      queryClient.invalidateQueries({ queryKey: ['admin-cefr-section'] })
+    } catch (err) {
+      alert(err.response?.data?.error || 'Rasm yuklanmadi.')
+    } finally { setBusy(false) }
+  }
+
+  return (
+    <>
+      <button type="button" onClick={() => fileRef.current?.click()} disabled={busy}
+        title={has ? "Rasm bor — almashtirish uchun bosing (Part 4 xarita)" : "Rasm yuklash (Part 4 xarita)"}
+        className={`${compact ? 'p-1.5' : 'p-2'} rounded-lg transition disabled:opacity-50 ${has ? 'text-green-500 hover:bg-green-50' : 'text-gray-400 hover:text-sky-600 hover:bg-sky-50'}`}>
+        {busy ? <Loader2 size={compact ? 14 : 15} className="animate-spin" /> : <ImageIcon size={compact ? 14 : 15} />}
+      </button>
+      <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={upload} />
+    </>
+  )
+}
+
 // ── Mock Group Row (IELTS uslubida) ──────────────────────────────────────────
 function MockGroupRow({ testId, testTitle, testIsPremium, parts, section, colors, onAudio, onDelete }) {
   // Collapsed by default — one row per mock, click to see its parts
@@ -1062,6 +1158,11 @@ function MockGroupRow({ testId, testTitle, testIsPremium, parts, section, colors
                           ? <span className="flex items-center gap-1 text-[11px] text-green-600"><Music2 size={9} />Audio</span>
                           : <span className="flex items-center gap-1 text-[11px] text-gray-400"><VolumeX size={9} />Audio yo'q</span>
                       )}
+                      {section === 'listening' && (partNum === 4 || item.image) && (
+                        item.image
+                          ? <span className="flex items-center gap-1 text-[11px] text-green-600"><ImageIcon size={9} />Rasm</span>
+                          : <span className="flex items-center gap-1 text-[11px] text-amber-600"><ImageIcon size={9} />Rasm yo'q</span>
+                      )}
                     </div>
                   </div>
                   {/* Actions */}
@@ -1075,6 +1176,7 @@ function MockGroupRow({ testId, testTitle, testIsPremium, parts, section, colors
                         <Music2 size={14} />
                       </button>
                     )}
+                    {section === 'listening' && (partNum === 4 || item.image) && <ImageButton item={item} compact />}
                     <button onClick={() => onDelete(item.id)}
                       className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition">
                       <Trash2 size={14} />
@@ -1122,6 +1224,11 @@ function StandaloneRow({ item, index, section, colors, onAudio, onDelete }) {
               ? <span className="flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full"><Music2 size={10} />Audio</span>
               : <span className="flex items-center gap-1 text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full"><VolumeX size={10} />Audio yo'q</span>
           )}
+          {section === 'listening' && (item.section_number === 4 || item.image) && (
+            item.image
+              ? <span className="flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full"><ImageIcon size={10} />Rasm</span>
+              : <span className="flex items-center gap-1 text-xs text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full"><ImageIcon size={10} />Rasm yo'q</span>
+          )}
         </div>
       </div>
       <div className="flex items-center gap-1 flex-shrink-0">
@@ -1135,6 +1242,7 @@ function StandaloneRow({ item, index, section, colors, onAudio, onDelete }) {
             <Music2 size={15} />
           </button>
         )}
+        {section === 'listening' && (item.section_number === 4 || item.image) && <ImageButton item={item} />}
         <button onClick={() => onDelete(item.id)}
           className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition">
           <Trash2 size={15} />

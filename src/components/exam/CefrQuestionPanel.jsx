@@ -183,7 +183,8 @@ function OptionList({ q, value, rr, onAnswer, dark, textSizeClass, reviewMode })
   )
 }
 
-export default function CefrQuestionPanel({ questions, answers, onAnswer, onFocusQ, registerRef, dark, textSizeClass, reviewMode, reviewMap }) {
+// radio: plain radio rows under the question text (Listening) instead of bordered cards (Reading 4–5)
+export default function CefrQuestionPanel({ questions, answers, onAnswer, onFocusQ, registerRef, dark, textSizeClass, reviewMode, reviewMap, radio = false }) {
   const rrOf = (q) => (reviewMode ? (reviewMap?.[String(q.id)] || reviewMap?.[`n-${q.number}`]) : null)
   const textMain = dark ? 'text-gray-100' : 'text-gray-900'
   const card = dark ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'
@@ -232,7 +233,9 @@ export default function CefrQuestionPanel({ questions, answers, onAnswer, onFocu
                               <span className={`mt-0.5 ${numberDot}`}>{q.number}</span>
                               <p className={`min-w-0 flex-1 font-semibold leading-relaxed ${textSizeClass} ${textMain}`}>{q.content}</p>
                             </div>
-                            <div className="pl-9"><OptionList {...optionProps} /></div>
+                            <div className="pl-9">
+                              {radio && !FIXED_OPTIONS[q.question_type] ? <RadioList {...optionProps} /> : <OptionList {...optionProps} />}
+                            </div>
                           </>
                         ) : (
                           // No question text (Listening Part 1 — only replies A/B/C):
@@ -256,9 +259,10 @@ export default function CefrQuestionPanel({ questions, answers, onAnswer, onFocu
 }
 
 // ── Parts 2–3: texts matched to one shared option list (TMATCH) ──────────────
-function OptionDropdown({ value, options, usedBy, onChange, dark, reviewMode, rr, alignLeft = false }) {
+function OptionDropdown({ value, options, usedBy, onChange, dark, reviewMode, rr, alignLeft = false, narrow = false }) {
   const [open, setOpen] = useState(false)
   const [up, setUp] = useState(false)
+  const [maxH, setMaxH] = useState(320)
   const ref = useRef(null)
 
   useEffect(() => {
@@ -272,9 +276,18 @@ function OptionDropdown({ value, options, usedBy, onChange, dark, reviewMode, rr
 
   const toggle = () => {
     if (reviewMode) return
-    // Near the bottom (above the fixed nav) the list opens upwards
+    // Open towards the side with room: below is limited by the fixed bottom nav,
+    // above by the top bar — a short letter list (A–G) usually fits below
     const r = ref.current?.getBoundingClientRect()
-    setUp(r ? window.innerHeight - r.bottom < 360 : false)
+    if (r) {
+      const need = Math.min(320, options.length * (narrow ? 44 : 52) + 16)
+      const below = window.innerHeight - r.bottom - 110
+      const above = r.top - 130
+      const goUp = below < need && above > below
+      setUp(goUp)
+      // never taller than the room on that side — the list scrolls instead of hiding under a bar
+      setMaxH(Math.max(140, Math.min(320, goUp ? above : below)))
+    }
     setOpen(o => !o)
   }
 
@@ -302,7 +315,8 @@ function OptionDropdown({ value, options, usedBy, onChange, dark, reviewMode, rr
       {open && (
         <div
           role="listbox"
-          className={`absolute ${alignLeft ? 'left-0' : 'right-0'} z-40 max-h-80 w-[min(88vw,34rem)] overflow-y-auto rounded-xl border p-1.5 shadow-2xl ${up ? 'bottom-full mb-2' : 'top-full mt-2'} ${dark ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}
+          style={{ maxHeight: maxH }}
+          className={`absolute ${alignLeft ? 'left-0' : 'right-0'} z-40 ${narrow ? 'w-44' : 'w-[min(88vw,34rem)]'} overflow-y-auto rounded-xl border p-1.5 shadow-2xl ${up ? 'bottom-full mb-2' : 'top-full mt-2'} ${dark ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}
         >
           {options.map(o => {
             const selected = value === o.option
@@ -335,7 +349,7 @@ function OptionDropdown({ value, options, usedBy, onChange, dark, reviewMode, rr
 
 export function OptionMatchBlock({
   passage, questions, answers, onAnswer, onFocusQ, registerRef,
-  dark, textSizeClass, reviewMode, reviewMap, showCorrectInReview,
+  dark, textSizeClass, reviewMode, reviewMap, showCorrectInReview, image = null,
 }) {
   const options = useMemo(() => sortOptions(questions.find(q => q.choices?.length)?.choices || []), [questions])
   const nums = questions.map(q => q.number)
@@ -352,6 +366,8 @@ export function OptionMatchBlock({
   for (const q of questions) { const a = answers[String(q.id)]; if (a) usedBy[a] = q.number }
   // Short labels ("Speaker 1" in Listening Part 3) keep the picker right beside them
   const short = questions.every(q => String(q.content || '').trim().length <= 40)
+  // Map labels: options are bare letters A–G with no text
+  const lettersOnly = options.length > 0 && options.every(o => !String(o.text || '').trim())
 
   return (
     <div className="px-4 py-6 sm:px-6">
@@ -366,51 +382,65 @@ export function OptionMatchBlock({
           <p className={`mb-5 whitespace-pre-line leading-relaxed ${textSizeClass} ${dark ? 'text-gray-200' : 'text-gray-800'}`}>{passage.content}</p>
         )}
 
-        {/* The shared statement list, shown once */}
-        <div className={`mb-6 space-y-2 rounded-2xl border px-4 py-4 sm:px-5 ${textSizeClass} ${dark ? 'border-gray-700 bg-gray-800/60 text-gray-100' : 'border-blue-100 bg-blue-50/50 text-gray-900'}`}>
-          {options.map(o => (
-            <div key={o.option} className="flex gap-2 leading-relaxed">
-              <span className="flex-shrink-0 font-bold">{o.option}</span>
-              <span className="flex-shrink-0">-</span>
-              <span>{o.text}</span>
-            </div>
-          ))}
-        </div>
-
-        <div className="space-y-5">
-          {questions.map(q => {
-            const rr = reviewMode && showCorrectInReview ? (reviewMap?.[String(q.id)] || reviewMap?.[`n-${q.number}`]) : null
-            return (
-              <div
-                key={q.id}
-                id={`cq-${q.id}`}
-                ref={el => registerRef(q.id, el)}
-                onFocus={() => onFocusQ(q)}
-                className={short
-                  ? 'flex scroll-mt-32 flex-wrap items-center gap-x-4 gap-y-2'
-                  : 'flex scroll-mt-32 flex-col gap-3 sm:flex-row sm:items-start sm:gap-5'}
-              >
-                <div className={`flex min-w-0 gap-2.5 ${short ? 'items-center' : 'flex-1'}`}>
-                  <span className={`${short ? '' : 'mt-0.5'} inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-[13px] font-bold leading-none text-white`}>
-                    {q.number}
-                  </span>
-                  <p className={`min-w-0 whitespace-pre-line leading-relaxed ${short ? 'font-medium' : 'flex-1'} ${textSizeClass} ${dark ? 'text-gray-100' : 'text-gray-900'}`}>{q.content}</p>
-                </div>
-                <div className={short ? '' : 'pl-9 sm:pl-0'}>
-                  <OptionDropdown
-                    value={answers[String(q.id)] || ''}
-                    options={options}
-                    usedBy={usedBy}
-                    onChange={v => onAnswer(q.id, v)}
-                    dark={dark}
-                    reviewMode={reviewMode}
-                    rr={rr}
-                    alignLeft={short}
-                  />
-                </div>
+        {/* The shared statement list, shown once (skipped for letter-only options, e.g. map labels) */}
+        {!lettersOnly && (
+          <div className={`mb-6 space-y-2 rounded-2xl border px-4 py-4 sm:px-5 ${textSizeClass} ${dark ? 'border-gray-700 bg-gray-800/60 text-gray-100' : 'border-blue-100 bg-blue-50/50 text-gray-900'}`}>
+            {options.map(o => (
+              <div key={o.option} className="flex gap-2 leading-relaxed">
+                <span className="flex-shrink-0 font-bold">{o.option}</span>
+                <span className="flex-shrink-0">-</span>
+                <span>{o.text}</span>
               </div>
-            )
-          })}
+            ))}
+          </div>
+        )}
+
+        <div className={image ? 'grid items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]' : ''}>
+          {image && (
+            // Listening Part 4: the map / picture, questions beside it
+            <a href={image} target="_blank" rel="noopener noreferrer" title="Open full size"
+              className={`block overflow-hidden rounded-2xl border ${dark ? 'border-gray-700' : 'border-gray-200'}`}>
+              <img src={image} alt="Map" className="h-auto w-full object-contain" />
+            </a>
+          )}
+          <div className={image ? 'space-y-4' : 'space-y-5'}>
+            {questions.map(q => {
+              const rr = reviewMode && showCorrectInReview ? (reviewMap?.[String(q.id)] || reviewMap?.[`n-${q.number}`]) : null
+              return (
+                <div
+                  key={q.id}
+                  id={`cq-${q.id}`}
+                  ref={el => registerRef(q.id, el)}
+                  onFocus={() => onFocusQ(q)}
+                  className={image
+                    ? 'flex scroll-mt-32 items-center justify-between gap-3'
+                    : short
+                      ? 'flex scroll-mt-32 flex-wrap items-center gap-x-4 gap-y-2'
+                      : 'flex scroll-mt-32 flex-col gap-3 sm:flex-row sm:items-start sm:gap-5'}
+                >
+                  <div className={`flex min-w-0 gap-2.5 ${short || image ? 'items-center' : 'flex-1'}`}>
+                    <span className={`${short || image ? '' : 'mt-0.5'} inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-[13px] font-bold leading-none text-white`}>
+                      {q.number}
+                    </span>
+                    <p className={`min-w-0 whitespace-pre-line leading-relaxed ${short || image ? 'font-medium' : 'flex-1'} ${textSizeClass} ${dark ? 'text-gray-100' : 'text-gray-900'}`}>{q.content}</p>
+                  </div>
+                  <div className={short || image ? 'flex-shrink-0' : 'pl-9 sm:pl-0'}>
+                    <OptionDropdown
+                      value={answers[String(q.id)] || ''}
+                      options={options}
+                      usedBy={usedBy}
+                      onChange={v => onAnswer(q.id, v)}
+                      dark={dark}
+                      reviewMode={reviewMode}
+                      rr={rr}
+                      alignLeft={short && !image}
+                      narrow={lettersOnly}
+                    />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
 
         {reviewMode && showCorrectInReview && questions.some(q => q.answer_review) && (
