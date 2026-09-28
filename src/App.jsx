@@ -41,17 +41,13 @@ const SATLeaderboard = lazyWithPreload(() => import('./pages/sat/SATLeaderboard'
 const IELTSDashboard = lazyWithPreload(() => import('./pages/ielts/IELTSDashboard'))
 const IELTSTestList = lazyWithPreload(() => import('./pages/ielts/IELTSTestList'))
 const IELTSAttempt = lazyWithPreload(() => import('./pages/ielts/IELTSAttempt'))
-const IELTSReadingList = lazyWithPreload(() => import('./pages/ielts/IELTSReadingList'))
 const IELTSReadingAttempt = lazyWithPreload(() => import('./pages/ielts/IELTSReadingAttempt'))
 const IELTSReadingResult = lazyWithPreload(() => import('./pages/ielts/IELTSReadingResult'))
-const IELTSListeningList = lazyWithPreload(() => import('./pages/ielts/IELTSListeningList'))
 const IELTSListeningAttempt = lazyWithPreload(() => import('./pages/ielts/IELTSListeningAttempt'))
 const IELTSListeningResult = lazyWithPreload(() => import('./pages/ielts/IELTSListeningResult'))
 const IELTSHistory = lazyWithPreload(() => import('./pages/ielts/IELTSHistory'))
-const IELTSWritingList = lazyWithPreload(() => import('./pages/ielts/IELTSWritingList'))
 const IELTSWritingAttempt = lazyWithPreload(() => import('./pages/ielts/IELTSWritingAttempt'))
 const IELTSWritingResult = lazyWithPreload(() => import('./pages/ielts/IELTSWritingResult'))
-const IELTSSpeakingList = lazyWithPreload(() => import('./pages/ielts/IELTSSpeakingList'))
 const IELTSSpeakingAttempt = lazyWithPreload(() => import('./pages/ielts/IELTSSpeakingAttempt'))
 const IELTSSpeakingResult = lazyWithPreload(() => import('./pages/ielts/IELTSSpeakingResult'))
 const IELTSSpeakingReview = lazyWithPreload(() => import('./pages/ielts/IELTSSpeakingReview'))
@@ -61,15 +57,11 @@ const BookmarksPage = lazyWithPreload(() => import('./pages/ielts/BookmarksPage'
 
 // CEFR
 const CEFRDashboard = lazyWithPreload(() => import('./pages/cefr/CEFRDashboard'))
-const CEFRTestList = lazyWithPreload(() => import('./pages/cefr/CEFRTestList'))
-const CEFRReadingList = lazyWithPreload(() => import('./pages/cefr/CEFRReadingList'))
 const CEFRReadingAttempt = lazyWithPreload(() => import('./pages/cefr/CEFRReadingAttempt'))
-const CEFRListeningList = lazyWithPreload(() => import('./pages/cefr/CEFRListeningList'))
 const CEFRListeningAttempt = lazyWithPreload(() => import('./pages/cefr/CEFRListeningAttempt'))
 const CEFRReadingResult = lazyWithPreload(() => import('./pages/cefr/CEFRReadingResult'))
 const CEFRListeningResult = lazyWithPreload(() => import('./pages/cefr/CEFRListeningResult'))
 const CEFRHistory = lazyWithPreload(() => import('./pages/cefr/CEFRHistory'))
-const CEFRSpeakingList = lazyWithPreload(() => import('./pages/cefr/CEFRSpeakingList'))
 const CEFRSpeakingAttempt = lazyWithPreload(() => import('./pages/cefr/CEFRSpeakingAttempt'))
 const CEFRSpeakingResult = lazyWithPreload(() => import('./pages/cefr/CEFRSpeakingResult'))
 const CEFRTestsHub = lazyWithPreload(() => import('./pages/cefr/CEFRTestsHub'))
@@ -251,23 +243,24 @@ export default function App() {
         <Route path="ielts" element={<IELTSDashboard />} />
         <Route path="ielts/skills" element={<IELTSTestsHub />} />
         <Route path="ielts/tests" element={<IELTSTestList />} />
-        <Route path="ielts/reading" element={<IELTSReadingList />} />
-        <Route path="ielts/listening" element={<IELTSListeningList />} />
+        {/* Old single-skill list pages → the hub tab (one place for every test list) */}
+        <Route path="ielts/reading" element={<Navigate to="/app/ielts/skills?tab=reading" replace />} />
+        <Route path="ielts/listening" element={<Navigate to="/app/ielts/skills?tab=listening" replace />} />
         <Route path="ielts/history" element={<IELTSHistory />} />
-        <Route path="ielts/writing" element={<IELTSWritingList />} />
+        <Route path="ielts/writing" element={<Navigate to="/app/ielts/skills?tab=writing" replace />} />
         <Route path="ielts/writing/review/:responseId" element={<IELTSWritingReview />} />
-        <Route path="ielts/speaking" element={<IELTSSpeakingList />} />
+        <Route path="ielts/speaking" element={<Navigate to="/app/ielts/skills?tab=speaking" replace />} />
         <Route path="ielts/speaking/review/:responseId" element={<IELTSSpeakingReview />} />
         <Route path="bookmarks" element={<BookmarksPage />} />
 
         {/* CEFR */}
         <Route path="cefr" element={<CEFRDashboard />} />
         <Route path="cefr/skills" element={<CEFRTestsHub />} />
-        <Route path="cefr/tests" element={<CEFRTestList />} />
-        <Route path="cefr/reading" element={<CEFRReadingList />} />
-        <Route path="cefr/listening" element={<CEFRListeningList />} />
-        <Route path="cefr/speaking" element={<CEFRSpeakingList />} />
-        <Route path="cefr/writing" element={<CEFRTestList />} />
+        <Route path="cefr/tests" element={<Navigate to="/app/cefr/skills" replace />} />
+        <Route path="cefr/reading" element={<Navigate to="/app/cefr/skills?tab=reading" replace />} />
+        <Route path="cefr/listening" element={<Navigate to="/app/cefr/skills?tab=listening" replace />} />
+        <Route path="cefr/speaking" element={<Navigate to="/app/cefr/skills?tab=speaking" replace />} />
+        <Route path="cefr/writing" element={<Navigate to="/app/cefr/skills?tab=writing" replace />} />
         <Route path="cefr/history" element={<CEFRHistory />} />
 
         {/* AI Tutor */}
