@@ -922,9 +922,10 @@ function AudioUploadModal({ item, section, onClose, onSuccess }) {
 
 // ── Mock Group Row (IELTS uslubida) ──────────────────────────────────────────
 function MockGroupRow({ testId, testTitle, testIsPremium, parts, section, colors, onAudio, onDelete }) {
-  const [open, setOpen] = useState(true)
+  // Collapsed by default — one row per mock, click to see its parts
+  const [open, setOpen] = useState(false)
   const totalQ = parts.reduce((s, p) => s + (p.question_count ?? 0), 0)
-  const partWord = section === 'listening' ? 'sections' : 'sections'
+  const partWord = section === 'listening' ? 'sections' : 'parts'
   const pLabel = section === 'listening' ? 'S' : 'P'
 
   return (

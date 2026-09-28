@@ -2158,8 +2158,9 @@ export default function CEFRReadingAttempt() {
                 <img src={passage.image} alt="Passage" className="w-full rounded-xl object-contain max-h-64 border border-gray-200" />
               </div>
             )}
-            <div className="p-5 text-lg select-text pb-48">
-              <div className={`max-w-2xl mx-auto ${panelPart ? `rounded-3xl border px-6 py-6 ${D ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}` : ''}`}>
+            <div className={`${panelPart ? 'p-3 lg:pl-4 lg:pr-3' : 'p-5'} text-lg select-text pb-48`}>
+              {/* Parts 4–5 use the full pane width — no centred column, no side gaps */}
+              <div className={panelPart ? `rounded-3xl border px-6 py-6 ${D ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}` : 'max-w-2xl mx-auto'}>
                 {panelPart && passage?.title && (
                   <h2 className={`mb-4 text-center text-xl font-semibold ${D ? 'text-gray-100' : 'text-gray-800'}`}>{passage.title}</h2>
                 )}
@@ -2182,8 +2183,8 @@ export default function CEFRReadingAttempt() {
           </div>
           {/* Questions panel */}
           <div className={`flex-1 overflow-y-auto min-w-0 pb-44 text-base leading-relaxed ${panelPart ? (D ? 'bg-gray-950' : 'bg-slate-50') : ''}`}>
-            <div className="p-4" style={{ zoom: questionZoom }}>
-            <div className="max-w-2xl mx-auto">
+            <div className={panelPart ? 'p-3 lg:pl-3 lg:pr-4' : 'p-4'} style={{ zoom: questionZoom }}>
+            <div className={panelPart ? '' : 'max-w-2xl mx-auto'}>
             {panelPart ? (
               <CefrQuestionPanel
                 questions={questions}
