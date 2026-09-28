@@ -11,6 +11,7 @@ import {
 import api from '../../api/client'
 import { loadExam, saveExam, clearExam } from '../../utils/examPersist'
 import CefrPartNav from '../../components/exam/CefrPartNav'
+import CefrQuestionPanel, { fitsPanel } from '../../components/exam/CefrQuestionPanel'
 import { useAuthStore } from '../../store/authStore'
 
 function Skeleton({ className = '' }) {
@@ -1410,6 +1411,9 @@ export default function CEFRListeningAttempt() {
   }, [section?.audio_url])
 
   const questions = section?.questions || []
+  // Choice / T-F / summary parts get the shared CEFR panel (same look as Reading 4–5);
+  // anything else keeps the older per-question cards
+  const panelPart = fitsPanel(questions)
 
   const evidenceItems = useMemo(() => {
     if (!reviewMode || !showCorrectInReview) return []
@@ -1691,7 +1695,7 @@ export default function CEFRListeningAttempt() {
           <div className="max-w-6xl mx-auto">
             <div className="flex items-center gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
               <div className={`flex items-center gap-2 rounded-xl border px-3 py-1.5 whitespace-nowrap ${D ? 'border-gray-600 text-gray-200' : 'border-gray-200 text-gray-800 bg-white'}`}>
-                <span className="font-semibold">Part 1</span>
+                <span className="font-semibold">Part {section?.section_number || 1}</span>
                 <span className={`text-xs ${textSub}`}>{questions.length} questions</span>
               </div>
             </div>
@@ -1745,6 +1749,33 @@ export default function CEFRListeningAttempt() {
               showCorrectInReview={showCorrectInReview}
               reviewMap={reviewMap}
               questionRefs={questionRefs}
+            />
+          </div>
+        </div>
+      ) : panelPart ? (
+        /* ── Panel layout: centred card, same style as Reading Parts 4–5 ── */
+        <div className={`flex-1 overflow-y-auto pb-44 ${D ? 'bg-gray-950' : 'bg-slate-50'}`}>
+          <HiddenExamAudio src={!reviewMode && audioStarted ? section?.audio_url : null} active={!reviewMode && audioStarted} seekTo={pendingSeekRef.current} onProgress={handleAudioProgress} />
+          <div className="mx-auto w-full max-w-5xl px-3 py-5 sm:px-5" style={{ zoom: questionZoom }}>
+            {section?.title && (
+              <h2 className={`mb-4 text-center text-xl font-semibold ${D ? 'text-gray-100' : 'text-gray-800'}`}>{section.title}</h2>
+            )}
+            {reviewMode && section?.transcript && (
+              <div className={`mb-5 rounded-3xl border px-5 py-5 sm:px-6 ${D ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+                <h3 className="mb-2 text-xl font-semibold text-blue-600">Transcript</h3>
+                <TranscriptWithEvidence text={section.transcript} dark={D} evidenceItems={evidenceItems} />
+              </div>
+            )}
+            <CefrQuestionPanel
+              questions={questions}
+              answers={answers}
+              onAnswer={setAnswer}
+              onFocusQ={q => setActiveQ(questions.indexOf(q))}
+              registerRef={(id, el) => { questionRefs.current[id] = el }}
+              dark={D}
+              textSizeClass={fontCls}
+              reviewMode={reviewMode}
+              reviewMap={reviewMap}
             />
           </div>
         </div>
