@@ -11,7 +11,7 @@ import {
 import api from '../../api/client'
 import { loadExam, saveExam, clearExam } from '../../utils/examPersist'
 import CefrPartNav from '../../components/exam/CefrPartNav'
-import CefrQuestionPanel, { fitsPanel } from '../../components/exam/CefrQuestionPanel'
+import CefrQuestionPanel, { fitsPanel, OptionMatchBlock } from '../../components/exam/CefrQuestionPanel'
 import { useAuthStore } from '../../store/authStore'
 
 function Skeleton({ className = '' }) {
@@ -1414,6 +1414,8 @@ export default function CEFRListeningAttempt() {
   // Choice / T-F / summary parts get the shared CEFR panel (same look as Reading 4–5);
   // anything else keeps the older per-question cards
   const panelPart = fitsPanel(questions)
+  // Part 3: speakers matched to one shared A–H list (same block as Reading 2–3)
+  const matchPart = questions.length > 0 && questions.every(q => q.question_type === 'TMATCH')
 
   const evidenceItems = useMemo(() => {
     if (!reviewMode || !showCorrectInReview) return []
@@ -1750,6 +1752,31 @@ export default function CEFRListeningAttempt() {
               reviewMap={reviewMap}
               questionRefs={questionRefs}
             />
+          </div>
+        </div>
+      ) : matchPart ? (
+        <div className={`flex-1 overflow-y-auto pb-44 ${D ? 'bg-gray-950' : 'bg-slate-50'}`}>
+          <HiddenExamAudio src={!reviewMode && audioStarted ? section?.audio_url : null} active={!reviewMode && audioStarted} seekTo={pendingSeekRef.current} onProgress={handleAudioProgress} />
+          <div style={{ zoom: questionZoom }}>
+            <OptionMatchBlock
+              passage={{ title: section?.title }}
+              questions={questions}
+              answers={answers}
+              onAnswer={setAnswer}
+              onFocusQ={q => setActiveQ(questions.indexOf(q))}
+              registerRef={(id, el) => { questionRefs.current[id] = el }}
+              dark={D}
+              textSizeClass={fontCls}
+              reviewMode={reviewMode}
+              reviewMap={reviewMap}
+              showCorrectInReview={showCorrectInReview}
+            />
+            {reviewMode && section?.transcript && (
+              <div className={`mx-4 mb-6 max-w-5xl rounded-3xl border px-5 py-5 sm:mx-auto sm:px-8 ${D ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+                <h3 className="mb-2 text-xl font-semibold text-blue-600">Transcript</h3>
+                <TranscriptWithEvidence text={section.transcript} dark={D} evidenceItems={evidenceItems} />
+              </div>
+            )}
           </div>
         </div>
       ) : panelPart ? (

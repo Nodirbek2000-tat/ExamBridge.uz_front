@@ -90,7 +90,9 @@ const CEFR_READING_QT_REF = [
 ]
 
 const CEFR_LISTENING_QT_REF = [
-  { qt:'MCQ',   label:'Multiple Choice',             desc:'A, B, C variantlardan biri — tinglash asosida',                          answer:'"B"',                             fields:'choices[], group_instruction', extra:null },
+  { qt:'MCQ',   label:'Part 1 — Multiple Choice',    desc:"A, B, C javoblardan biri. Part 1 da savol matni (content) yo'q — faqat variantlar", answer:'"B"', fields:'choices[], group_instruction', extra:null },
+  { qt:'NOTE',  label:'Part 2 — Form / Notes',       desc:"Forma 1-savol group_instruction'ida, har qator \\n bilan, bo'sh joy [N]. Savolda faqat javob", answer:'"Wednesday" yoki "5:30|5.30"', fields:'group_instruction [N]', extra:"[N] belgisi matnda bo'lishi shart — import tekshiradi" },
+  { qt:'TMATCH',label:'Part 3 — Match speaker',      desc:"Tepada A–F ro'yxat (options bir marta), pastda Speaker 1..4 — har biriga bitta harf", answer:'"A"', fields:'options[], content', extra:"options har savolga o'zi biriktiriladi" },
   { qt:'MULTI', label:'Multiple Select',             desc:"Bir necha variant — javoblar | bilan ajratiladi",                        answer:'"A|C" yoki "B|D"',               fields:'choices[], max_selections', extra:'max_selections: 2' },
   { qt:'GAP',   label:'Gap Fill',                    desc:"___ joy — transcript'da [N] belgisi kerak",                              answer:'"Mr Thompson"',                   fields:'group_instruction', extra:'transcript [N] marker' },
   { qt:'TABLE', label:'Table / Form Completion',     desc:"Jadval yoki anketa bo'shliqlarini to'ldirish",                           answer:'"Monday"',                        fields:'group_instruction', extra:null },
@@ -427,7 +429,75 @@ const READING_EXAMPLE = `// ═════════════════�
 // ═══════════════════════════════════════════════════════`
 
 const LISTENING_EXAMPLE = `// ═══════════════════════════════════════════════════════
-// CEFR LISTENING — TO'LIQ IMPORT GUIDE
+// CEFR MULTILEVEL LISTENING — IMPORT (6 part)
+// ═══════════════════════════════════════════════════════
+//   Part 1 | 1–8   | MCQ    | savol matni YO'Q — faqat A/B/C javoblar
+//   Part 2 | 9–14  | NOTE   | forma: "Start date: [9]" — bo'sh joyga yozish
+//   Part 3 | 15–18 | TMATCH | tepada A–F ro'yxat, pastda Speaker 1..4 tanlash
+//   Part 4–6 — tez orada
+//
+// • Bitta part: "section": {...} + "questions": [...]
+// • Audio: "audio_url" yoki import'dan keyin admin'da yuklanadi
+// • Matnli javobda muqobil: "5:30|5.30" (harf/bo'sh joy farqi yo'q)
+// • group_instruction faqat 1-savolda — qolganlari o'zi qo'shiladi
+// • TEKSHIRUV: MCQ/TMATCH javob harfi variantlarda bo'lishi,
+//   NOTE uchun [N] matnda bo'lishi SHART — aks holda 400, hech narsa saqlanmaydi
+
+// ── PART 1 — faqat variantlar (MCQ, "content" yo'q) ─────
+{
+  "type": "listening", "level": "B2", "title": "Listening — Part 1", "time_limit": 10,
+  "section": { "title": "Test 1 - Part 1", "section_number": 1, "audio_url": "", "transcript": "1. Who is that woman over there? ..." },
+  "questions": [
+    { "number": 1, "question_type": "MCQ", "correct_answer": "B",
+      "group_instruction": "You will hear some sentences. You will hear each sentence twice. Choose the best reply to each sentence **(A, B or C)**.",
+      "choices": [
+        { "option": "A", "text": "What is his name?" },
+        { "option": "B", "text": "I believe my aunt." },
+        { "option": "C", "text": "Do I know her?" }
+      ] },
+    { "number": 2, "question_type": "MCQ", "correct_answer": "A",
+      "choices": [ { "option": "A", "text": "..." }, { "option": "B", "text": "..." }, { "option": "C", "text": "..." } ] }
+  ]
+}
+
+// ── PART 2 — forma to'ldirish (NOTE) ─────────────────────
+// Forma 9-savolning group_instruction'ida: yo'riqnoma → bo'sh qator →
+// har qator alohida ("\\n"), bo'sh joy = [N]. Savolda "content" yo'q.
+{
+  "type": "listening", "level": "B2", "title": "Listening — Part 2", "time_limit": 10,
+  "section": { "title": "Test 1 - Part 2", "section_number": 2, "audio_url": "" },
+  "questions": [
+    { "number": 9, "question_type": "NOTE", "correct_answer": "15 September|15th September",
+      "group_instruction": "You will hear someone giving a talk. For each question, fill in the missing information in the numbered space.\\nWrite **ONE WORD** and / or **A NUMBER** for each answer.\\n\\nStart date: [9]\\nDay the club will meet: [10]\\nTime: from 4:20 to [11]\\nTeacher's name: Mr [12]\\nTeacher's phone number: [13]\\nPlace: [14]" },
+    { "number": 10, "question_type": "NOTE", "correct_answer": "Wednesday" },
+    { "number": 11, "question_type": "NOTE", "correct_answer": "5:30|5.30" }
+  ]
+}
+
+// ── PART 3 — gapiruvchini variantga moslash (TMATCH) ────
+// "options" BIR MARTA yoziladi → har Speaker'ga o'zi biriktiriladi.
+// "content" = "Speaker 1" (qisqa bo'lsa tanlash tugmasi yonida turadi)
+{
+  "type": "listening", "level": "B2", "title": "Listening — Part 3", "time_limit": 10,
+  "section": { "title": "Test 1 - Part 3", "section_number": 3, "audio_url": "" },
+  "options": [
+    { "option": "A", "text": "They lied about something." },
+    { "option": "B", "text": "They were injured." },
+    { "option": "C", "text": "They were made redundant at work." },
+    { "option": "D", "text": "They were issued a warning." },
+    { "option": "E", "text": "They were doing a number of different things." },
+    { "option": "F", "text": "It affected their career choice." }
+  ],
+  "questions": [
+    { "number": 15, "question_type": "TMATCH", "content": "Speaker 1", "correct_answer": "A",
+      "group_instruction": "You will hear people talking about their first employment experiences.\\nFor questions 15-18, choose from the list **(A-F)** what each person says about it. Use the letters only once." },
+    { "number": 16, "question_type": "TMATCH", "content": "Speaker 2", "correct_answer": "B" }
+  ]
+}
+
+
+// ═══════════════════════════════════════════════════════
+// ESKI (IELTS-uslub) QO'LLANMA — boshqa turlar uchun
 // ═══════════════════════════════════════════════════════
 // Audio file → import qilgandan so'ng admin panel orqali yuklanadi
 //
