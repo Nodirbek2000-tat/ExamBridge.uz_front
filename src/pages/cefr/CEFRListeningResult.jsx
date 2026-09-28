@@ -23,6 +23,9 @@ export default function CEFRListeningResult() {
 
   const title = decodeURIComponent(searchParams.get('title') || 'CEFR Listening')
   const sectionId = Number(searchParams.get('section') || 0)
+  // A full mock is identified by its list of part ids, not a single section
+  const partsParam = searchParams.get('parts') || ''
+  const examQuery = partsParam ? `parts=${partsParam}` : `section=${sectionId}`
   const attemptId = location.pathname.split('/').filter(Boolean).at(-2)
   const result = location.state?.result
 
@@ -72,6 +75,7 @@ export default function CEFRListeningResult() {
   const iconBg = summary.cefrLevel === 'C1' ? 'bg-indigo-100 text-indigo-500' : summary.cefrLevel === 'B2' ? 'bg-emerald-100 text-emerald-500' : 'bg-sky-100 text-sky-500'
 
   const handleTryAgain = async () => {
+    if (partsParam) { navigate('/app/cefr/skills?tab=listening'); return }
     if (!sectionId) return
     setRetrying(true)
     try {
@@ -226,7 +230,7 @@ export default function CEFRListeningResult() {
             <button
               type="button"
               onClick={() =>
-                navigate(`/exam/cefr/listening/${attemptId}?section=${sectionId}&title=${encodeURIComponent(title)}`, {
+                navigate(`/exam/cefr/listening/${attemptId}?${examQuery}&title=${encodeURIComponent(title)}`, {
                   state: { reviewData: result },
                 })
               }

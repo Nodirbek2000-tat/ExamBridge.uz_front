@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Search, Clock3, HelpCircle, Loader2, Headphones, ChevronUp, ChevronDown } from 'lucide-react'
+import { Search, Clock3, HelpCircle, Loader2, Headphones, ChevronUp, ChevronDown, Layers } from 'lucide-react'
 import api from '../../api/client'
 
 const LEVELS = ['ALL', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2']
@@ -45,16 +45,25 @@ export default function CEFRListeningList({ accentBtn = 'bg-sky-500 hover:bg-sky
   })
 
   const items = useMemo(() => {
-    return (data || []).filter((s) => {
+    const filtered = (data || []).filter((s) => {
       const matchSearch = (s.title || '').toLowerCase().includes(search.toLowerCase())
       const matchLevel = level === 'ALL' || s.level === level
       return matchSearch && matchLevel
     })
+    // Full mocks first, then single parts
+    return [...filtered.filter(s => s.item_type === 'full_mock'), ...filtered.filter(s => s.item_type !== 'full_mock')]
   }, [data, search, level])
+  const mockCount = items.filter(s => s.item_type === 'full_mock').length
 
   const handleStart = async (section) => {
-    setStarting(section.id)
+    const isFullMock = section.item_type === 'full_mock'
+    setStarting(isFullMock ? `mock-${section.id}` : section.id)
     try {
+      if (isFullMock) {
+        const res = await api.post(`/cefr/listening/full-mock/${section.id}/start/`)
+        navigate(`/exam/cefr/listening/${res.data.attempt_id}?parts=${res.data.section_ids.join(',')}&title=${encodeURIComponent(section.title)}`)
+        return
+      }
       const res = await api.post(`/cefr/listening/${section.id}/start/`)
       navigate(`/exam/cefr/listening/${res.data.attempt_id}?section=${section.id}&title=${encodeURIComponent(section.title)}`)
     } catch (e) {
@@ -76,7 +85,7 @@ export default function CEFRListeningList({ accentBtn = 'bg-sky-500 hover:bg-sky
             <h3 className="text-2xl font-black text-gray-900 leading-none">Choose a test</h3>
             <p className="text-sm text-gray-500 mt-2">
               <span className="font-semibold text-gray-900">CEFR Listening</span>
-              <span className="ml-2">{isLoading ? '...' : `${items.length} sections`}</span>
+              <span className="ml-2">{isLoading ? '...' : `${mockCount} full mock${mockCount !== 1 ? 's' : ''}, ${items.length - mockCount} part${items.length - mockCount !== 1 ? 's' : ''}`}</span>
             </p>
           </div>
           {expanded ? <ChevronUp size={18} className="text-gray-500" /> : <ChevronDown size={18} className="text-gray-500" />}
@@ -89,7 +98,8 @@ export default function CEFRListeningList({ accentBtn = 'bg-sky-500 hover:bg-sky
 
             {!isLoading &&
               items.map((section) => {
-                const isStarting = starting === section.id
+                const isFullMock = section.item_type === 'full_mock'
+                const isStarting = starting === (isFullMock ? `mock-${section.id}` : section.id)
                 const attemptsCount =
                   section.attempts_count ??
                   section.attempt_count ??
@@ -108,7 +118,7 @@ export default function CEFRListeningList({ accentBtn = 'bg-sky-500 hover:bg-sky
                 )
                 return (
                   <div
-                    key={section.id}
+                    key={isFullMock ? `mock-${section.id}` : `s-${section.id}`}
                     className="relative rounded-xl border border-gray-200 px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
                   >
                     {isCompleted && (
@@ -119,13 +129,17 @@ export default function CEFRListeningList({ accentBtn = 'bg-sky-500 hover:bg-sky
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h4 className="font-bold text-gray-900">{section.title}</h4>
-                        {section.is_mock && (
+                        {isFullMock ? (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 font-semibold flex items-center gap-1">
+                            <Layers size={10} /> Full Mock
+                          </span>
+                        ) : section.is_mock && (
                           <span className="text-xs px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 font-semibold">Mock</span>
                         )}
                       </div>
                       <div className="flex items-center gap-4 text-sm text-gray-500 mt-2 flex-wrap">
                         <LevelBadge level={section.level || 'B1'} />
-                        <span className="text-gray-500">1 section</span>
+                        <span className="text-gray-500">{isFullMock ? `${section.part_count} parts` : '1 part'}</span>
                         <span className="inline-flex items-center gap-1">
                           <Clock3 size={14} /> {section.time_limit ?? 25} min
                         </span>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useParams, useSearchParams, useNavigate, useLocation } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQueries } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Clock, ChevronLeft, ChevronRight, Send, CheckCircle2, Bookmark, AlertTriangle,
@@ -82,9 +82,11 @@ function useTimer(initialSeconds, storageKey, frozen = false) {
   }
 }
 
-function HiddenExamAudio({ src, active, seekTo = 0, onProgress }) {
+function HiddenExamAudio({ src, active, seekTo = 0, onProgress, onEnded }) {
   const ref = useRef(null)
   const onProgressRef = useRef(onProgress)
+  const onEndedRef = useRef(onEnded)
+  useEffect(() => { onEndedRef.current = onEnded })
   const firstSeekDoneRef = useRef(false)
   useEffect(() => { onProgressRef.current = onProgress })
   // Play when active (resume from seekTo on first load); stop when inactive/unmounted
@@ -123,9 +125,12 @@ function HiddenExamAudio({ src, active, seekTo = 0, onProgress }) {
     const el = ref.current
     if (!el) return
     const onTime = () => onProgressRef.current?.(el.currentTime)
+    // A mock's parts play one after another — the page moves to the next part's audio
+    const onEnd = () => onEndedRef.current?.()
     el.addEventListener('timeupdate', onTime)
-    return () => el.removeEventListener('timeupdate', onTime)
-  }, [])
+    el.addEventListener('ended', onEnd)
+    return () => { el.removeEventListener('timeupdate', onTime); el.removeEventListener('ended', onEnd) }
+  }, [src])
   if (!src) return null
   return <audio ref={ref} src={src} preload="auto" className="sr-only" playsInline />
 }
@@ -1330,6 +1335,14 @@ export default function CEFRListeningAttempt() {
   const user = useAuthStore((s) => s.user)
 
   const sectionId = searchParams.get('section')
+  // Full mock: ?parts=12,13,14 — every part of one test, answered in one attempt
+  const partsParam = searchParams.get('parts')
+  const sectionIds = useMemo(() => {
+    if (partsParam) return partsParam.split(',').map(Number).filter(Boolean)
+    return sectionId ? [Number(sectionId)] : []
+  }, [partsParam, sectionId])
+  const isMock = sectionIds.length > 1
+  const [activePart, setActivePart] = useState(0)
   const sectionTitle = decodeURIComponent(searchParams.get('title') || 'Listening')
   const reviewData = location.state?.reviewData || null
   const reviewMode = Boolean(reviewData)
@@ -1348,7 +1361,9 @@ export default function CEFRListeningAttempt() {
   const questionRefs = useRef({})
   const [audioStarted, setAudioStarted] = useState(false)
   const pendingSeekRef = useRef(loadExam(audioStorageKey)?.currentTime || 0)
-  const hasResumeRef = useRef((loadExam(audioStorageKey)?.currentTime || 0) > 0)
+  const hasResumeRef = useRef((loadExam(audioStorageKey)?.currentTime || 0) > 0 || (loadExam(audioStorageKey)?.part || 0) > 0)
+  // Which part's audio is playing — it moves on by itself when a part's audio ends
+  const [audioPart, setAudioPart] = useState(() => loadExam(audioStorageKey)?.part || 0)
   const lastAudioSaveRef = useRef(0)
   const [audioTotalSec, setAudioTotalSec] = useState(0)
   const [darkMode, setDarkMode] = useState(false)
@@ -1360,14 +1375,21 @@ export default function CEFRListeningAttempt() {
   const [bookmarkedIds, setBookmarkedIds] = useState(new Set())
   const [bookmarkLoading, setBookmarkLoading] = useState(new Set())
 
-  const { data: section, isLoading } = useQuery({
-    queryKey: ['cefr-listening-section', sectionId],
-    queryFn: () => api.get(`/cefr/listening/${sectionId}/`).then(r => r.data),
-    enabled: !!sectionId,
+  const sectionQueries = useQueries({
+    queries: sectionIds.map(id => ({
+      queryKey: ['cefr-listening-section', String(id)],
+      queryFn: () => api.get(`/cefr/listening/${id}/`).then(r => r.data),
+    })),
   })
+  const allSections = sectionQueries.map(q => q.data || null)
+  const isLoading = sectionIds.length === 0 || sectionQueries.some(q => q.isLoading)
+  const section = allSections[activePart] || null
+  const allQuestions = allSections.flatMap(s => s?.questions || [])
 
-  const timerStorageKey = `cefr-listening-timer-${attemptId}-${sectionId || 'x'}`
-  const timer = useTimer((section?.time_limit || 25) * 60, reviewMode ? null : timerStorageKey, reviewMode)
+  const timerStorageKey = `cefr-listening-timer-${attemptId}-${partsParam || sectionId || 'x'}`
+  // Every part of a mock carries the mock's total time; frozen until the test starts
+  const timer = useTimer((allSections[0]?.time_limit || 25) * 60, reviewMode ? null : timerStorageKey,
+    reviewMode || !allSections[0] || !audioStarted)
 
   // Persist answers across refresh
   useEffect(() => {
@@ -1381,8 +1403,29 @@ export default function CEFRListeningAttempt() {
     const now = Date.now()
     if (now - lastAudioSaveRef.current < 1500) return
     lastAudioSaveRef.current = now
-    saveExam(audioStorageKey, { currentTime: t })
-  }, [audioStorageKey, audioStarted])
+    saveExam(audioStorageKey, { part: audioPart, currentTime: t })
+  }, [audioStorageKey, audioStarted, audioPart])
+
+  // Next part that has audio, or -1 when the recording is over
+  const nextAudioPart = useCallback((from) => {
+    for (let i = from + 1; i < allSections.length; i++) if (allSections[i]?.audio_url) return i
+    return -1
+  }, [allSections])
+  // follow: the screen moves with the recording (real "ended"); a silent skip leaves it alone
+  const advanceAudio = useCallback((follow) => {
+    const next = nextAudioPart(audioPart)
+    if (next < 0) { setAudioPart(allSections.length); return }
+    setAudioPart(next)
+    if (follow) { setActivePart(next); setActiveQ(0) }   // like the real exam
+    if (audioStorageKey) saveExam(audioStorageKey, { part: next, currentTime: 0 })
+  }, [audioPart, nextAudioPart, allSections.length, audioStorageKey])
+  const handleAudioEnded = useCallback(() => advanceAudio(true), [advanceAudio])
+  // A part without audio is skipped straight away
+  useEffect(() => {
+    if (!audioStarted || reviewMode || isLoading) return
+    const cur = allSections[audioPart]
+    if (cur && !cur.audio_url) advanceAudio(false)
+  }, [audioStarted, reviewMode, isLoading, allSections, audioPart, advanceAudio])
 
   // Total audio length for the start screen
   //
@@ -1390,25 +1433,33 @@ export default function CEFRListeningAttempt() {
   // Oldin 'metadata' edi: faqat davomiyligi o'qilardi, ovoz esa Start
   // bosilgandan keyin yuklana boshlardi va o'quvchi bir necha soniya kutardi.
   const preloaderRef = useRef(null)
+  const audioUrlsKey = allSections.map(s => s?.audio_url || '').join('|')
   useEffect(() => {
-    const url = section?.audio_url
-    if (!url) { setAudioTotalSec(0); return }
+    const urls = audioUrlsKey.split('|').filter(Boolean)
+    if (!urls.length) { setAudioTotalSec(0); return }
     let cancelled = false
-    const a = new Audio()
-    a.preload = 'auto'
-    a.src = url
+    const durations = {}
+    // First part loads fully (plays at once); the rest only read their length
+    const players = urls.map((url, i) => {
+      const a = new Audio()
+      a.preload = i === 0 ? 'auto' : 'metadata'
+      a.src = url
+      a.addEventListener('loadedmetadata', () => {
+        if (cancelled) return
+        durations[i] = a.duration || 0
+        setAudioTotalSec(Math.round(Object.values(durations).reduce((x, y) => x + y, 0)))
+      }, { once: true })
+      return a
+    })
     // Havolani saqlaymiz — brauzer obyektni tozalab, yuklashni to'xtatmasin
-    preloaderRef.current = a
-    const onMeta = () => { if (!cancelled) setAudioTotalSec(Math.round(a.duration || 0)) }
-    a.addEventListener('loadedmetadata', onMeta, { once: true })
-    a.addEventListener('error', () => { if (!cancelled) setAudioTotalSec(0) }, { once: true })
+    preloaderRef.current = players
     return () => {
       cancelled = true
       // Sahifadan chiqilsa yuklashni to'xtatamiz
-      try { a.src = '' } catch { /* */ }
+      players.forEach(a => { try { a.src = '' } catch { /* */ } })
       preloaderRef.current = null
     }
-  }, [section?.audio_url])
+  }, [audioUrlsKey])
 
   const questions = section?.questions || []
   // Choice / T-F / summary parts get the shared CEFR panel (same look as Reading 4–5);
@@ -1465,12 +1516,10 @@ export default function CEFRListeningAttempt() {
     return () => document.removeEventListener('fullscreenchange', handler)
   }, [])
 
+  const bookmarkKey = allQuestions.filter(q => q.is_bookmarked).map(q => q.id).join(',')
   useEffect(() => {
-    if (section?.questions) {
-      const ids = section.questions.filter(q => q.is_bookmarked).map(q => q.id)
-      setBookmarkedIds(new Set(ids))
-    }
-  }, [section])
+    setBookmarkedIds(new Set(bookmarkKey ? bookmarkKey.split(',').map(Number) : []))
+  }, [bookmarkKey])
 
   const toggleBookmark = async (qId, e) => {
     e.stopPropagation()
@@ -1491,7 +1540,7 @@ export default function CEFRListeningAttempt() {
     if (reviewMode) return
     setAnswers((prev) => ({ ...prev, [String(qId)]: val }))
   }
-  const answeredCount = Object.values(answers).filter(Boolean).length
+  const answeredCount = allQuestions.filter(q => answers[String(q.id)]).length
 
   const handleSubmit = async () => {
     if (reviewMode) return
@@ -1504,13 +1553,23 @@ export default function CEFRListeningAttempt() {
     setSubmitting(true)
     setAudioStarted(false)   // stop exam audio before leaving
     try {
-      const res = await api.post(`/cefr/listening/${sectionId}/submit/`, {
-        attempt_id: parseInt(attemptId, 10),
-        answers,
-      })
+      // Every part is graded; the last call completes the attempt with totals for all parts
+      const parts = allSections.filter(Boolean)
+      let results = []
+      let last = null
+      for (let i = 0; i < parts.length; i++) {
+        const res = await api.post(`/cefr/listening/${parts[i].id}/submit/`, {
+          attempt_id: parseInt(attemptId, 10),
+          answers,
+          partial: i < parts.length - 1,
+        })
+        results = [...results, ...(res.data.results || [])]
+        if (i === parts.length - 1) last = res.data
+      }
       allowLeaveRef.current = true
-      navigate(`/exam/cefr/listening/${attemptId}/result?section=${sectionId}&title=${encodeURIComponent(sectionTitle)}`, {
-        state: { result: res.data }, replace: true,
+      const examQuery = partsParam ? `parts=${partsParam}` : `section=${sectionId}`
+      navigate(`/exam/cefr/listening/${attemptId}/result?${examQuery}&title=${encodeURIComponent(sectionTitle)}`, {
+        state: { result: { ...(last || {}), results } }, replace: true,
       })
     } catch (e) {
       alert('Error: ' + (e.response?.data?.detail || e.message))
@@ -1528,6 +1587,7 @@ export default function CEFRListeningAttempt() {
   }
 
   const handleRedoFromReview = async () => {
+    if (isMock) { navigate('/app/cefr/skills?tab=listening'); return }
     if (!sectionId) return
     try {
       const res = await api.post(`/cefr/listening/${sectionId}/start/`)
@@ -1572,7 +1632,7 @@ export default function CEFRListeningAttempt() {
   }
 
   if (!reviewMode && !audioStarted) {
-    return <StartScreen section={section} title={sectionTitle} dark={D} onStart={() => setAudioStarted(true)} resuming={hasResumeRef.current} audioDuration={audioTotalSec} />
+    return <StartScreen section={{ questions: allQuestions, time_limit: allSections[0]?.time_limit }} title={sectionTitle} dark={D} onStart={() => setAudioStarted(true)} resuming={hasResumeRef.current} audioDuration={audioTotalSec} />
   }
 
   return (
@@ -1598,7 +1658,7 @@ export default function CEFRListeningAttempt() {
         </p>
         {!reviewMode && (
           <span className={`text-sm font-semibold hidden sm:block ${textSub}`}>
-            {answeredCount}/{questions.length}
+            {answeredCount}/{allQuestions.length}
           </span>
         )}
         {!reviewMode && (
@@ -1712,7 +1772,18 @@ export default function CEFRListeningAttempt() {
         </div>
       )}
 
+      {/* One player for the whole test — switching the visible part never cuts the audio */}
+      <HiddenExamAudio
+        src={!reviewMode && audioStarted ? allSections[audioPart]?.audio_url || null : null}
+        active={!reviewMode && audioStarted}
+        seekTo={pendingSeekRef.current}
+        onProgress={handleAudioProgress}
+        onEnded={handleAudioEnded}
+      />
+
       {/* Body */}
+      {/* keyed by part: switching parts starts the new one from the top */}
+      <div key={`part-${activePart}`} className="contents">
       {/* Part 4 with image: split layout (image left, questions right) */}
       {section?.image && section?.section_number === 4 && !matchPart ? (
         <div className="flex flex-1 overflow-hidden flex-col md:flex-row">
@@ -1729,7 +1800,6 @@ export default function CEFRListeningAttempt() {
           </div>
           {/* Questions panel */}
           <div className={`flex-1 overflow-y-auto p-4 space-y-4 pb-40 ${fontCls}`} style={{ zoom: questionZoom }}>
-            <HiddenExamAudio src={!reviewMode && audioStarted ? section?.audio_url : null} active={!reviewMode && audioStarted} seekTo={pendingSeekRef.current} onProgress={handleAudioProgress} />
             {!reviewMode && (
               <div className={`rounded-lg px-3 py-2 text-sm mb-2 ${D ? 'bg-gray-800/50 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>
                 Listen and answer all questions. Audio plays in the background (player hidden).
@@ -1762,7 +1832,6 @@ export default function CEFRListeningAttempt() {
         </div>
       ) : matchPart ? (
         <div className={`flex-1 overflow-y-auto pb-44 ${D ? 'bg-gray-950' : 'bg-slate-50'}`}>
-          <HiddenExamAudio src={!reviewMode && audioStarted ? section?.audio_url : null} active={!reviewMode && audioStarted} seekTo={pendingSeekRef.current} onProgress={handleAudioProgress} />
           <div style={{ zoom: questionZoom }}>
             <OptionMatchBlock
               passage={{ title: section?.title }}
@@ -1789,7 +1858,6 @@ export default function CEFRListeningAttempt() {
       ) : panelPart ? (
         /* ── Panel layout: centred card, same style as Reading Parts 4–5 ── */
         <div className={`flex-1 overflow-y-auto pb-44 ${D ? 'bg-gray-950' : 'bg-slate-50'}`}>
-          <HiddenExamAudio src={!reviewMode && audioStarted ? section?.audio_url : null} active={!reviewMode && audioStarted} seekTo={pendingSeekRef.current} onProgress={handleAudioProgress} />
           <div className="mx-auto w-full max-w-5xl px-3 py-5 sm:px-5" style={{ zoom: questionZoom }}>
             {section?.title && (
               <h2 className={`mb-4 text-center text-xl font-semibold ${D ? 'text-gray-100' : 'text-gray-800'}`}>{section.title}</h2>
@@ -1828,7 +1896,6 @@ export default function CEFRListeningAttempt() {
               </div>
             </div>
           )}
-          <HiddenExamAudio src={!reviewMode && audioStarted ? section?.audio_url : null} active={!reviewMode && audioStarted} seekTo={pendingSeekRef.current} onProgress={handleAudioProgress} />
           {!reviewMode && (
             <div className={`rounded-lg px-3 py-2 text-sm mb-2 ${D ? 'bg-gray-800/50 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>
               Listen and answer all questions. Audio plays in the background (player hidden).
@@ -1855,10 +1922,16 @@ export default function CEFRListeningAttempt() {
           />
         </div>
       )}
+      </div>
 
       <CefrPartNav
-        parts={[{ key: section?.id || 0, label: `Part ${section?.section_number || 1}`, questions }]}
-        activePart={0}
+        parts={allSections.map((s, idx) => ({
+          key: sectionIds[idx] || idx,
+          label: `Part ${s?.section_number || idx + 1}`,
+          questions: s?.questions || [],
+        }))}
+        activePart={activePart}
+        onSelectPart={(i) => { setActivePart(i); setActiveQ(0) }}
         answers={answers}
         activeQ={activeQ}
         onGoToQ={goToQuestion}
@@ -1898,8 +1971,8 @@ export default function CEFRListeningAttempt() {
               </div>
               <h3 className="font-bold text-center text-lg mb-1">Submit test?</h3>
               <p className={`text-sm text-center mb-4 ${D ? 'text-gray-400' : 'text-gray-500'}`}>
-                {answeredCount} of {questions.length} answered
-                {questions.length - answeredCount > 0 && <span className="text-red-500"> ({questions.length - answeredCount} unanswered)</span>}
+                {answeredCount} of {allQuestions.length} answered
+                {allQuestions.length - answeredCount > 0 && <span className="text-red-500"> ({allQuestions.length - answeredCount} unanswered)</span>}
               </p>
               <div className="flex gap-3">
                 <button onClick={() => setShowConfirm(false)}
@@ -1926,7 +1999,7 @@ export default function CEFRListeningAttempt() {
               </div>
               <h3 className="font-bold text-center text-lg mb-1">Chiqish yoki topshirish?</h3>
               <p className={`text-sm text-center mb-4 ${D ? 'text-gray-400' : 'text-gray-500'}`}>
-                {answeredCount} / {questions.length} javob
+                {answeredCount} / {allQuestions.length} javob
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <button type="button" onClick={() => setShowExitConfirm(false)} className={`py-2.5 border rounded-xl text-sm font-medium ${D ? 'border-gray-600 text-gray-300' : 'border-gray-200 text-gray-600'}`}>
