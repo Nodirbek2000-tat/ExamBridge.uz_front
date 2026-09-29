@@ -1463,6 +1463,19 @@ export default function CEFRListeningAttempt() {
     if (mockAudio) { finishRef.current?.(); return }   // one recording: it ending ends the test
     advanceAudio(true)
   }, [advanceAudio, mockAudio])
+  // While a part plays, fetch the next part's audio so the switch has no loading pause
+  const nextPreloadRef = useRef(null)
+  useEffect(() => {
+    if (mockAudio || reviewMode || !audioStarted) return
+    const next = nextAudioPart(audioPart)
+    const url = next >= 0 ? allSections[next]?.audio_url : null
+    if (!url) return
+    const a = new Audio()
+    a.preload = 'auto'
+    a.src = url
+    nextPreloadRef.current = a
+    return () => { try { a.src = '' } catch { /* */ } nextPreloadRef.current = null }
+  }, [mockAudio, reviewMode, audioStarted, audioPart, nextAudioPart, allSections])
   // A part without audio is skipped straight away (not when the mock has one recording)
   useEffect(() => {
     if (!audioStarted || reviewMode || isLoading || mockAudio) return

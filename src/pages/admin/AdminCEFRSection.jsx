@@ -1075,10 +1075,11 @@ function ImageButton({ item, compact = false }) {
     try {
       const fd = new FormData()
       fd.append('image', file)
-      await api.post(`/admin/cefr/listening/${item.id}/image/`, fd)
+      // The api client defaults to JSON — without this axios turns FormData into JSON and the file is lost
+      await api.post(`/admin/cefr/listening/${item.id}/image/`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
       queryClient.invalidateQueries({ queryKey: ['admin-cefr-section'] })
     } catch (err) {
-      alert(err.response?.data?.error || 'Rasm yuklanmadi.')
+      alert(err.response?.data?.error || err.response?.data?.detail || `Rasm yuklanmadi (${err.response?.status || err.message}).`)
     } finally { setBusy(false) }
   }
 
