@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   GraduationCap, BookOpen, Globe, Home,
   Library, X, ChevronRight, ChevronsUpDown, Calculator, Sparkles,
-  ClipboardList, Bell, Crown, FileText, Layers, History, Check, Gamepad2,
+  ClipboardList, Bell, Crown, FileText, Layers, History, Check, Gamepad2, BarChart3,
 } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { useAuthStore } from '../../store/authStore'
@@ -23,6 +23,7 @@ const EXAMS = {
       { label: 'Home', to: '/app/sat', icon: Home, end: true },
       { label: 'Full-Length Tests', to: '/app/sat/tests', icon: FileText },
       { label: 'Practice', to: '/app/sat/practice', icon: Layers },
+      { label: 'Analytics', to: '/app/sat/analytics', icon: BarChart3 },
       { label: 'Saved Questions', to: '/app/sat/saved', icon: BookOpen },
       { label: 'Vocabulary', to: '/app/sat/vocab', icon: Library },
     ],

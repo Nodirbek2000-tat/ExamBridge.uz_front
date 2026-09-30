@@ -30,6 +30,7 @@ const SATTestAttempt = lazyWithPreload(() => import('./pages/sat/SATTestAttempt'
 const SATResult = lazyWithPreload(() => import('./pages/sat/SATResult'))
 const SATPractice = lazyWithPreload(() => import('./pages/sat/SATPractice'))
 const SATSavedQuestions = lazyWithPreload(() => import('./pages/sat/SATSavedQuestions'))
+const SATAnalytics = lazyWithPreload(() => import('./pages/sat/SATAnalytics'))
 const SATVocab = lazyWithPreload(() => import('./pages/sat/SATVocab'))
 const SATModuleList = lazyWithPreload(() => import('./pages/sat/SATModuleList'))
 const SATModuleResult = lazyWithPreload(() => import('./pages/sat/SATModuleResult'))
@@ -232,6 +233,7 @@ export default function App() {
         <Route path="sat/result/:id" element={<SATResult />} />
         <Route path="sat/practice" element={<SATPractice />} />
         <Route path="sat/saved" element={<SATSavedQuestions />} />
+        <Route path="sat/analytics" element={<SATAnalytics />} />
         <Route path="sat/vocab" element={<SATVocab />} />
         <Route path="sat/modules/:testId" element={<SATModuleList />} />
         <Route path="sat/module-result/:attemptId" element={<SATModuleResult />} />
