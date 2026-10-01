@@ -99,7 +99,7 @@ export default function IELTSWritingReview() {
         <div className="bg-white rounded-2xl border border-gray-100 p-5">
           <p className="font-bold text-gray-800 mb-4">Criteria Scores</p>
           <div className="grid grid-cols-2 gap-3">
-            {Object.entries(criteria).map(([key, val]) => (
+            {Object.entries(criteria).filter(([, v]) => typeof v === 'number' || (v && typeof v === 'object' && !Array.isArray(v))).map(([key, val]) => (
               <BandCircle key={key} value={val} label={CRITERIA_LABELS[key] || key.replace(/_/g, ' ')} />
             ))}
           </div>
