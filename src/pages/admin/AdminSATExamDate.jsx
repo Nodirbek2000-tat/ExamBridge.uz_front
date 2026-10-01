@@ -35,8 +35,9 @@ export default function AdminSATExamDate() {
   const [editState, setEditState] = useState({})
 
   const { data: users, isLoading } = useQuery({
-    queryKey: ['admin-users'],
-    queryFn: () => api.get('/admin/users/').then((r) => r.data),
+    queryKey: ['admin-users', 'exam-date'],
+    // The users API is paged now; 200 is its largest page
+    queryFn: () => api.get('/admin/users/', { params: { page_size: 200 } }).then((r) => r.data.results),
   })
 
   const updateMutation = useMutation({

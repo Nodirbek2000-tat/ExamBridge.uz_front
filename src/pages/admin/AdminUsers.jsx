@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Search, Users, Crown, Calendar, BookOpen, AlertCircle, UserCheck,
@@ -841,7 +841,6 @@ export default function AdminUsers() {
   const [rawSearch, setRawSearch] = useState('')
   const [search, setSearch] = useState('')
   const [planFilter, setPlanFilter] = useState('ALL')   // ALL | premium | free
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const [pendingId, setPendingId] = useState(null)
   const [selectedUserId, setSelectedUserId] = useState(null)
   const debounceRef = useRef(null)
@@ -851,14 +850,19 @@ export default function AdminUsers() {
     clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => {
       setSearch(rawSearch.trim())
-      setVisibleCount(PAGE_SIZE)
     }, 400)
     return () => clearTimeout(debounceRef.current)
   }, [rawSearch])
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['admin-users', search],
-    queryFn: () => api.get('/admin/users/', { params: search ? { q: search } : {} }).then(r => r.data),
+  // Server pages + real counts (the API used to cut the list at 100 and the page counted those)
+  const usersKey = ['admin-users', search, planFilter]
+  const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
+    queryKey: usersKey,
+    queryFn: ({ pageParam }) => api.get('/admin/users/', {
+      params: { page: pageParam, page_size: PAGE_SIZE, plan: planFilter === 'ALL' ? 'all' : planFilter, ...(search ? { q: search } : {}) },
+    }).then(r => r.data),
+    initialPageParam: 1,
+    getNextPageParam: (last) => (last.has_more ? last.page + 1 : undefined),
     staleTime: 30_000,
   })
 
@@ -866,18 +870,17 @@ export default function AdminUsers() {
     mutationFn: ({ id }) => api.post(`/admin/users/${id}/toggle-premium/`, { action: 'revoke' }),
     onMutate: async ({ id }) => {
       setPendingId(id)
-      await queryClient.cancelQueries({ queryKey: ['admin-users', search] })
-      const prev = queryClient.getQueryData(['admin-users', search])
-      queryClient.setQueryData(['admin-users', search], (old) => {
-        if (!old) return old
+      await queryClient.cancelQueries({ queryKey: usersKey })
+      const prev = queryClient.getQueryData(usersKey)
+      queryClient.setQueryData(usersKey, (old) => {
+        if (!old?.pages) return old
         const mapper = u => u.id === id ? { ...u, is_premium: false } : u
-        if (Array.isArray(old)) return old.map(mapper)
-        return { ...old, results: old.results?.map(mapper) }
+        return { ...old, pages: old.pages.map(pg => ({ ...pg, results: pg.results?.map(mapper) })) }
       })
       return { prev }
     },
     onError: (_err, _vars, ctx) => {
-      if (ctx?.prev) queryClient.setQueryData(['admin-users', search], ctx.prev)
+      if (ctx?.prev) queryClient.setQueryData(usersKey, ctx.prev)
     },
     onSettled: () => {
       setPendingId(null)
@@ -897,26 +900,15 @@ export default function AdminUsers() {
     [revokePremium]
   )
 
-  const allUsers = Array.isArray(data) ? data : (data?.results ?? [])
-  const totalCount = data?.count ?? allUsers.length
-  const premiumCount = allUsers.filter(u => u.is_premium).length
-  const manualCount = allUsers.filter(u => u.is_premium && u.premium_source === 'manual').length
-  const freeCount = allUsers.length - premiumCount
-  const newToday = allUsers.filter(u => {
-    if (!u.date_joined) return false
-    const d = new Date(u.date_joined)
-    const now = new Date()
-    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate()
-  }).length
-
-  // Apply plan filter
-  const filteredUsers = planFilter === 'ALL' ? allUsers
-    : planFilter === 'premium' ? allUsers.filter(u => u.is_premium)
-    : planFilter === 'manual' ? allUsers.filter(u => u.is_premium && u.premium_source === 'manual')
-    : allUsers.filter(u => !u.is_premium)
-
-  const visibleUsers = filteredUsers.slice(0, visibleCount)
-  const hasMore = visibleCount < filteredUsers.length
+  // Counts are computed by the server over the whole database (stats) and the current search (counts)
+  const firstPage = data?.pages?.[0]
+  const visibleUsers = data?.pages?.flatMap(pg => pg.results) ?? []
+  const totalCount = firstPage?.stats?.total
+  const premiumCount = firstPage?.stats?.premium
+  const newToday = firstPage?.stats?.new_today
+  const counts = firstPage?.counts ?? {}
+  const matching = firstPage?.count ?? 0
+  const hasMore = !!hasNextPage
 
   return (
     <div className="space-y-6">
@@ -998,12 +990,12 @@ export default function AdminUsers() {
         {/* Plan filter pills */}
         <div className="flex items-center gap-1.5 bg-gray-100 rounded-xl p-1">
           {[
-            { id: 'ALL', label: `All (${allUsers.length})` },
-            { id: 'premium', label: `Premium (${premiumCount})` },
-            { id: 'manual', label: `Manual (${manualCount})` },
-            { id: 'free', label: `Free (${freeCount})` },
+            { id: 'ALL', label: `All (${counts.all ?? '…'})` },
+            { id: 'premium', label: `Premium (${counts.premium ?? '…'})` },
+            { id: 'manual', label: `Manual (${counts.manual ?? '…'})` },
+            { id: 'free', label: `Free (${counts.free ?? '…'})` },
           ].map(f => (
-            <button key={f.id} onClick={() => { setPlanFilter(f.id); setVisibleCount(PAGE_SIZE) }}
+            <button key={f.id} onClick={() => setPlanFilter(f.id)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
                 planFilter === f.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
               }`}
@@ -1083,10 +1075,10 @@ export default function AdminUsers() {
       {/* ── Load more ── */}
       {!isLoading && !error && hasMore && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center gap-2 pt-2">
-          <p className="text-xs text-gray-400">Showing {visibleUsers.length} of {allUsers.length} users</p>
-          <button onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
-            className="flex items-center gap-2 px-5 py-2.5 bg-white border border-sky-200 text-sky-600 rounded-xl text-sm font-semibold hover:bg-sky-50 transition shadow-sm">
-            <ChevronDown size={15} /> Load more
+          <p className="text-xs text-gray-400">Showing {visibleUsers.length} of {matching} users</p>
+          <button onClick={() => fetchNextPage()} disabled={isFetchingNextPage}
+            className="flex items-center gap-2 px-5 py-2.5 bg-white border border-sky-200 text-sky-600 rounded-xl text-sm font-semibold hover:bg-sky-50 transition shadow-sm disabled:opacity-60">
+            <ChevronDown size={15} /> {isFetchingNextPage ? 'Loading…' : 'Load more'}
           </button>
         </motion.div>
       )}

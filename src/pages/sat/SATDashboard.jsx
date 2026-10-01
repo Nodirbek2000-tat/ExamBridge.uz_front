@@ -27,8 +27,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../api/client'
 
 const fadeUp = {
-  hidden: { opacity: 0, y: 20 },
-  visible: (i = 0) => ({ opacity: 1, y: 0, transition: { delay: i * 0.07 } }),
+  hidden: { opacity: 0, y: 24 },
+  visible: (i = 0) => ({ opacity: 1, y: 0, transition: { delay: i * 0.1, duration: 0.5, ease: [0.22, 1, 0.36, 1] } }),
 }
 
 function ProgressBar({
@@ -660,8 +660,8 @@ export default function SATDashboard() {
       </motion.div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-        <motion.div custom={1} initial="hidden" animate="visible" variants={fadeUp} className="xl:col-span-2 space-y-5">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        <motion.div custom={1} initial="hidden" animate="visible" variants={fadeUp} className="xl:col-span-2 space-y-5 stagger-rise">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 stagger-rise">
             {/* Best Score card */}
             <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-card lg:col-span-6">
               <div className="flex items-center justify-between mb-3">
@@ -792,7 +792,7 @@ export default function SATDashboard() {
           </div>
         </motion.div>
 
-        <motion.div custom={2} initial="hidden" animate="visible" variants={fadeUp} className="space-y-5">
+        <motion.div custom={2} initial="hidden" animate="visible" variants={fadeUp} className="space-y-5 stagger-rise">
           {/* Streak */}
           <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-card">
             <div className="text-center">
