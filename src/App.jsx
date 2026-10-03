@@ -74,6 +74,9 @@ const CEFRTestsHub = lazyWithPreload(() => import('./pages/cefr/CEFRTestsHub'))
 // Games
 const GamesHub = lazyWithPreload(() => import('./pages/games/GamesHub'))
 const ShadowingGame = lazyWithPreload(() => import('./pages/games/shadowing/ShadowingGame'))
+// Speak & Play — voice games (say the line, the character / car does it)
+const TobysDayGame = lazyWithPreload(() => import('./pages/games/tobys-day/TobysDayGame'))
+const VoiceDriveGame = lazyWithPreload(() => import('./pages/games/voice-drive/VoiceDriveGame'))
 
 // Study Tools
 const ArticlesPage = lazyWithPreload(() => import('./pages/study/ArticlesPage'))
@@ -290,6 +293,8 @@ export default function App() {
       <Route path="/games" element={<PrivateRoute><GamesLayout /></PrivateRoute>}>
         <Route index element={<GamesHub />} />
         <Route path="shadowing" element={<ShadowingGame />} />
+        <Route path="tobys-day" element={<TobysDayGame />} />
+        <Route path="voice-drive" element={<VoiceDriveGame />} />
       </Route>
 
       {/* Study Tools — its own section with a dedicated top nav */}

@@ -395,7 +395,7 @@ export default function CEFRSpeakingExam() {
             )}
             {!SR && (
               <p className="flex items-start gap-2 text-sm text-amber-700">
-                <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" /> This browser cannot turn speech into text. Use Google Chrome or Microsoft Edge so your answers can be scored.
+                <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" /> Live captions are not available in this browser — your recordings will be turned into text on our server, so scoring takes a little longer. Chrome or Edge works best.
               </p>
             )}
           </div>

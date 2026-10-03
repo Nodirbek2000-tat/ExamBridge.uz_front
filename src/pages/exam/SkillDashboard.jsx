@@ -113,6 +113,60 @@ function SkillCard({ exam, skill, info, data, index }) {
   )
 }
 
+// ── Speak & Play promo: the voice games live in /games ────────────────────────
+function SpeakPlayPromo() {
+  const reduce = useReducedMotion()
+  return (
+    <motion.div
+      initial={reduce ? false : { opacity: 0, y: 18 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.45, delay: 0.36, ease: [0.22, 1, 0.36, 1] }}
+    >
+      <Link
+        to="/games"
+        className="group relative flex items-center gap-4 overflow-hidden rounded-3xl bg-gradient-to-r from-[#141029] via-[#22164A] to-[#4A1240] p-4 text-white shadow-[0_18px_44px_-20px_rgba(124,58,237,0.7)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_50px_-18px_rgba(219,39,119,0.6)] sm:p-5"
+      >
+        <span className="pointer-events-none absolute -left-8 -top-12 h-32 w-32 rounded-full bg-rose-500/30 blur-2xl" />
+        <span className="pointer-events-none absolute -bottom-14 right-16 h-36 w-36 rounded-full bg-indigo-500/30 blur-2xl" />
+
+        <span className="relative flex h-12 w-12 flex-shrink-0 items-center justify-center sm:h-14 sm:w-14">
+          {!reduce && (
+            <motion.span
+              className="absolute inset-0 rounded-2xl bg-rose-400/50"
+              initial={{ scale: 1, opacity: 0.6 }}
+              animate={{ scale: 1.45, opacity: 0 }}
+              transition={{ duration: 1.8, repeat: Infinity, ease: 'easeOut' }}
+            />
+          )}
+          <span className="relative flex h-full w-full items-center justify-center rounded-2xl bg-gradient-to-br from-rose-500 to-orange-400 shadow-lg shadow-rose-500/30">
+            <Mic size={22} />
+          </span>
+        </span>
+
+        <div className="relative min-w-0 flex-1">
+          <p className="flex flex-wrap items-center gap-2">
+            <span className="text-base font-black tracking-tight sm:text-lg">Speak &amp; Play</span>
+            <span className="rounded-md bg-white px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-rose-600">New</span>
+          </p>
+          <p className="mt-0.5 text-[13px] leading-snug text-white/75">Gapirib o‘yna — talaffuzingni o‘yin orqali charxla</p>
+        </div>
+
+        <span className="relative hidden items-end gap-[3px] md:flex" aria-hidden>
+          {[12, 22, 16, 26, 10, 18].map((h, i) => (
+            <span key={i} className="w-[4px] rounded-full bg-white/35" style={{ height: h }} />
+          ))}
+        </span>
+        <span className="relative hidden items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-xs font-black text-[#22164A] transition group-hover:bg-rose-50 sm:inline-flex">
+          O‘ynash <ArrowRight size={13} className="transition group-hover:translate-x-0.5" />
+        </span>
+        <span className="relative flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-white/15 sm:hidden">
+          <ArrowRight size={16} />
+        </span>
+      </Link>
+    </motion.div>
+  )
+}
+
 // ── one objective skill: by question type + by part ───────────────────────────
 function SkillBreakdown({ skill, s, partLabel, exam }) {
   const [all, setAll] = useState(false)
@@ -346,6 +400,8 @@ export default function SkillDashboard({ exam }) {
           <SkillCard key={skill} exam={exam} skill={skill} info={info} data={data} index={i} />
         ))}
       </div>
+
+      <SpeakPlayPromo />
 
       <motion.div initial={reduce ? false : { opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.4 }}
         className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-sky-600 via-blue-600 to-indigo-600 p-6 text-white shadow-[0_18px_50px_-18px_rgba(37,99,235,0.6)]">
