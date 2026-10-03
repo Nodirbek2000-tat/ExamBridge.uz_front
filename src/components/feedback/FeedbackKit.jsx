@@ -9,7 +9,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { ArrowLeft, ChevronDown, CheckCircle2, ArrowRight, Sparkles, AlertCircle, RotateCcw, Play, Pause, X } from 'lucide-react'
-import { bandTheme, bandLabel, bandToCefr, txt, MARK, buildSegments, paragraphs } from './feedbackUtils'
+import {
+  bandTheme, bandLabel, bandToCefr, txt, MARK, buildSegments, paragraphs,
+  scoreTheme, cefrLevel, cefrLevelLabel, cefrLevelName, cefrTheme, CEFR_BANDS,
+} from './feedbackUtils'
 
 function useCountUp(target, duration = 1100) {
   const reduce = useReducedMotion()
@@ -88,14 +91,17 @@ export function ErrorCard({ message, onRetry }) {
 }
 
 // ── score hero: animated ring + criteria bars ─────────────────────────────────
-export function BandRing({ band, size = 168 }) {
+/* Animated score ring — IELTS bands (0–9, halves) or CEFR points (0–75, whole numbers). */
+export function ScoreRing({ value, max = 9, theme, size = 168, step = 0.5 }) {
   const reduce = useReducedMotion()
-  const t = bandTheme(band)
-  const shown = useCountUp(Number(band) || 0)
+  const v = Number(value) || 0
+  const t = theme || scoreTheme(v, max)
+  const shown = useCountUp(v)
   const stroke = 12
   const r = (size - stroke) / 2
   const c = 2 * Math.PI * r
-  const target = c * (1 - (Number(band) || 0) / 9)
+  const target = c * (1 - Math.min(v, max) / max)
+  const label = step >= 1 ? String(Math.round(shown)) : (Math.round(shown / step) * step).toFixed(1)
   return (
     <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
@@ -105,11 +111,15 @@ export function BandRing({ band, size = 168 }) {
           transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }} />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className={`text-5xl font-black tabular-nums ${t.text}`}>{(Math.round(shown * 2) / 2).toFixed(1)}</span>
-        <span className="text-sm font-semibold text-gray-400">out of 9</span>
+        <span className={`text-5xl font-black tabular-nums ${t.text}`}>{label}</span>
+        <span className="text-sm font-semibold text-gray-400">out of {max}</span>
       </div>
     </div>
   )
+}
+
+export function BandRing({ band, size = 168 }) {
+  return <ScoreRing value={band} max={9} theme={bandTheme(band)} size={size} />
 }
 
 /* criteria: [{ key, label, band }]   stats: [{ label, value }] */
@@ -157,6 +167,102 @@ export function ScoreHero({ band, badge, title, criteria, stats = [] }) {
           })}
         </div>
       </div>
+    </motion.section>
+  )
+}
+
+// ── CEFR multilevel (0–75) ────────────────────────────────────────────────────
+/* The 0–75 scale cut into its level bands, with a marker at the score. */
+export function CefrScale({ score }) {
+  const reduce = useReducedMotion()
+  const s = Math.max(0, Math.min(75, Number(score) || 0))
+  const current = cefrLevel(s)
+  const bands = [...CEFR_BANDS].reverse()          // below → B1 → B2 → C1, left to right
+  return (
+    <div className="mt-5">
+      <div className="relative">
+        <div className="flex h-3 overflow-hidden rounded-full">
+          {bands.map(b => {
+            const t = cefrTheme(b.level)
+            const width = ((Math.min(b.to + 1, 75) - b.from) / 75) * 100
+            return <span key={b.level} style={{ width: `${width}%`, background: b.level === current ? t.hex : t.soft }} />
+          })}
+        </div>
+        <motion.span className="absolute -top-1.5 h-6 w-1.5 -translate-x-1/2 rounded-full bg-gray-900 shadow"
+          initial={{ left: reduce ? `${(s / 75) * 100}%` : '0%' }} animate={{ left: `${(s / 75) * 100}%` }}
+          transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }} />
+      </div>
+      <div className="mt-2 flex text-xs font-bold text-gray-500">
+        {bands.map(b => (
+          <span key={b.level} className={`truncate ${b.level === current ? 'text-gray-900' : ''}`}
+            style={{ width: `${((Math.min(b.to + 1, 75) - b.from) / 75) * 100}%` }}>
+            {cefrLevelLabel(b.level)} <span className="font-semibold text-gray-400">{b.from}</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* parts: [{ key, label, points, max }]   stats: [{ label, value }] */
+export function CefrScoreHero({ score, badge, title, parts = [], stats = [], summary }) {
+  const level = cefrLevel(score)
+  const t = cefrTheme(level)
+  return (
+    <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+      className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-xl shadow-sky-500/10 sm:p-8">
+      <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full blur-3xl" style={{ background: `${t.hex}1f` }} />
+      <div className="relative grid items-center gap-8 lg:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)]">
+        <div className="flex justify-center"><ScoreRing value={score} max={75} theme={t} step={1} /></div>
+        <div className="min-w-0 text-center lg:text-left">
+          {badge && <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-sky-700">{badge}</span>}
+          <p className="mt-3 flex flex-wrap items-baseline justify-center gap-x-3 lg:justify-start">
+            <span className="text-5xl font-black tracking-tight" style={{ color: t.hex }}>{cefrLevelLabel(level)}</span>
+            <span className="text-lg font-bold text-gray-500">{cefrLevelName(level)}</span>
+          </p>
+          <p className="mt-1 text-[15px] text-gray-500">
+            <b className="text-gray-900">{score}</b> / 75 on the multilevel scale
+          </p>
+          {title && <p className="mt-1 truncate text-[15px] text-gray-400">{title}</p>}
+          <CefrScale score={score} />
+          {stats.length > 0 && (
+            <div className="mt-4 flex flex-wrap justify-center gap-2 lg:justify-start">
+              {stats.map(s => (
+                <span key={s.label} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-gray-600">
+                  <b className="text-gray-900">{s.value}</b> {s.label}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="space-y-3.5">
+          {parts.map((p, i) => {
+            const pt = scoreTheme(p.points, p.max)
+            return (
+              <div key={p.key}>
+                <div className="mb-1 flex items-baseline justify-between gap-3">
+                  <span className="truncate text-sm font-semibold text-gray-700">{p.label}</span>
+                  <span className={`text-lg font-black tabular-nums ${pt.text}`}>
+                    {Number.isInteger(p.points) ? p.points : Number(p.points).toFixed(1)}
+                    <span className="text-sm font-bold text-gray-400"> / {p.max}</span>
+                  </span>
+                </div>
+                <div className="h-2.5 overflow-hidden rounded-full" style={{ background: pt.soft }}>
+                  <motion.div className="h-full rounded-full" style={{ background: pt.hex }}
+                    initial={{ width: 0 }} animate={{ width: `${(p.points / p.max) * 100}%` }}
+                    transition={{ duration: 0.9, delay: 0.25 + i * 0.1, ease: [0.22, 1, 0.36, 1] }} />
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+      {summary && (
+        <div className="relative mt-6 flex gap-3 rounded-2xl border border-sky-100 bg-sky-50/70 p-4 text-[16px] leading-relaxed text-gray-800">
+          <Sparkles size={20} className="mt-0.5 flex-shrink-0 text-sky-600" />
+          <p>{summary}</p>
+        </div>
+      )}
     </motion.section>
   )
 }
@@ -241,10 +347,11 @@ function MarkedParagraph({ text, marks }) {
 }
 
 // ── criterion card ────────────────────────────────────────────────────────────
-export function CriterionCard({ data, icon: Icon, kind = 'error', index = 0, defaultOpen = false }) {
+/* data: {band | score, label, feedback, strengths, errors}; max 9 = IELTS band, 5 = CEFR criterion */
+export function CriterionCard({ data, icon: Icon, kind = 'error', index = 0, defaultOpen = false, max = 9 }) {
   const [open, setOpen] = useState(defaultOpen)
-  const band = Number(data?.band) || 0
-  const t = bandTheme(band)
+  const band = Number(data?.band ?? data?.score) || 0
+  const t = scoreTheme(band, max)
   const strengths = Array.isArray(data?.strengths) ? data.strengths.filter(Boolean) : []
   const errors = Array.isArray(data?.errors) ? data.errors.filter(e => e && (e.quote || e.issue)) : []
   return (
@@ -260,10 +367,13 @@ export function CriterionCard({ data, icon: Icon, kind = 'error', index = 0, def
           <span className="block text-lg font-bold text-gray-900">{txt(data?.label)}</span>
           <span className="mt-1 block h-2 max-w-xs overflow-hidden rounded-full" style={{ background: t.soft }}>
             <motion.span className="block h-full rounded-full" style={{ background: t.hex }}
-              initial={{ width: 0 }} whileInView={{ width: `${(band / 9) * 100}%` }} viewport={{ once: true }} transition={{ duration: 0.8, delay: 0.15 }} />
+              initial={{ width: 0 }} whileInView={{ width: `${(band / max) * 100}%` }} viewport={{ once: true }} transition={{ duration: 0.8, delay: 0.15 }} />
           </span>
         </span>
-        <span className={`text-3xl font-black tabular-nums ${t.text}`}>{band.toFixed(1)}</span>
+        <span className={`text-3xl font-black tabular-nums ${t.text}`}>
+          {max === 9 ? band.toFixed(1) : Number.isInteger(band) ? band : band.toFixed(1)}
+          {max !== 9 && <span className="text-base font-bold text-gray-400"> / {max}</span>}
+        </span>
         <ChevronDown size={20} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       <AnimatePresence initial={false}>
@@ -318,12 +428,30 @@ export function AudioPlayer({ src }) {
   const [playing, setPlaying] = useState(false)
   const [time, setTime] = useState(0)
   const [dur, setDur] = useState(0)
-  const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
+  const probing = useRef(false)
+  const fmt = (s) => (Number.isFinite(s) ? `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}` : '--:--')
+  // Browser-recorded webm has no duration in its header (reported as Infinity):
+  // seeking far past the end makes the browser work it out.
+  const onMeta = (e) => {
+    const a = e.currentTarget
+    if (Number.isFinite(a.duration)) { setDur(a.duration); return }
+    probing.current = true
+    a.currentTime = 1e7
+  }
+  const onTime = (e) => {
+    const a = e.currentTarget
+    if (probing.current) {
+      if (Number.isFinite(a.duration)) { probing.current = false; setDur(a.duration); a.currentTime = 0 }
+      return
+    }
+    setTime(a.currentTime)
+  }
   if (!src) return null
   return (
     <div className="flex items-center gap-3 rounded-2xl border border-sky-100 bg-sky-50/70 px-3 py-2.5">
       <audio ref={ref} src={src} preload="metadata"
-        onTimeUpdate={(e) => setTime(e.currentTarget.currentTime)} onLoadedMetadata={(e) => setDur(e.currentTarget.duration || 0)}
+        onTimeUpdate={onTime} onLoadedMetadata={onMeta}
+        onDurationChange={(e) => { if (Number.isFinite(e.currentTarget.duration)) setDur(e.currentTarget.duration) }}
         onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onEnded={() => { setPlaying(false); setTime(0) }} />
       <button type="button" onClick={() => (playing ? ref.current.pause() : ref.current.play().catch(() => {}))}
         className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-sky-600 text-white shadow-md transition hover:bg-sky-700">

@@ -31,6 +31,26 @@ export function bandToCefr(band) {
   if (b > 0) return 'A2'
   return '—'
 }
+// colour any 0–max score on the same scale as a band (4/5 looks like band 7.2)
+export const scoreTheme = (value, max = 9) => bandTheme(((Number(value) || 0) / (max || 9)) * 9)
+
+// ── CEFR multilevel 0–75 ─────────────────────────────────────────────────────
+export const CEFR_BANDS = [
+  { level: 'C1', from: 65, to: 75, name: 'Advanced' },
+  { level: 'B2', from: 51, to: 64, name: 'Upper-intermediate' },
+  { level: 'B1', from: 38, to: 50, name: 'Intermediate' },
+  { level: 'BELOW', from: 0, to: 37, name: 'Below B1' },
+]
+export function cefrLevel(score) {
+  const s = Number(score) || 0
+  return (CEFR_BANDS.find(b => s >= b.from) || CEFR_BANDS[3]).level
+}
+export const cefrLevelLabel = (level) => (level === 'BELOW' ? 'Below B1' : level || '—')
+export const cefrLevelName = (level) => CEFR_BANDS.find(b => b.level === level)?.name || ''
+export function cefrTheme(level) {
+  return bandTheme({ C1: 8, B2: 7, B1: 5.5 }[level] ?? 3)
+}
+
 export const txt = (v) => {
   if (v == null) return ''
   if (typeof v === 'string' || typeof v === 'number') return v

@@ -72,6 +72,8 @@ const NAV = [
     children: [
       { to: '/admin-panel/cefr/reading',   icon: BookOpen,      label: 'Reading' },
       { to: '/admin-panel/cefr/listening', icon: ListMusic,     label: 'Listening' },
+      { to: '/admin-panel/cefr/speaking',  icon: Mic,           label: 'Speaking' },
+      { to: '/admin-panel/cefr/writing',   icon: PenLine,       label: 'Writing' },
       { to: '/admin-panel/cefr/grammar',   icon: GraduationCap, label: 'Grammar' },
     ],
   },

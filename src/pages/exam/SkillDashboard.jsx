@@ -41,8 +41,8 @@ const EXAMS = {
     skills: {
       reading: { desc: 'Parts 1–5 · Gap fill · Matching · T/F/NG', icon: FileText },
       listening: { desc: 'Parts 1–6 · Maps · Forms · Speakers', icon: Headphones },
-      speaking: { desc: 'Parts 1–3 · AI feedback', icon: Mic },
-      writing: { desc: 'Tasks 1.1 · 1.2 · 2', icon: PenLine, soon: true },
+      speaking: { desc: 'Parts 1.1 · 1.2 · 2 · 3 · AI score /75', icon: Mic },
+      writing: { desc: 'Tasks 1.1 · 1.2 · Part 2 · AI score /75', icon: PenLine },
     },
     mock: { title: 'Full Mock Tests', desc: 'Reading and Listening mocks built exactly like the real multilevel exam', to: '/app/cefr/skills?tab=reading', cta: 'Open mock tests' },
     part: { reading: 'Part', listening: 'Part' },
@@ -53,6 +53,10 @@ const SKILL_NAME = { reading: 'Reading', listening: 'Listening', speaking: 'Spea
 
 // Band (0–9) state for writing / speaking — always shown with a word
 const bandState = (b) => (b == null ? null : b >= 7 ? ['Strong', C.good, 'text-green-700'] : b >= 5.5 ? ['Okay', C.warn, 'text-amber-700'] : ['Needs work', C.bad, 'text-red-700'])
+// the same words for CEFR: a 0–75 score or a 0–5 criterion, compared on one scale
+const cefrState = (v, max) => (v == null ? null : bandState((v / max) * 9))
+const CEFR_LEVEL = { C1: 'C1', B2: 'B2', B1: 'B1', BELOW: 'Below B1' }
+const CEFR_SCORE = { unit: 'points', max: 75, ticks: [0, 38, 51, 65, 75], fmt: (v) => `${Math.round(v)}/75` }
 
 // ── skill cards ───────────────────────────────────────────────────────────────
 function SkillCard({ exam, skill, info, data, index }) {
@@ -64,7 +68,8 @@ function SkillCard({ exam, skill, info, data, index }) {
     metric = s.attempts ? [`${s.accuracy}%`, `${s.correct}/${s.attempts} correct`] : null
   } else if (data) {
     const s = data[skill]
-    metric = s?.avg_band != null ? [s.avg_band.toFixed(1), `avg band · ${s.count} done`] : s?.count ? [`${s.count}`, 'responses'] : null
+    metric = s?.scale === 'cefr' && s.avg_score != null ? [`${s.avg_score}/75`, `avg · ${s.count} done`]
+      : s?.avg_band != null ? [s.avg_band.toFixed(1), `avg band · ${s.count} done`] : s?.count ? [`${s.count}`, 'responses'] : null
   }
   const body = (
     <div className="group relative flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 transition duration-300 hover:-translate-y-1 hover:border-sky-200 hover:shadow-[0_12px_40px_-12px_rgba(42,120,214,0.35)]">
@@ -204,15 +209,17 @@ function ScoreTrend({ points, series, score, tip, height = 200 }) {
 
 // ── writing / speaking ────────────────────────────────────────────────────────
 function ScoredSkill({ name, w, link, tip }) {
-  const st = bandState(w?.avg_band)
+  const cefr = w?.scale === 'cefr'
+  const st = cefr ? cefrState(w?.avg_score, 75) : bandState(w?.avg_band)
+  const critMax = cefr ? 5 : 9
   return (
     <Card
       title={name}
-      subtitle="AI band by criterion"
-      right={w?.avg_band != null && (
+      subtitle={cefr ? 'AI score by criterion (0–5) and task' : 'AI band by criterion'}
+      right={(cefr ? w?.avg_score != null : w?.avg_band != null) && (
         <p className="text-right">
-          <span className="text-3xl font-bold text-gray-900">{w.avg_band.toFixed(1)}</span>
-          <span className={`block text-xs font-semibold ${st[2]}`}>{st[0]} · {w.scored} scored</span>
+          <span className="text-3xl font-bold text-gray-900">{cefr ? <>{w.avg_score}<span className="text-base text-gray-400">/75</span></> : w.avg_band.toFixed(1)}</span>
+          <span className={`block text-xs font-semibold ${st[2]}`}>{cefr ? `${CEFR_LEVEL[w.level] || '—'} · ` : `${st[0]} · `}{w.scored} scored</span>
         </p>
       )}
     >
@@ -222,7 +229,7 @@ function ScoredSkill({ name, w, link, tip }) {
         <>
           <ul className="space-y-3">
             {w.criteria.map(c => {
-              const cs = bandState(c.avg)
+              const cs = cefr ? cefrState(c.avg, 5) : bandState(c.avg)
               return (
                 <li key={c.key} className="grid grid-cols-[minmax(0,1fr)_7rem_2.5rem] items-center gap-3">
                   <span className="min-w-0">
@@ -230,7 +237,7 @@ function ScoredSkill({ name, w, link, tip }) {
                     {cs && <span className={`text-xs font-semibold ${cs[2]}`}>{cs[0]}</span>}
                   </span>
                   <div className="h-2 w-full rounded-full" style={{ background: cs ? `${cs[1]}26` : '#f1f5f9' }}>
-                    {c.avg != null && <div className="h-full rounded-full transition-all duration-700" style={{ width: `${(c.avg / 9) * 100}%`, background: cs[1] }} />}
+                    {c.avg != null && <div className="h-full rounded-full transition-all duration-700" style={{ width: `${(c.avg / critMax) * 100}%`, background: cs[1] }} />}
                   </div>
                   <span className="text-right font-bold tabular-nums text-gray-900">{c.avg == null ? '—' : c.avg.toFixed(1)}</span>
                 </li>
@@ -238,20 +245,25 @@ function ScoredSkill({ name, w, link, tip }) {
             })}
           </ul>
           {w.by_task && w.by_task.some(t => t.count) && (
-            <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className={`mt-4 grid gap-2 ${cefr ? 'grid-cols-3' : 'grid-cols-2'}`}>
               {w.by_task.map(t => (
                 <div key={t.task} className="rounded-2xl border border-slate-100 bg-slate-50/60 px-3 py-2">
-                  <p className="text-xs text-gray-500">Task {t.task}</p>
-                  <p className="text-lg font-bold text-gray-900">{t.avg_band == null ? '—' : t.avg_band.toFixed(1)} <span className="text-xs font-medium text-gray-400">· {t.count} done</span></p>
+                  <p className="text-xs text-gray-500">{cefr ? t.label : `Task ${t.task}`}</p>
+                  <p className="text-lg font-bold text-gray-900">
+                    {cefr
+                      ? <>{t.avg_points == null ? '—' : t.avg_points}<span className="text-xs font-medium text-gray-400">/{t.max}</span></>
+                      : <>{t.avg_band == null ? '—' : t.avg_band.toFixed(1)} <span className="text-xs font-medium text-gray-400">· {t.count} done</span></>}
+                  </p>
                 </div>
               ))}
             </div>
           )}
           {w.trend.length > 1 && (
             <div className="mt-5">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Band over time</p>
-              <ScoreTrend points={w.trend.map(p => ({ ...p, skill: 'x', score: p.band }))} series={[{ key: 'x', label: `${name} band`, color: C.s1 }]}
-                score={EXAMS.ielts.score} tip={tip} height={120} />
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">{cefr ? 'Score over time' : 'Band over time'}</p>
+              <ScoreTrend points={w.trend.map(p => ({ ...p, skill: 'x', score: cefr ? p.score : p.band }))}
+                series={[{ key: 'x', label: cefr ? `${name} score` : `${name} band`, color: C.s1 }]}
+                score={cefr ? CEFR_SCORE : EXAMS.ielts.score} tip={tip} height={120} />
             </div>
           )}
         </>
@@ -369,13 +381,16 @@ export default function SkillDashboard({ exam }) {
           <Reveal className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Stat icon={Target} label="Questions answered" value={t.answered} hint={`${t.active_days} active day${t.active_days === 1 ? '' : 's'}`} />
             <Stat icon={BarChart3} label="Accuracy" value={t.accuracy == null ? '—' : `${t.accuracy}%`} hint={t.answered ? `${t.correct} of ${t.answered} correct` : 'nothing answered yet'} />
-            <Stat icon={CheckCircle2} label="Correct" value={t.correct} tone="text-green-600" />
+            {exam === 'ielts' && <Stat icon={CheckCircle2} label="Correct" value={t.correct} tone="text-green-600" />}
             <Stat icon={XCircle} label="Wrong" value={t.wrong} tone="text-red-500" hint="a wrong answer was chosen" />
             <Stat icon={MinusCircle} label="Left blank" value={t.blank} tone="text-amber-500" hint="usually a time problem" />
             <Stat icon={Trophy} label="Tests completed" value={t.tests_completed} />
             {exam === 'ielts'
               ? <Stat icon={PenLine} label="Writing band" value={t.writing_band == null ? '—' : t.writing_band.toFixed(1)} hint={`${t.writing_count} response${t.writing_count === 1 ? '' : 's'}`} />
-              : <Stat icon={Mic} label="Speaking band" value={t.speaking_band == null ? '—' : t.speaking_band.toFixed(1)} hint={`${t.speaking_count} response${t.speaking_count === 1 ? '' : 's'}`} />}
+              : <>
+                <Stat icon={PenLine} label="Writing score" value={t.writing_score == null ? '—' : `${t.writing_score}/75`} hint={`${t.writing_count} test${t.writing_count === 1 ? '' : 's'} · B2 from 51`} />
+                <Stat icon={Mic} label="Speaking score" value={t.speaking_score == null ? '—' : `${t.speaking_score}/75`} hint={`${t.speaking_count} test${t.speaking_count === 1 ? '' : 's'} · B2 from 51`} />
+              </>}
             <Stat icon={Flame} label="Study streak" value={t.streak} hint={t.streak === 1 ? 'day in a row' : 'days in a row'} tone="text-orange-500" />
           </Reveal>
 

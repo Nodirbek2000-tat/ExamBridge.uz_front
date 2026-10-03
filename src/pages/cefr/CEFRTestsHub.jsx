@@ -7,7 +7,8 @@ import api from '../../api/client'
 import CEFRReadingList from './CEFRReadingList'
 import CEFRListeningList from './CEFRListeningList'
 import CEFRSpeakingList from './CEFRSpeakingList'
-import CEFRTestList from './CEFRTestList'
+import CEFRWritingList from './CEFRWritingList'
+import CEFRSpeakingTests from './CEFRSpeakingTests'
 
 const TABS = [
   { key: 'reading', label: 'Reading', icon: BookOpen, color: 'text-sky-500', activeBg: 'bg-sky-500', btn: 'bg-sky-500 hover:bg-sky-600' },
@@ -25,11 +26,14 @@ export default function CEFRTestsHub() {
   const { data: readingData } = useQuery({ queryKey: ['cefr-reading-list'], queryFn: () => api.get('/cefr/reading/').then((r) => r.data) })
   const { data: listeningData } = useQuery({ queryKey: ['cefr-listening-list'], queryFn: () => api.get('/cefr/listening/').then((r) => r.data) })
   const { data: speakingData } = useQuery({ queryKey: ['cefr-speaking-tasks'], queryFn: () => api.get('/ielts/speaking/?source=CEFR').then((r) => r.data) })
+  const { data: speakingTests } = useQuery({ queryKey: ['cefr-speaking-tests'], queryFn: () => api.get('/cefr/speaking/').then((r) => r.data) })
+  const { data: writingData } = useQuery({ queryKey: ['cefr-writing-list'], queryFn: () => api.get('/cefr/writing/').then((r) => r.data) })
 
   const counts = {
     reading: readingData?.length || 0,
     listening: listeningData?.length || 0,
-    speaking: speakingData?.length || 0,
+    speaking: (speakingTests?.length || 0) + (speakingData?.length || 0),
+    writing: writingData?.length || 0,
   }
 
   const pick = (key) => {
@@ -97,8 +101,18 @@ export default function CEFRTestsHub() {
           >
             {tab === 'reading' && <CEFRReadingList accentBtn={activeTab?.btn} />}
             {tab === 'listening' && <CEFRListeningList accentBtn={activeTab?.btn} />}
-            {tab === 'speaking' && <CEFRSpeakingList embedded accentBtn={activeTab?.btn} />}
-            {tab === 'writing' && <CEFRTestList />}
+            {tab === 'speaking' && (
+              <div className="space-y-8">
+                <CEFRSpeakingTests accentBtn={activeTab?.btn} />
+                {speakingData?.length > 0 && (
+                  <div className="space-y-3">
+                    <h3 className="px-1 text-lg font-bold text-gray-700">More speaking practice</h3>
+                    <CEFRSpeakingList embedded accentBtn={activeTab?.btn} />
+                  </div>
+                )}
+              </div>
+            )}
+            {tab === 'writing' && <CEFRWritingList accentBtn={activeTab?.btn} />}
           </motion.div>
         </AnimatePresence>
       </div>

@@ -65,6 +65,10 @@ const CEFRListeningResult = lazyWithPreload(() => import('./pages/cefr/CEFRListe
 const CEFRHistory = lazyWithPreload(() => import('./pages/cefr/CEFRHistory'))
 const CEFRSpeakingAttempt = lazyWithPreload(() => import('./pages/cefr/CEFRSpeakingAttempt'))
 const CEFRSpeakingResult = lazyWithPreload(() => import('./pages/cefr/CEFRSpeakingResult'))
+const CEFRWritingAttempt = lazyWithPreload(() => import('./pages/cefr/CEFRWritingAttempt'))
+const CEFRWritingResult = lazyWithPreload(() => import('./pages/cefr/CEFRWritingResult'))
+const CEFRSpeakingExam = lazyWithPreload(() => import('./pages/cefr/CEFRSpeakingExam'))
+const CEFRSpeakingTestResult = lazyWithPreload(() => import('./pages/cefr/CEFRSpeakingTestResult'))
 const CEFRTestsHub = lazyWithPreload(() => import('./pages/cefr/CEFRTestsHub'))
 
 // Games
@@ -105,6 +109,8 @@ const AdminStudyWritingSamples = lazyWithPreload(() => import('./pages/admin/Adm
 const AdminStudyPodcasts = lazyWithPreload(() => import('./pages/admin/AdminStudyPodcasts'))
 const AdminCEFR = lazyWithPreload(() => import('./pages/admin/AdminCEFR'))
 const AdminCEFRSection = lazyWithPreload(() => import('./pages/admin/AdminCEFRSection'))
+const AdminCEFRWriting = lazyWithPreload(() => import('./pages/admin/AdminCEFRWriting'))
+const AdminCEFRSpeaking = lazyWithPreload(() => import('./pages/admin/AdminCEFRSpeaking'))
 const AdminSystem = lazyWithPreload(() => import('./pages/admin/AdminSystem'))
 const AdminAIStructures = lazyWithPreload(() => import('./pages/admin/AdminAIStructures'))
 const AdminReports = lazyWithPreload(() => import('./pages/admin/AdminReports'))
@@ -313,6 +319,10 @@ export default function App() {
         <Route path="ielts/speaking/:taskId" element={<IELTSSpeakingAttempt />} />
         <Route path="cefr/speaking/result/:responseId" element={<CEFRSpeakingResult />} />
         <Route path="cefr/speaking/result" element={<CEFRSpeakingResult />} />
+        <Route path="cefr/writing/result/:responseId" element={<CEFRWritingResult />} />
+        <Route path="cefr/writing/:responseId" element={<CEFRWritingAttempt />} />
+        <Route path="cefr/speaking/test/:responseId/result" element={<CEFRSpeakingTestResult />} />
+        <Route path="cefr/speaking/test/:responseId" element={<CEFRSpeakingExam />} />
         <Route path="cefr/speaking/:taskId" element={<CEFRSpeakingAttempt />} />
         <Route path="ielts/reading/:attemptId" element={<IELTSReadingAttempt />} />
         <Route path="ielts/reading/:attemptId/result" element={<IELTSReadingResult />} />
@@ -355,6 +365,8 @@ export default function App() {
           <Route path="reading"   element={<AdminCEFRSection section="reading" />} />
           <Route path="listening" element={<AdminCEFRSection section="listening" />} />
           <Route path="grammar"   element={<AdminCEFRSection section="grammar" />} />
+          <Route path="writing"   element={<AdminCEFRWriting />} />
+          <Route path="speaking"  element={<AdminCEFRSpeaking />} />
           <Route path="all"       element={<AdminCEFR />} />
         </Route>
         {/* Study Tools */}
