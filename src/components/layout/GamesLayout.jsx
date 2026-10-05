@@ -5,7 +5,7 @@ import LazyBoundary from '../LazyBoundary'
 // Each game screen (hub, play, results) handles its own header/back button.
 export default function GamesLayout() {
   return (
-    <div className="min-h-screen bg-[#08080F] text-white">
+    <div className="min-h-screen bg-[#0B0B10] text-white">
       <LazyBoundary>
         <Outlet />
       </LazyBoundary>

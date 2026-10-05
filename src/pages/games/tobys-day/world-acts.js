@@ -98,4 +98,29 @@ export const ACTS = {
   read: { mood: 'proud', pose: 'read', right: 'book' },
   lamp: { mood: 'sleepy' },
   sleep: { mood: 'sleep' },
+
+  /* at the doctor */
+  unwell: { mood: 'sick', pose: 'belly' },
+  hellodoc: { mood: 'shy', pose: 'wave' },
+  head: { mood: 'sick', pose: 'face' },
+  throatache: { mood: 'sick', pose: 'shh' },
+  tummyache: { mood: 'sick', pose: 'belly' },
+  thermo: { mood: 'surprised', pose: 'mouth', right: 'thermometer' },
+  heartbeat: { mood: 'happy', pose: 'belly' },
+  breath: { mood: 'breath', pose: 'up' },
+  medicine: { mood: 'proud', pose: 'mouth', right: 'spoon' },
+  better: { mood: 'happy', pose: 'cheer' },
+  byedoc: { mood: 'happy', pose: 'wave' },
+
+  /* birthday party */
+  birthday: { mood: 'happy', pose: 'cheer' },
+  balloons: { mood: 'happy', pose: 'up' },
+  welcome: { mood: 'happy', pose: 'wave' },
+  age: { mood: 'proud', pose: 'raise' },
+  gift: { mood: 'love', pose: 'hug' },
+  partyhat: { mood: 'proud', pose: 'up' },
+  song: { mood: 'sing', pose: 'dance' },
+  blow: { mood: 'blow' },
+  cake: { mood: 'chew', pose: 'mouth', right: 'cake-slice' },
+  best: { mood: 'love', pose: 'hug' },
 }

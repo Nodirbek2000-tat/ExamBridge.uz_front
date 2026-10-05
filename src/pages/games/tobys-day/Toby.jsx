@@ -7,15 +7,17 @@
  *
  * mood:  idle · listening · happy · proud · confused · sad · sleep · stir · yawn ·
  *        laugh · love · chew · lick · relax · cry · angry · surprised · sing · shy ·
- *        cool · dizzy · sleepy · wink                         (unknown → idle)
+ *        cool · dizzy · sleepy · wink · sick · blow · breath  (unknown → idle)
  * pose:  rest · up · wave · mouth · brush · face · shrug · read · belly · write ·
  *        throw · kick · ride · comb · lick · give · scrub · sit · dance · clap ·
  *        raise · point · hug · shh · cheer · highfive · stir · think · spin · lie
  *                                                              (unknown → rest)
  * acc:   cap · crown · glasses · bow · scarf · headphones · party · null
  *
- * He is alive on his own: blinks, twitches an ear, looks around, swishes his
- * tail, yawns and stretches after ~12 s of standing idle, hops now and then.
+ * He is alive on his own: breathes, sways his head a little, blinks, twitches an
+ * ear, looks around, swishes his tail, yawns and stretches after ~12 s of
+ * standing idle, hops now and then. Soft shading: a fur gradient, a shade on the
+ * head, glossy eyes and a soft contact shadow.
  * Poking him (a click / tap on him) cycles giggle → surprised → love, and many
  * fast pokes make him dizzy — only while he is idle / laughing / confused / sad
  * (pokes={false} turns this off when the parent wants to choose the reaction).
@@ -111,6 +113,9 @@ const MOODS = {
   dizzy: { eyes: 'spiral', mouth: 'wavy', brows: 'confused', tilt: 6, fx: 'stars' },
   sleepy: { eyes: 'half', mouth: 'small', brows: 'calm', tilt: 5, fx: 'z' },
   wink: { eyes: 'wink', mouth: 'open', brows: 'up', fx: 'wink' },
+  sick: { eyes: 'half', mouth: 'wavy', brows: 'sad', tilt: 5, cheeks: 'fever', fx: 'sweat', look: [0, 2] },
+  blow: { eyes: 'closed', mouth: 'blow', brows: 'up', fx: 'puff' },
+  breath: { eyes: 'closed', mouth: 'o', brows: 'up', tilt: -4, fx: 'puff' },
 }
 
 // moods a poke may interrupt (he is not busy doing something)
@@ -161,13 +166,15 @@ function Arm({ side, angle, wiggle, dur, once, poseKey, cloth, sleeveLong, item,
 }
 
 /* ── face ─────────────────────────────────────────────────────────────── */
-function Eye({ cx, look = [0, 0], scale = 1 }) {
+/* a glossy eye: a deep iris gradient, a soft lower glow, two catch-lights */
+function Eye({ cx, look = [0, 0], scale = 1, iris = C.ink }) {
   return (
     <g transform={`translate(${cx + look[0]} ${94 + look[1]}) scale(${scale})`}>
-      <ellipse rx="13" ry="16" fill={C.ink} />
-      <ellipse cx="0" cy="5" rx="9" ry="8" fill="#3B3363" opacity="0.7" />
+      <ellipse rx="13" ry="16" fill={iris} />
+      <ellipse cx="0" cy="6" rx="8.5" ry="6.5" fill="#6D5BD0" opacity="0.45" />
       <circle cx="-4.5" cy="-6" r="5.2" fill="#fff" />
-      <circle cx="4.5" cy="5.5" r="2.4" fill="#fff" opacity="0.9" />
+      <circle cx="4.5" cy="5.5" r="2.2" fill="#fff" opacity="0.85" />
+      <ellipse cx="0" cy="-13.2" rx="7" ry="1.6" fill="#fff" opacity="0.12" />
     </g>
   )
 }
@@ -179,7 +186,7 @@ const LOOK_T = { duration: 9, repeat: Infinity, times: [0, 0.3, 0.34, 0.48, 0.52
 const SPIRAL = 'M0 0a2 2 0 0 1 4 0a4 4 0 0 1-8 0a6 6 0 0 1 12 0a8 8 0 0 1-16 0a10 10 0 0 1 20 0'
 const HEART = 'M0 6C-12-2-9-12-3-11-1-10.6 0-9 0-8c0-1 1-2.6 3-3 6-1 9 9-3 17z'
 
-function Eyes({ kind, look, small, reduced, roam }) {
+function Eyes({ kind, look, small, reduced, roam, iris }) {
   const arc = (d) => <path d={d} stroke={C.ink} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
   if (kind === 'happy') return <>{arc('M60 98Q72 82 84 98')}{arc('M116 98Q128 82 140 98')}</>
   if (kind === 'closed') return <>{arc('M60 94Q72 105 84 94')}{arc('M116 94Q128 105 140 94')}</>
@@ -227,7 +234,7 @@ function Eyes({ kind, look, small, reduced, roam }) {
     return (
       <>
         <Motion.g animate={reduced ? undefined : { scaleY: [1, 1, 0.08, 1] }} style={{ originX: 0.5, originY: 0.5 }} transition={BLINK}>
-          <Eye cx={72} />
+          <Eye cx={72} iris={iris} />
         </Motion.g>
         {arc('M116 97Q128 85 140 97')}
       </>
@@ -241,8 +248,8 @@ function Eyes({ kind, look, small, reduced, roam }) {
       <Motion.g style={{ originX: 0.5, originY: 0.5 }}
         animate={reduced ? undefined : { scaleY: [1, 1, 0.08, 1] }}
         transition={kind === 'half' ? { ...BLINK, duration: 2.6 } : BLINK}>
-        <Eye cx={72} look={look} scale={scale} />
-        <Eye cx={128} look={look} scale={kind === 'confused' ? 0.78 : scale} />
+        <Eye cx={72} look={look} scale={scale} iris={iris} />
+        <Eye cx={128} look={look} scale={kind === 'confused' ? 0.78 : scale} iris={iris} />
         {(kind === 'wide' || kind === 'big') && <><circle cx="80" cy="84" r="1.8" fill="#fff" /><circle cx="136" cy="84" r="1.8" fill="#fff" /></>}
       </Motion.g>
       {lidL && (
@@ -260,7 +267,8 @@ const BROWS = {
   calm: ['M61 70Q72 64 83 70', 'M117 70Q128 64 139 70'],
   up: ['M61 66Q72 58 83 65', 'M117 65Q128 58 139 66'],
   confused: ['M61 71Q72 67 83 72', 'M117 62Q128 52 139 60'],
-  sad: ['M61 66 83 73', 'M117 73 139 66'],
+  // worried: the inner ends (near the nose) are the high ones — the other way round reads as angry
+  sad: ['M61 72Q73 70 83 63', 'M117 63Q127 70 139 72'],
   angry: ['M58 70 86 82', 'M114 82 142 70'],
   high: ['M61 59Q72 48 83 56', 'M117 56Q128 48 139 59'],
 }
@@ -282,6 +290,14 @@ function Mouth({ kind, talking, reduced }) {
         </>
       )
     case 'o': return <ellipse cx="100" cy="138" rx="6" ry="7" fill={C.mouth} />
+    case 'blow':
+      return (
+        <g>
+          <ellipse cx="88" cy="132" rx="9" ry="7" fill="#FFE4E6" opacity="0.7" />
+          <ellipse cx="112" cy="132" rx="9" ry="7" fill="#FFE4E6" opacity="0.7" />
+          <ellipse cx="104" cy="138" rx="4.6" ry="5" fill={C.mouth} />
+        </g>
+      )
     case 'wavy': return line('M87 139Q93 133 100 139T113 139')
     case 'frown': return line('M88 142Q100 131 112 142')
     case 'yawn':
@@ -344,6 +360,14 @@ function Cheeks({ kind, reduced }) {
         <ellipse cx="48" cy="120" rx="15" ry="10" fill="#F87171" opacity="0.85" />
         <ellipse cx="152" cy="120" rx="15" ry="10" fill="#F87171" opacity="0.85" />
       </Motion.g>
+    )
+  }
+  if (kind === 'fever') {
+    return (
+      <g>
+        <ellipse cx="49" cy="120" rx="14" ry="9" fill="#F87171" opacity="0.6" />
+        <ellipse cx="151" cy="120" rx="14" ry="9" fill="#F87171" opacity="0.6" />
+      </g>
     )
   }
   if (kind === 'blush') {
@@ -462,6 +486,21 @@ function Fx({ kind, reduced }) {
         </Motion.g>
       </g>
     )
+  }
+  if (kind === 'sweat') {
+    return (
+      <Motion.path d="M0-6q5 6 0 9.5-5-3.5 0-9.5z" fill={C.tear} transform="translate(150 52) scale(1.5)"
+        initial={{ opacity: 0 }} animate={reduced ? { opacity: 0.9 } : { opacity: [0, 1, 1, 0], y: [0, 4, 12, 18] }}
+        transition={{ duration: 2.2, repeat: Infinity, repeatDelay: 0.6, ease: 'easeIn' }} />
+    )
+  }
+  if (kind === 'puff') {
+    // little clouds of air leaving the mouth (blowing out candles, a deep breath)
+    return [0, 1, 2].map(i => (
+      <Motion.circle key={i} cx="118" cy="138" r={4 + i * 1.5} fill="#fff" stroke="#E0F2FE" strokeWidth="1.5"
+        initial={{ opacity: 0 }} animate={reduced ? { opacity: 0.8, x: 14 + i * 12 } : { opacity: [0, 0.95, 0], x: [0, 26 + i * 10, 52 + i * 12], y: [0, -2, -6] }}
+        transition={{ duration: 1.1, repeat: Infinity, delay: i * 0.22, ease: 'easeOut' }} />
+    ))
   }
   if (kind === 'glint') {
     return (
@@ -664,6 +703,7 @@ export default function Toby({
   const [bodyAnim, bodyT] = bodyMotion(p.body, reduced)
   const lift = { y: sit ? 10 : 0 }
   const fast = moodKey === 'happy' || moodKey === 'love' || p.body === 'sway' || p.body === 'bounce'
+  const sway = !reduced && (moodKey === 'idle' || moodKey === 'listening' || moodKey === 'sick') && !walking && !vehicle && p.body !== 'lie'
   const hatsOff = cap                    // the night cap replaces any hat
   const shades = m.eyes === 'shades'
 
@@ -718,19 +758,35 @@ export default function Toby({
   return (
     <g onClick={onPoke}>
       <defs>
-        <radialGradient id={`${uid}fur`} cx="0.38" cy="0.3" r="0.85">
+        <radialGradient id={`${uid}fur`} cx="0.36" cy="0.28" r="0.9">
           <stop offset="0" stopColor="#FFFFFF" />
-          <stop offset="0.5" stopColor={C.fur} />
-          <stop offset="1" stopColor="#F2DEC6" />
+          <stop offset="0.45" stopColor={C.fur} />
+          <stop offset="0.85" stopColor="#F3E1CB" />
+          <stop offset="1" stopColor="#EBD3B7" />
         </radialGradient>
-        <linearGradient id={`${uid}cloth`} x1="0" y1="0" x2="0" y2="1">
+        {/* soft shade on the lower right of the head: it reads as round, not flat */}
+        <radialGradient id={`${uid}shade`} cx="0.34" cy="0.26" r="0.95">
+          <stop offset="0.55" stopColor="#C49A6C" stopOpacity="0" />
+          <stop offset="1" stopColor="#C49A6C" stopOpacity="0.26" />
+        </radialGradient>
+        <radialGradient id={`${uid}iris`} cx="0.42" cy="0.36" r="0.75">
+          <stop offset="0" stopColor="#3A3170" />
+          <stop offset="0.6" stopColor="#1E1B3A" />
+          <stop offset="1" stopColor="#111122" />
+        </radialGradient>
+        <radialGradient id={`${uid}ground`}>
+          <stop offset="0" stopColor="#000" stopOpacity="0.3" />
+          <stop offset="0.6" stopColor="#000" stopOpacity="0.14" />
+          <stop offset="1" stopColor="#000" stopOpacity="0" />
+        </radialGradient>
+        <linearGradient id={`${uid}cloth`} x1="0" y1="0" x2="0.3" y2="1">
           <stop offset="0" stopColor={o.main} />
           <stop offset="1" stopColor={o.dark} />
         </linearGradient>
       </defs>
 
-      {/* shadow stays on the ground */}
-      <ellipse cx="100" cy="238" rx={vehicle ? 78 : lie ? 86 : sit ? 58 : 50} ry="7" fill="#000" opacity="0.18" />
+      {/* a soft contact shadow stays on the ground */}
+      <ellipse cx="100" cy="238" rx={vehicle ? 86 : lie ? 94 : sit ? 66 : 60} ry="10" fill={`url(#${uid}ground)`} />
 
       <Motion.g initial={{ y: 0 }} animate={hopper}>
         <Motion.g animate={bob || undefined} transition={bobT}>
@@ -750,6 +806,7 @@ export default function Toby({
                 <Motion.g style={pivot(100, 234)} animate={reduced || walking ? undefined : { scaleY: [1, 1.025, 1] }}
                   transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}>
                   <ellipse cx="100" cy="196" rx="44" ry="38" fill={`url(#${uid}cloth)`} stroke={o.dark} strokeWidth="2.5" />
+                  <ellipse cx="84" cy="178" rx="17" ry="9" fill="#fff" opacity="0.16" transform="rotate(-24 84 178)" />
                   {pj ? (
                     <g fill="#fff" opacity="0.75">
                       {[[78, 182], [118, 178], [96, 206], [72, 210], [126, 212], [104, 222], [86, 224]].map(([x, y], i) => <circle key={i} cx={x} cy={y} r="3.2" />)}
@@ -778,6 +835,9 @@ export default function Toby({
               <Motion.g initial={false} animate={lift} transition={SPRING}>
                 {/* head */}
                 <Motion.g style={pivot(100, 160)} initial={false} animate={{ rotate: (m.tilt || 0) + (p.tilt || 0) }} transition={SPRING}>
+                 {/* a slow, gentle head sway while he just stands there */}
+                 <Motion.g style={pivot(100, 160)} initial={false} animate={sway ? { rotate: [-1.8, 1.8, -1.8] } : { rotate: 0 }}
+                   transition={sway ? { duration: 6.4, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.5, ease: 'easeOut' }}>
                   {/* ears: perk up while listening, twitch now and then */}
                   <Motion.g style={pivot(60, 56)}
                     animate={reduced ? { rotate: 0 } : moodKey === 'listening' ? { rotate: [0, -10, 0] } : { rotate: [0, 0, -11, 3, 0] }}
@@ -793,6 +853,7 @@ export default function Toby({
                   </Motion.g>
 
                   <ellipse cx="100" cy="98" rx="72" ry="66" fill={fur} stroke={C.line} strokeWidth="3" />
+                  <ellipse cx="100" cy="98" rx="70.5" ry="64.5" fill={`url(#${uid}shade)`} />
                   {cap ? <NightCap /> : <Hair kind={hair} fill={fur} />}
 
                   {/* cheeks, muzzle, whiskers */}
@@ -804,7 +865,7 @@ export default function Toby({
                   <path d="M92 112Q100 106 108 112Q105 120 100 121Q95 120 92 112Z" fill={C.nose} />
                   <ellipse cx="97" cy="111" rx="2.5" ry="1.4" fill="#fff" opacity="0.7" />
 
-                  <Eyes kind={m.eyes} look={m.look} small={m.small} reduced={reduced} roam={moodKey === 'idle'} />
+                  <Eyes kind={m.eyes} look={m.look} small={m.small} reduced={reduced} roam={moodKey === 'idle'} iris={`url(#${uid}iris)`} />
                   {BROWS[m.brows] && BROWS[m.brows].map((d, i) => (
                     <path key={i} d={d} stroke={C.brow} strokeWidth="4" strokeLinecap="round" fill="none" />
                   ))}
@@ -820,6 +881,7 @@ export default function Toby({
                       <ItemArt name="comb" transform="translate(102 30) rotate(-6)" />
                     </Motion.g>
                   )}
+                 </Motion.g>
                 </Motion.g>
 
                 {acc === 'scarf' && <Scarf />}

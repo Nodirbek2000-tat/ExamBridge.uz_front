@@ -1,32 +1,33 @@
 /*
- * TOBY'S DAY — the start screen: Toby says hi (wearing his accessory), the
- * learner's level and stars, the Play Room, the wardrobe, and the day as a
- * grid of big illustrated zone cards (any number of zones from content.js;
- * each opens with stars from the one before). Wide on a computer, tidy on a phone.
+ * TOBY'S DAY — the start screen, minimal: Toby says hi (wearing his
+ * accessory) with the learner's level, today's three missions, the Play Room,
+ * the zones (any number from content.js; each opens with stars from the one
+ * before) as calm cards with an illustrated tile, and this week's best players.
+ * Wide on a computer (three columns on top), one tidy column on a phone.
  */
 import { useEffect, useRef, useState } from 'react'
 import { motion as Motion } from 'framer-motion'
-import { ChevronLeft, CloudOff, Lock, Mic, Play, Sparkles, Star, Trophy, Volume2 } from 'lucide-react'
+import { ChevronLeft, CloudOff, Lock, Play, Volume2 } from 'lucide-react'
 import { speechSupported } from '../../../games/voice/useSpeech'
 import { sayLine, stopVoice } from '../../../games/voice/voiceTts'
 import { VoiceNotice } from '../../../games/voice/VoiceUI'
-import { GREETING, ZONES } from './content'
+import { GREETING, TOBY_VOICE, ZONES, stepType } from './content'
 import { levelInfo, maxStars, medal, unlockNeed, zoneUnlocked } from './logic'
 import { COMMAND_COUNT, allStars, newAccs, roomStars } from './room'
 import { TobyAvatar } from './Toby'
-import { ItemArt, ItemIcon } from './items'
-import { ITEM_NAMES } from './world-items'
+import { ItemArt } from './items'
 import { RoomBackdrop } from './RoomScene'
 import { AccIcon, WardrobeButton } from './Wardrobe'
-import { Bar, Coin, Medal } from './ui'
+import MissionsCard from './DailyMissions'
+import { Bar, Coin, Medal, StarIcon } from './ui'
 
 const STAR = 'M0-10 2.9-3.1 10.5-3.1 4.3 1.6 6.6 9.1 0 4.6-6.6 9.1-4.3 1.6-10.5-3.1-2.9-3.1z'
+const DRAWN = new Set(['morning', 'breakfast', 'street', 'school', 'shop', 'park', 'cooking', 'evening', 'doctor', 'birthday'])
 
-/* a picture for each zone card (static: eight cards must stay light) */
+/* a picture for each zone card (static: ten cards must stay light) */
 function ZoneArt({ k }) {
   return (
     <svg viewBox="-50 -50 100 100" className="h-full w-full" aria-hidden>
-      <circle r="44" fill="#fff" opacity="0.16" />
       {k === 'morning' && (
         <g>
           {Array.from({ length: 10 }, (_, i) => (
@@ -130,22 +131,32 @@ function ZoneArt({ k }) {
           </g>
         </g>
       )}
-      {!['morning', 'breakfast', 'street', 'school', 'shop', 'park', 'cooking', 'evening'].includes(k) && (
-        <path d={STAR} transform="scale(3.2)" fill="#FDE047" />
+      {k === 'doctor' && (
+        <g>
+          <rect x="-34" y="-30" width="68" height="64" rx="10" fill="#fff" />
+          <rect x="-34" y="-30" width="68" height="16" rx="8" fill="#5EEAD4" />
+          <path d="M-6-4h12v12h12v12H6v12H-6V20h-12V8h12z" transform="translate(0 -6) scale(.8)" fill="#10B981" />
+          <g transform="translate(26 22) scale(1.4)"><ItemArt name="stethoscope" /></g>
+          <g transform="translate(-26 24) scale(1.2)"><ItemArt name="thermometer" /></g>
+        </g>
       )}
+      {k === 'birthday' && (
+        <g>
+          <g transform="translate(-22 -8) scale(1.6)"><ItemArt name="balloons" /></g>
+          <g transform="translate(10 16) scale(2.1)"><ItemArt name="cake" /></g>
+          <g transform="translate(34 -24) scale(1.1)"><ItemArt name="party-hat" /></g>
+        </g>
+      )}
+      {!DRAWN.has(k) && <path d={STAR} transform="scale(3.2)" fill="#FDE047" />}
     </svg>
   )
 }
 
-/* item pictures of the zone's lines (B's `pic` field), up to three — only names items.jsx can draw */
-const DRAWN = new Set(ITEM_NAMES)
-function zonePics(zone) {
-  const out = []
-  for (const s of zone.steps || []) {
-    if (s.pic && DRAWN.has(s.pic) && !out.includes(s.pic)) out.push(s.pic)
-    if (out.length >= 3) break
-  }
-  return out
+/* the kinds of task in a zone (small dots under the title) */
+function zoneKinds(zone) {
+  const n = { listen: 0, ask: 0, gap: 0 }
+  for (const s of zone.steps) { const t = stepType(s); if (t in n) n[t] += 1 }
+  return n
 }
 
 function ZoneCard({ zone, index, progress, open, next, onStart, reduced }) {
@@ -154,107 +165,95 @@ function ZoneCard({ zone, index, progress, open, next, onStart, reduced }) {
   const max = maxStars(zone)
   const prev = ZONES[index - 1]
   const prevStars = prev ? progress.zones[prev.key]?.stars || 0 : 0
-  const pics = zonePics(zone)
   const m = medal(stars, zone)
+  const kinds = zoneKinds(zone)
+  const fresh = zone.id >= 9 && !saved?.plays
   return (
     <Motion.button type="button" onClick={() => open && onStart(index)} disabled={!open}
-      initial={reduced ? false : { opacity: 0, y: 22 }} animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.08 + index * 0.05, duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-      whileHover={open && !reduced ? { y: -4, scale: 1.015 } : undefined} whileTap={open ? { scale: 0.98 } : undefined}
-      className={`group relative flex w-full flex-row overflow-hidden rounded-[28px] text-left shadow-xl disabled:cursor-not-allowed min-[520px]:flex-col lg:rounded-[32px]
-        ${next ? 'ring-4 ring-white/70' : ''}`}
-      style={{ background: `linear-gradient(145deg, ${zone.from} 0%, ${zone.to} 100%)` }}
+      initial={reduced ? false : { opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.04 + index * 0.035, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+      whileHover={open && !reduced ? { y: -3 } : undefined} whileTap={open ? { scale: 0.985 } : undefined}
+      className={`group relative flex w-full flex-row items-stretch gap-3 overflow-hidden rounded-[24px] border bg-[#111118] p-2.5 text-left transition-colors
+        disabled:cursor-not-allowed min-[560px]:flex-col min-[560px]:gap-0 min-[560px]:p-0 lg:rounded-[28px]
+        ${next ? 'border-[#FFB020]/50' : 'border-white/[0.08] hover:border-white/[0.14]'}`}
       aria-label={open ? `${zone.title} — boshlash` : `${zone.title} — yopiq`}>
-      <div className="pointer-events-none absolute -right-10 -top-12 h-40 w-40 rounded-full bg-white/20 blur-2xl" />
-
-      {/* picture */}
-      <div className="relative w-[118px] flex-shrink-0 self-stretch min-[520px]:h-36 min-[520px]:w-full lg:h-44">
-        <div className="absolute inset-2 min-[520px]:inset-x-6 min-[520px]:inset-y-2"><ZoneArt k={zone.key} /></div>
-        <span className="absolute left-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-full bg-black/30 text-[14px] font-black text-white backdrop-blur lg:h-9 lg:w-9 lg:text-[16px]">
+      {/* the illustrated tile */}
+      <div className={`relative h-[92px] w-[92px] flex-shrink-0 overflow-hidden rounded-[18px] min-[560px]:h-36 min-[560px]:w-full min-[560px]:rounded-none lg:h-40 ${open ? '' : 'grayscale-[70%]'}`}
+        style={{ background: `radial-gradient(120% 120% at 25% 15%, ${zone.from}55 0%, transparent 60%), ${zone.to}26` }}>
+        <div className="absolute inset-2 min-[560px]:inset-x-10 min-[560px]:inset-y-3"><ZoneArt k={zone.key} /></div>
+        <span className="absolute left-2 top-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-[#0B0B10]/55 px-1.5 text-[11.5px] font-bold text-white/90 backdrop-blur min-[560px]:left-3 min-[560px]:top-3 lg:h-7 lg:min-w-7 lg:text-[12.5px]">
           {index + 1}
         </span>
-        {pics.length > 0 && (
-          <div className="absolute bottom-2 right-2 hidden gap-1 min-[520px]:flex">
-            {pics.map(p => (
-              <span key={p} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/85 shadow lg:h-11 lg:w-11">
-                <ItemIcon name={p} size={26} className="lg:h-8 lg:w-8" />
-              </span>
-            ))}
-          </div>
+        {fresh && open && (
+          <span className="absolute right-2 top-2 rounded-full bg-[#FFB020] px-2 py-0.5 text-[10.5px] font-extrabold uppercase tracking-wide text-[#1A1203] min-[560px]:right-3 min-[560px]:top-3">Yangi</span>
         )}
       </div>
 
       {/* text */}
-      <div className="relative flex min-w-0 flex-1 flex-col p-3.5 pl-1 min-[520px]:bg-black/10 min-[520px]:p-4 min-[520px]:pt-3 lg:p-5 lg:pt-4">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="rounded-md bg-black/25 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-white lg:text-[12px]">{zone.cefr}</span>
-          <span className="text-[12px] font-bold text-white/80 lg:text-[13px]">{zone.steps.length} ta gap</span>
-          {next && (
-            <Motion.span animate={reduced ? undefined : { scale: [1, 1.08, 1] }} transition={{ duration: 1.4, repeat: Infinity }}
-              className="rounded-full bg-white px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-rose-600 lg:text-[11px]">
-              Keyingisi!
-            </Motion.span>
-          )}
+      <div className="relative flex min-w-0 flex-1 flex-col py-0.5 pr-1 min-[560px]:p-4 lg:p-5">
+        <div className="flex items-center gap-1.5">
+          <span className="rounded-md bg-white/[0.06] px-1.5 py-0.5 text-[10.5px] font-bold uppercase tracking-wider text-white/60">{zone.cefr}</span>
+          <span className="text-[12px] font-medium text-white/40">{zone.steps.length} ta topshiriq</span>
+          {next && <span className="ml-auto rounded-full bg-[#FFB020]/[0.14] px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-[#FFC95C]">Keyingisi</span>}
         </div>
-        <h3 className="mt-1 text-[22px] font-black leading-none tracking-tight text-white drop-shadow-sm min-[520px]:text-[24px] lg:text-[28px]">{zone.title}</h3>
-        <p className="mt-1 line-clamp-1 text-[13px] font-semibold text-white/85 lg:text-[15px]">{zone.uz} · {zone.blurb}</p>
-        <div className="mt-auto flex items-end justify-between gap-2 pt-2.5">
+        <h3 className="mt-1 truncate text-[18px] font-extrabold leading-tight tracking-tight text-white min-[560px]:text-[20px] lg:text-[22px]">{zone.title}</h3>
+        <p className="truncate text-[13px] font-medium text-white/50 lg:text-[14px]">{zone.uz} · {zone.blurb}</p>
+        <div className="mt-auto flex items-end justify-between gap-2 pt-2">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <Medal n={m} size={15} />
-              <span className="text-[12px] font-black tabular-nums text-white/90 lg:text-[14px]">{stars}/{max} ★</span>
-              {saved?.best ? <span className="hidden items-center gap-1 text-[12px] font-bold text-white/75 sm:flex"><Coin size={13} />{saved.best}</span> : null}
+              <Medal n={m} size={14} />
+              <span className="text-[12px] font-semibold tabular-nums text-white/55">{stars}/{max}</span>
+              {(kinds.listen + kinds.ask + kinds.gap) > 0 && (
+                <span className="hidden truncate text-[11.5px] font-medium text-white/35 sm:inline">
+                  · {[kinds.listen && 'tinglash', kinds.ask && 'savol', kinds.gap && 'bo‘sh joy'].filter(Boolean).join(', ')}
+                </span>
+              )}
             </div>
-            <div className="mt-1.5 h-1.5 w-full max-w-[180px] overflow-hidden rounded-full bg-black/20">
-              <div className="h-full rounded-full bg-yellow-200" style={{ width: `${max ? (stars / max) * 100 : 0}%` }} />
+            <div className="mt-1.5 h-1 w-full max-w-[200px] overflow-hidden rounded-full bg-white/[0.08]">
+              <div className="h-full rounded-full bg-[#FFB020]" style={{ width: `${max ? (stars / max) * 100 : 0}%` }} />
             </div>
           </div>
-          <span className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full lg:h-12 lg:w-12 ${open ? 'bg-white text-slate-900 shadow-lg transition-transform group-hover:scale-110' : 'bg-black/25 text-white/80'}`}>
-            {open ? <Play size={20} className="ml-0.5 fill-current" /> : <Lock size={18} />}
+          <span className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full transition-transform lg:h-11 lg:w-11
+            ${open ? 'bg-[#FFB020] text-[#1A1203] group-hover:scale-105' : 'bg-white/[0.06] text-white/45'}`}>
+            {open ? <Play size={17} className="ml-0.5 fill-current" /> : <Lock size={16} />}
           </span>
         </div>
+        {!open && prev && (
+          <p className="mt-2 text-[12px] font-medium leading-snug text-white/45">
+            Ochish uchun «{prev.title}» da {unlockNeed(prev)} ★ <span className="tabular-nums text-white/60">({Math.min(prevStars, unlockNeed(prev))}/{unlockNeed(prev)})</span>
+          </p>
+        )}
       </div>
-
-      {!open && prev && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#08080F]/60 p-3 text-center backdrop-grayscale">
-          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-black/40 text-white/90"><Lock size={22} /></span>
-          <span className="max-w-[260px] rounded-2xl bg-black/50 px-3 py-1.5 text-[12px] font-bold leading-snug text-white/90 lg:text-[14px]">
-            Ochish uchun «{prev.title}» da {unlockNeed(prev)} ★ yig‘ing
-            <span className="ml-1 tabular-nums text-amber-200">({Math.min(prevStars, unlockNeed(prev))}/{unlockNeed(prev)})</span>
-          </span>
-        </div>
-      )}
     </Motion.button>
   )
 }
 
 function Board({ board, className = '' }) {
-  const top = board?.top || []
+  const top = (board?.top || []).slice(0, 5)
   return (
-    <section className={`rounded-[28px] border border-white/10 bg-white/[0.04] p-4 lg:p-5 ${className}`}>
-      <div className="mb-3 flex items-center gap-2">
-        <Trophy size={20} className="text-amber-300" />
-        <h2 className="text-[16px] font-black lg:text-[18px]">Bu hafta — eng yaxshilar</h2>
+    <section className={`rounded-[28px] border border-white/[0.08] bg-[#111118] p-4 lg:p-5 ${className}`}>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <h2 className="text-[16px] font-extrabold tracking-tight lg:text-[18px]">Bu hafta — eng yaxshilar</h2>
+        {board?.me && (
+          <p className="text-[13px] font-medium text-white/45">
+            Siz: {board.me.rank ? <b className="text-white">#{board.me.rank}</b> : 'hali reytingda emas'}
+            {board.me.best_score ? <> · rekord <b className="text-white">{board.me.best_score}</b></> : null}
+          </p>
+        )}
       </div>
       {top.length ? (
-        <ol className="space-y-1.5">
-          {top.slice(0, 5).map((r, i) => (
-            <li key={`${r.name}-${i}`} className="flex items-center gap-3 rounded-2xl bg-white/[0.04] px-3 py-2">
-              <span className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[12px] font-black ${['bg-amber-400 text-amber-950', 'bg-slate-300 text-slate-900', 'bg-orange-400 text-orange-950'][i] || 'bg-white/10 text-white/70'}`}>{i + 1}</span>
-              <span className="min-w-0 flex-1 truncate text-sm font-bold text-white/90 lg:text-[15px]">{r.name}</span>
-              <span className="flex items-center gap-1 text-sm font-black tabular-nums"><Coin size={14} />{r.score}</span>
+        <ol className="mt-3 grid gap-1.5 sm:grid-cols-2 lg:grid-cols-5 lg:gap-2">
+          {top.map((r, i) => (
+            <li key={`${r.name}-${i}`} className="flex items-center gap-3 rounded-2xl bg-[#17171F] px-3 py-2 lg:py-2.5">
+              <span className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[12px] font-bold ${i === 0 ? 'bg-[#FFB020] text-[#1A1203]' : 'bg-white/[0.08] text-white/70'}`}>{i + 1}</span>
+              <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-white/90">{r.name}</span>
+              <span className="flex items-center gap-1 text-[14px] font-bold tabular-nums"><Coin size={14} />{r.score}</span>
             </li>
           ))}
         </ol>
       ) : (
-        <p className="rounded-2xl bg-white/[0.04] px-3 py-4 text-center text-[14px] font-semibold text-white/60">
+        <p className="mt-3 rounded-2xl bg-[#17171F] px-3 py-4 text-center text-[14px] font-medium text-white/50">
           Bu hafta hali natija yo‘q — birinchi bo‘ling!
-        </p>
-      )}
-      {board?.me && (
-        <p className="mt-3 text-center text-[13px] font-semibold text-white/60">
-          Siz: {board.me.rank ? <b className="text-white">#{board.me.rank}</b> : 'hali reytingda emas'}
-          {board.me.best_score ? <> · rekord <b className="text-white">{board.me.best_score}</b></> : null}
         </p>
       )}
     </section>
@@ -266,48 +265,31 @@ function RoomCard({ progress, acc, onRoom, reduced }) {
   const rs = roomStars(progress)
   return (
     <Motion.button type="button" onClick={onRoom}
-      initial={reduced ? false : { opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.06 }}
-      whileHover={reduced ? undefined : { y: -4 }} whileTap={{ scale: 0.985 }}
-      className="group relative flex w-full flex-col overflow-hidden rounded-[30px] text-left shadow-2xl lg:rounded-[34px]"
-      style={{ background: 'linear-gradient(140deg, #8B5CF6 0%, #D946EF 55%, #F43F5E 100%)' }}
+      initial={reduced ? false : { opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.08 }}
+      whileHover={reduced ? undefined : { y: -3 }} whileTap={{ scale: 0.985 }}
+      className="group relative flex w-full flex-col overflow-hidden rounded-[28px] border border-white/[0.08] bg-[#111118] text-left"
       aria-label="Toby bilan o‘yna — Gapir, Toby qiladi!">
-      <div className="relative h-44 w-full overflow-hidden min-[420px]:h-52 lg:h-60">
+      <div className="relative h-40 w-full overflow-hidden min-[420px]:h-48 lg:h-52">
         <RoomBackdrop className="absolute inset-0 h-full w-full" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#8B5CF6]/70 via-transparent to-transparent" />
-        <div className="absolute bottom-0 left-1/2 h-[92%] w-[46%] max-w-[230px] -translate-x-1/2">
+        <div className="absolute inset-0 bg-gradient-to-t from-[#111118] via-[#111118]/10 to-transparent" />
+        <div className="absolute bottom-0 left-1/2 h-[92%] w-[44%] max-w-[220px] -translate-x-1/2">
           <TobyAvatar className="h-full w-full" acc={acc} mood="happy" pose="dance" reduced={reduced} />
         </div>
-        <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-md bg-white px-2 py-0.5 text-[11px] font-black uppercase tracking-wider text-fuchsia-600 shadow">
-          <Sparkles size={11} /> Yangi
+        <span className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-[#0B0B10]/60 px-2.5 py-1 text-[12px] font-bold tabular-nums text-white backdrop-blur lg:text-[13px]">
+          <StarIcon size={13} /> {rs}/{COMMAND_COUNT}
         </span>
-        <span className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-black/45 px-2.5 py-1 text-[12px] font-black text-amber-200 backdrop-blur lg:text-[14px]">
-          <Star size={13} className="fill-amber-300 text-amber-300" /> {rs}/{COMMAND_COUNT}
-        </span>
-        {!reduced && (
-          <Motion.span className="absolute left-[16%] top-[30%] text-[26px] font-black text-white/90 drop-shadow"
-            animate={{ y: [0, -12, 0], rotate: [-8, 8, -8] }} transition={{ duration: 2.4, repeat: Infinity }}>♪</Motion.span>
-        )}
       </div>
-      <div className="relative flex flex-1 flex-col p-4 lg:p-5">
-        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/80 lg:text-[12px]">Play Room</p>
-        <h2 className="mt-0.5 text-[26px] font-black leading-none tracking-tight text-white drop-shadow lg:text-[32px]">Toby bilan o‘yna</h2>
-        <p className="mt-1.5 text-[14px] font-bold text-white/90 lg:text-[16px]">Gapir, Toby qiladi! Tur, o‘tir, sakra, raqs tush…</p>
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {['Jump!', 'Dance!', 'Don’t cry!'].map(s => (
-            <span key={s} className="inline-flex items-center gap-1 rounded-2xl rounded-bl-md bg-white/95 px-2.5 py-1 text-[13px] font-black text-slate-800 shadow lg:text-[15px]">
-              <Mic size={12} className="text-rose-500" /> {s}
-            </span>
-          ))}
-        </div>
-        <div className="mt-4 flex items-center gap-3">
+      <div className="relative flex flex-1 flex-col px-4 pb-4 pt-1 lg:px-5 lg:pb-5">
+        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#FFB020]">Play Room</p>
+        <h2 className="mt-0.5 text-[22px] font-extrabold leading-tight tracking-tight text-white lg:text-[26px]">Toby bilan o‘yna</h2>
+        <p className="mt-1 text-[13.5px] font-medium text-white/55 lg:text-[15px]">Buyruq bering — Toby bajaradi: sakra, raqs tush, o‘tir…</p>
+        <div className="mt-3 flex items-center gap-3">
           <div className="min-w-0 flex-1">
-            <div className="h-2 overflow-hidden rounded-full bg-black/20">
-              <div className="h-full rounded-full bg-yellow-200" style={{ width: `${(rs / COMMAND_COUNT) * 100}%` }} />
-            </div>
-            <p className="mt-1 text-[12px] font-bold text-white/80 lg:text-[13px]">{rs} / {COMMAND_COUNT} buyruq o‘rganildi</p>
+            <Bar pct={rs / COMMAND_COUNT} reduced={reduced} height="h-1" />
+            <p className="mt-1.5 text-[12px] font-medium text-white/45">{rs} / {COMMAND_COUNT} buyruq o‘rganildi</p>
           </div>
-          <span className="flex h-12 flex-shrink-0 items-center gap-2 rounded-full bg-white px-5 text-[16px] font-black text-fuchsia-700 shadow-xl transition-transform group-hover:scale-105 lg:h-14 lg:text-[18px]">
-            <Play size={18} className="fill-current" /> O‘ynash
+          <span className="flex h-11 flex-shrink-0 items-center gap-2 rounded-full bg-white px-4 text-[15px] font-extrabold text-[#0B0B10] transition-transform group-hover:scale-105 lg:h-12 lg:px-5">
+            <Play size={16} className="fill-current" /> O‘ynash
           </span>
         </div>
       </div>
@@ -315,7 +297,7 @@ function RoomCard({ progress, acc, onRoom, reduced }) {
   )
 }
 
-export default function ZoneMap({ progress, online, board, acc = null, onStart, onRoom, onWardrobe, onBack, reduced = false }) {
+export default function ZoneMap({ progress, online, board, acc = null, onStart, onRoom, onWardrobe, onClaim, onBack, reduced = false }) {
   const supported = speechSupported()
   const lv = levelInfo(progress.xp)
   const [talking, setTalking] = useState(false)
@@ -334,108 +316,93 @@ export default function ZoneMap({ progress, online, board, acc = null, onStart, 
     setHops(h => h + 1)
     setTalking(true)
     let timer
-    await Promise.race([sayLine(GREETING), new Promise(r => { timer = setTimeout(r, 6000) })])
+    await Promise.race([sayLine(GREETING, { voice: TOBY_VOICE }), new Promise(r => { timer = setTimeout(r, 6000) })])
     clearTimeout(timer)
     if (id === voiceId.current) setTalking(false)
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1440px] px-4 pb-16 pt-4 sm:px-6 lg:px-8 lg:pt-6">
-      <header className="flex items-center gap-3">
+    <div className="mx-auto w-full max-w-[1440px] px-4 pb-16 pt-4 sm:px-6 lg:px-8 lg:pt-7">
+      <header className="flex items-center gap-2 sm:gap-3">
         <button type="button" onClick={onBack} aria-label="O‘yinlarga qaytish"
-          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-white/10 text-white/80 transition hover:bg-white/15 lg:h-12 lg:w-12">
-          <ChevronLeft size={22} />
+          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-white/[0.08] bg-[#111118] text-white/75 transition hover:bg-[#17171F] lg:h-11 lg:w-11">
+          <ChevronLeft size={21} />
         </button>
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-300 lg:text-[13px]">Speak &amp; Play</p>
-          <h1 className="text-[22px] font-black leading-tight tracking-tight lg:text-[34px]">TOBY’S DAY</h1>
+          <h1 className="truncate text-[19px] font-extrabold leading-tight tracking-tight sm:text-[20px] lg:text-[28px]">Toby’s Day</h1>
+          <p className="hidden truncate text-[12px] font-medium text-white/45 sm:block lg:text-[14px]">Gapiring — Toby bajaradi</p>
         </div>
         {online === false && (
-          <span className="flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-bold text-white/60" title="Natijalar shu qurilmada saqlanadi">
+          <span className="hidden items-center gap-1 rounded-full bg-white/[0.06] px-2.5 py-1 text-[11px] font-semibold text-white/55 sm:flex" title="Natijalar shu qurilmada saqlanadi">
             <CloudOff size={13} /> Offline
           </span>
         )}
+        <div className="flex flex-shrink-0 items-center gap-2 rounded-full border border-white/[0.08] bg-[#111118] px-2.5 py-1.5 text-[12.5px] font-bold tabular-nums sm:gap-3 sm:px-3 sm:text-[13.5px] lg:px-4 lg:py-2 lg:text-[15px]">
+          <span className="flex items-center gap-1"><Coin size={15} />{progress.coins}</span>
+          <span className="h-4 w-px bg-white/10" />
+          <span className="flex items-center gap-1" title="Zonalar + o‘yin xonasi + vazifalar"><StarIcon size={14} />{total}</span>
+        </div>
         <WardrobeButton progress={progress} onClick={onWardrobe} compact className="sm:hidden" />
         <WardrobeButton progress={progress} onClick={onWardrobe} className="hidden sm:flex" />
       </header>
 
-      <div className="mt-4 grid gap-4 lg:mt-6 lg:grid-cols-2 lg:gap-5 xl:grid-cols-[1.12fr_1fr_0.82fr]">
+      {/* grid-cols-1 = minmax(0, 1fr): a long mission row must not widen the phone column past the screen */}
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:gap-4 lg:mt-7 lg:grid-cols-2 lg:gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)_minmax(0,1fr)]">
         {/* Toby + your level */}
-        <Motion.section initial={reduced ? false : { opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}
-          className="relative flex flex-col overflow-hidden rounded-[30px] p-4 shadow-2xl lg:rounded-[34px] lg:p-6" style={{ background: 'linear-gradient(135deg, #FBBF24 0%, #EA580C 100%)' }}>
-          <div className="pointer-events-none absolute -left-10 -top-16 h-56 w-56 rounded-full bg-white/25 blur-3xl" />
+        <Motion.section initial={reduced ? false : { opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
+          className="relative flex flex-col overflow-hidden rounded-[28px] border border-white/[0.08] bg-[#111118] p-4 lg:p-5">
+          <div className="pointer-events-none absolute -left-16 -top-20 h-64 w-64 rounded-full bg-[#FFB020]/[0.10] blur-3xl" />
           <div className="relative flex flex-1 items-center gap-2 lg:gap-4">
-            <button type="button" onClick={greet} aria-label="Toby bilan salomlashish" className="relative -my-2 h-40 w-36 flex-shrink-0 sm:h-44 sm:w-40 lg:h-60 lg:w-52">
+            <button type="button" onClick={greet} aria-label="Toby bilan salomlashish" className="relative -my-1 h-36 w-32 flex-shrink-0 sm:h-40 sm:w-36 lg:h-52 lg:w-44">
               <TobyAvatar className="h-full w-full" acc={acc} mood={talking ? 'proud' : 'idle'} pose={talking ? 'wave' : 'rest'} talking={talking} jump={hops} reduced={reduced} />
             </button>
             <div className="min-w-0 flex-1">
               <button type="button" onClick={greet}
-                className="relative inline-flex max-w-full items-center gap-1.5 rounded-2xl rounded-bl-md bg-white px-3 py-2 text-left text-[14px] font-extrabold leading-snug text-slate-800 shadow-lg lg:px-4 lg:py-3 lg:text-[19px]">
-                <span>“{GREETING}”</span>
-                <Volume2 size={16} className={`flex-shrink-0 ${talking ? 'text-orange-500' : 'text-slate-400'}`} />
+                className="relative inline-flex max-w-full items-start gap-2 rounded-[18px] rounded-bl-md bg-white px-3 py-2 text-left text-[14px] font-bold leading-snug text-slate-800 shadow-lg lg:px-4 lg:py-3 lg:text-[17px]">
+                <span>{GREETING}</span>
+                <Volume2 size={15} className={`mt-0.5 flex-shrink-0 ${talking ? 'text-[#F59E0B]' : 'text-slate-400'}`} />
               </button>
-              <p className="mt-2 text-[13px] font-semibold leading-snug text-white/90 lg:text-[16px]">Gapni ayting — Toby bajaradi!</p>
               <button type="button" onClick={onWardrobe}
-                className="relative mt-2.5 inline-flex items-center gap-2 rounded-full bg-black/20 px-3 py-1.5 text-[12.5px] font-black text-white backdrop-blur transition hover:bg-black/30 lg:text-[14px]">
-                <Sparkles size={14} /> Tobyni kiyintirish
+                className="relative mt-3 inline-flex max-w-full items-center gap-2 whitespace-nowrap rounded-full border border-white/[0.08] bg-[#17171F] px-3 py-1.5 text-[12.5px] font-semibold text-white/85 transition hover:bg-[#1D1D27] lg:text-[14px]">
+                {/* one line on a phone too (the long label wrapped into two next to the badge) */}
+                <span className="min-[420px]:hidden">Kiyintirish</span>
+                <span className="hidden min-[420px]:inline">Tobyni kiyintirish</span>
                 {fresh.length > 0 && (
-                  <Motion.span animate={reduced ? undefined : { scale: [1, 1.12, 1] }} transition={{ duration: 1.2, repeat: Infinity }}
-                    className="-my-1 -mr-1.5 flex items-center gap-1 rounded-full bg-white py-0.5 pl-0.5 pr-2 text-[11px] font-black uppercase text-rose-600 shadow lg:text-[12px]">
-                    <AccIcon acc={fresh[fresh.length - 1]} size={20} /> Yangi!
-                  </Motion.span>
+                  <span className="-my-1 -mr-1.5 flex items-center gap-1 rounded-full bg-[#FFB020] py-0.5 pl-0.5 pr-2 text-[11px] font-extrabold uppercase text-[#1A1203]">
+                    <AccIcon acc={fresh[fresh.length - 1]} size={18} /> Yangi
+                  </span>
                 )}
               </button>
             </div>
           </div>
-          <div className="relative mt-3 rounded-2xl bg-black/20 p-3 backdrop-blur-sm lg:p-4">
-            <div className="flex items-center gap-2">
-              <span className="flex-shrink-0 whitespace-nowrap rounded-md bg-white px-1.5 py-0.5 text-[11px] font-black text-orange-600 lg:text-[13px]">Lv {lv.level}</span>
-              <Bar pct={lv.pct} className="from-white to-yellow-200" reduced={reduced} />
-              <span className="flex-shrink-0 text-[11px] font-bold tabular-nums text-white/80 lg:text-[13px]">{lv.into}/{lv.need} XP</span>
+          <div className="relative mt-3 rounded-2xl bg-[#17171F] p-3 lg:p-4">
+            <div className="flex items-center justify-between text-[12px] font-semibold lg:text-[13px]">
+              <span className="text-white/85">Speaking · Lv {lv.level}</span>
+              <span className="tabular-nums text-white/45">{lv.into} / {lv.need} XP</span>
             </div>
-            <div className="mt-2.5 flex items-center justify-around text-white">
-              <span className="flex items-center gap-1.5 text-[15px] font-black tabular-nums lg:text-[19px]"><Coin size={20} />{progress.coins}</span>
-              <span className="h-5 w-px bg-white/25" />
-              <span className="flex items-center gap-1.5 text-[15px] font-black tabular-nums lg:text-[19px]" title="Zonalar + o‘yin xonasi">
-                <Star size={18} className="fill-yellow-200 text-yellow-200" />{total}
-              </span>
-              <span className="h-5 w-px bg-white/25" />
-              <span className="text-[13px] font-bold text-white/85 lg:text-[15px]">Speaking</span>
-            </div>
+            <div className="mt-2"><Bar pct={lv.pct} reduced={reduced} height="h-1.5" /></div>
           </div>
         </Motion.section>
 
+        <MissionsCard progress={progress} onClaim={onClaim} reduced={reduced} />
+
         <RoomCard progress={progress} acc={acc} onRoom={onRoom} reduced={reduced} />
-
-        <Board board={board} className="hidden xl:block" />
-      </div>
-
-      {/* how it works */}
-      <div className="mt-4 grid grid-cols-3 gap-2 text-center lg:mt-5 lg:gap-4">
-        {[['1', 'Gapni o‘qing'], ['2', 'Mikrofonni bir marta bosing'], ['3', 'Ayting — Toby bajaradi!']].map(([n, t]) => (
-          <div key={n} className="rounded-2xl bg-white/[0.05] px-2 py-2.5 lg:flex lg:items-center lg:gap-3 lg:px-4 lg:py-3 lg:text-left">
-            <span className="mx-auto flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-amber-400 text-[12px] font-black text-amber-950 lg:mx-0 lg:h-9 lg:w-9 lg:text-[15px]">
-              {n === '2' ? <Mic size={15} /> : n}
-            </span>
-            <p className="mt-1.5 text-[12px] font-bold leading-tight text-white/75 lg:mt-0 lg:text-[15px]">{t}</p>
-          </div>
-        ))}
       </div>
 
       {!supported && <div className="mt-4"><VoiceNotice error="unsupported" /></div>}
 
       {/* the day */}
-      <div className="mb-3 mt-7 flex flex-wrap items-baseline justify-between gap-2 lg:mt-9">
-        <h2 className="text-[13px] font-black uppercase tracking-[0.16em] text-white/50 lg:text-[16px]">Toby’ning kuni</h2>
-        <p className="text-[12px] font-bold text-white/45 lg:text-[14px]">{opened}/{ZONES.length} zona ochiq</p>
+      <div className="mb-3 mt-8 flex flex-wrap items-baseline justify-between gap-2 lg:mb-4 lg:mt-10">
+        <h2 className="text-[18px] font-extrabold tracking-tight lg:text-[22px]">Toby’ning kuni</h2>
+        <p className="text-[12.5px] font-medium text-white/40 lg:text-[14px]">{opened} / {ZONES.length} zona ochiq</p>
       </div>
-      <div className="grid grid-cols-1 gap-3 min-[520px]:grid-cols-2 min-[520px]:gap-4 lg:grid-cols-3 lg:gap-5 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-2.5 min-[560px]:grid-cols-2 min-[560px]:gap-4 lg:grid-cols-3 lg:gap-5 xl:grid-cols-5">
         {ZONES.map((z, i) => (
           <ZoneCard key={z.key} zone={z} index={i} progress={progress} open={open[i]} next={i === nextIndex} onStart={onStart} reduced={reduced} />
         ))}
       </div>
 
-      <Board board={board} className="mt-8 xl:hidden" />
+      <Board board={board} className="mt-8 lg:mt-10" />
     </div>
   )
 }

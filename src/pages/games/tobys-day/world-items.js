@@ -16,4 +16,7 @@ export const ITEM_NAMES = [
   'window', 'school', 'apple', 'desk', 'notebook', 'blackboard', 'cat', 'bell', 'notes', 'price-tag', 'money',
   'tree', 'dog', 'slide', 'bike', 'duck', 'bench', 'chef-hat', 'soap', 'vegetables', 'pot', 'fire', 'soup',
   'house', 'books', 'plate', 'tv', 'bath', 'lamp',
+  // birthday party · at the doctor (items-more.jsx)
+  'cake', 'cake-slice', 'balloons', 'present', 'candles', 'party-hat', 'seven',
+  'thermometer', 'stethoscope', 'medicine', 'plaster', 'headache', 'throat', 'tummy', 'sick', 'doctor',
 ]

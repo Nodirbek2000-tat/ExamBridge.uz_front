@@ -30,6 +30,10 @@ import {
   Building2,
   Newspaper,
   Database,
+  Gamepad2,
+  BarChart3,
+  Swords,
+  Footprints,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Logo from '../../components/Logo.jsx'
@@ -88,6 +92,18 @@ const NAV = [
       { to: '/admin-panel/study/podcasts', icon: Headphones, label: 'Podcasts' },
     ],
   },
+  {
+    key: 'games',
+    icon: Gamepad2,
+    label: 'Games',
+    children: [
+      { to: '/admin-panel/games', icon: BarChart3, label: 'Overview', exact: true },
+      { to: '/admin-panel/games/speaking', icon: Mic, label: 'Speaking' },
+      { to: '/admin-panel/games/words', icon: Library, label: "So'zlar" },
+      { to: '/admin-panel/games/runner', icon: Footprints, label: 'Runner' },
+      { to: '/admin-panel/games/word-battle', icon: Swords, label: 'Word Battle' },
+    ],
+  },
   { to: '/admin-panel/testmakon-users', icon: ExternalLink, label: 'TestMakon Users' },
   { to: '/admin-panel/centers', icon: Building2, label: 'Learning Centers' },
   { to: '/admin-panel/ai-structures', icon: Sparkles, label: 'AI Structures' },
@@ -130,10 +146,11 @@ function AccordionNav({ item }) {
             className="overflow-hidden"
           >
             <div className="mt-0.5 ml-4 pl-3 border-l-2 border-sky-100 space-y-0.5 py-1">
-              {item.children.map(({ to, icon: CIcon, label }) => (
+              {item.children.map(({ to, icon: CIcon, label, exact }) => (
                 <NavLink
                   key={to}
                   to={to}
+                  end={exact}
                   className={({ isActive }) =>
                     `flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
                       isActive

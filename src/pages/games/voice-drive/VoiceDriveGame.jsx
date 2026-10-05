@@ -1,11 +1,12 @@
 /*
  * VOICE DRIVE — a Subway-Surfers-style endless drive steered by spoken English.
  * Start (level, missions, the car) ⇄ Garage (buy / pick / tune cars) → Play
- * (canvas road, hands-free mic) → Result (stars, coins → bank, mistakes, weekly board).
+ * (3D road with a 2D fallback, hands-free mic) → Result (stars, coins → bank, mistakes, weekly board).
  */
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { speechSupported } from '../../../games/voice/useSpeech'
+import { useGameOpen } from '../../../games/useGameOpen'
 import { levelById } from './content'
 import { loadAll, mergeBest, readLocal, rememberHear, rememberLevel, rememberSound, saveGarage } from './progress'
 import GarageScreen from './GarageScreen'
@@ -14,6 +15,7 @@ import ResultScreen from './ResultScreen'
 import StartScreen from './StartScreen'
 
 export default function VoiceDriveGame() {
+  useGameOpen('voice-drive')
   const navigate = useNavigate()
   const [local] = useState(readLocal)
   const [stage, setStage] = useState('start')          // start | garage | play | result

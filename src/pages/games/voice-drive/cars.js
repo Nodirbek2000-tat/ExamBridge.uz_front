@@ -74,6 +74,23 @@ export function carSetup(garage) {
   }
 }
 
+/*
+ * How a car looks with its upgrades (the 3D model reads this):
+ * engine 2 → chrome rims, engine 3 → gold rims + neon underglow;
+ * turbo 2 → blue exhaust flame, turbo 3 → a big flame that always flickers.
+ */
+const NEON = { klassik: '#ff3b5c', sedan: '#7dd3fc', van: '#34d399', jip: '#818cf8', sport: '#fbbf24' }
+export function carLook(carId, up) {
+  const car = carById(carId)
+  const [engine, turbo] = up || [1, 1]
+  return {
+    color: car.color,
+    rims: engine >= 3 ? 'gold' : engine >= 2 ? 'chrome' : 'steel',
+    neon: engine >= 3 ? NEON[car.id] : null,
+    flame: turbo >= 3 ? 3 : turbo >= 2 ? 2 : 1,
+  }
+}
+
 /* Stat bars 0–5 shown in the garage (upgrades add half a bar each step). */
 export function carBars(carId, up) {
   const s = carById(carId).stats

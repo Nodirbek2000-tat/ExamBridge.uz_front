@@ -11,6 +11,7 @@
  */
 import { motion as Motion } from 'framer-motion'
 import { ITEM_NAMES } from './world-items'
+import { MORE_ART } from './items-more'
 
 const FONT = 'system-ui, -apple-system, Segoe UI, sans-serif'
 const CHALK = "'Chalkboard SE', 'Comic Sans MS', 'Segoe Print', cursive"
@@ -907,6 +908,7 @@ const ART = {
       <circle cx="5" cy="5" r="1.1" fill="#64748B" />
     </>
   ),
+  ...MORE_ART,
 }
 
 /* A glass of orange juice that empties while Toby drinks */
@@ -983,6 +985,7 @@ const ICON_FIT = {
   basket: 'translate(0 -10) scale(.92)',
   icecream: 'translate(0 2)',
   comb: 'scale(.9)',
+  'cake-slice': 'translate(0 1)',
 }
 
 /* An item as a standalone icon for HTML cards — an empty <g> when it has no drawing */

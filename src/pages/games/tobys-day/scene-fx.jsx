@@ -13,7 +13,7 @@ import { Buddy, Mum } from './characters'
 import { DOG_S, LEFT_PAW, at } from './world-geo'
 import { Pop, Puff, Sparkles, Steam } from './scene-kit'
 
-export default function ActionFx({ layer, step, w, sp, acting, reduced }) {
+export default function ActionFx({ layer, step, w, sp, acting, reduced, talker = null }) {
   const a = step.action
   if (layer === 'back') {
     if (a === 'stretch' && acting && !reduced) {
@@ -71,7 +71,7 @@ export default function ActionFx({ layer, step, w, sp, acting, reduced }) {
     if (a === 'dinner') {
       return (
         <g>
-          <g transform="translate(98 250) scale(.62)"><Mum eat={acting} reduced={reduced} /></g>
+          <g transform="translate(98 250) scale(.62)"><Mum eat={acting && talker !== 'mum'} talking={talker === 'mum'} reduced={reduced} /></g>
           <g transform="translate(264 252) scale(.66)"><Buddy color="#93C5FD" belly="#DBEAFE" dark="#2563EB" acc={['glasses', 'mustache']} eat={acting} reduced={reduced} /></g>
         </g>
       )

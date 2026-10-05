@@ -8,4 +8,5 @@ export const PLACE_KEYS = [
   'classroom',                                           // school
   'shop', 'park',                                        // afternoon
   'cooking',                                             // the soup kitchen
+  'party', 'clinic',                                     // the birthday party · at the doctor
 ]

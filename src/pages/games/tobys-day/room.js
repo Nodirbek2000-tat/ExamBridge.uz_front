@@ -201,15 +201,22 @@ export const DIZZY = { mood: 'dizzy', pose: 'rest', motion: 'turn', line: 'Whoa!
 export const POKE_DIZZY_N = 5           // this many pokes …
 export const POKE_DIZZY_MS = 2500       // … within this time
 
-/* every line the model voice may say in the room (for preloading) */
-export const ROOM_LINES = [
-  HELLO,
-  ...COMMANDS.map(c => c.reply),
-  SORRY, WONT, REFUSE, SLEEPY, NO_HAT, HAT_ALREADY,
-  ...POKES.map(p => p.line), DIZZY.line,
-  ...MISCHIEFS.map(m => m.line),
-  ...COMMANDS.map(c => c.say),
-]
+/* voices: Toby answers in his own voice; a tapped chip plays the command in the clear model voice */
+export const ROOM_TOBY_VOICE = 'toby'
+export const ROOM_MODEL_VOICE = 'narrator'
+
+/* every line said in the room, Toby's first (for preloading) → [{ text, voice }] */
+export const ROOM_VOICE_LINES = [
+  ...[
+    HELLO,
+    ...COMMANDS.map(c => c.reply),
+    SORRY, WONT, REFUSE, SLEEPY, NO_HAT, HAT_ALREADY,
+    ...POKES.map(p => p.line), DIZZY.line,
+    ...MISCHIEFS.map(m => m.line),
+  ].map(text => ({ text, voice: ROOM_TOBY_VOICE })),
+  ...COMMANDS.map(c => ({ text: c.say, voice: ROOM_MODEL_VOICE })),
+].filter((l, i, a) => l.text && a.findIndex(x => x.text === l.text && x.voice === l.voice) === i)
+export const ROOM_LINES = ROOM_VOICE_LINES.map(l => l.text)
 
 /* ── saved state ─────────────────────────────────────────────────────────
  * data.room     = { said: { [commandKey]: count }, best: most different commands in one day }
@@ -229,7 +236,10 @@ export function zoneStars(progress) {
   return Object.values(progress?.zones || {}).reduce((n, z) => n + (Number(z?.stars) || 0), 0)
 }
 
-export const allStars = (progress) => zoneStars(progress) + roomStars(progress)
+/* stars won with daily missions (missions.js) */
+export const bonusStars = (progress) => Math.max(0, Math.floor(Number(progress?.bonus) || 0))
+
+export const allStars = (progress) => zoneStars(progress) + roomStars(progress) + bonusStars(progress)
 
 /* a command was said → the new data.room */
 export function addSaid(room, key, todayCount = 0) {

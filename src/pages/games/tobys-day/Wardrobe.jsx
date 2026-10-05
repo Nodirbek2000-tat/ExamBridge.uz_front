@@ -6,9 +6,10 @@
  */
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion as Motion } from 'framer-motion'
-import { Check, Lock, Shirt, Star, X } from 'lucide-react'
+import { Check, Lock, Shirt, X } from 'lucide-react'
 import { TobyAvatar } from './Toby'
 import { accName, accUnlocks, allStars, newAccs, nextUnlock, ownedAccs, wornAcc } from './room'
+import { StarIcon } from './ui'
 
 /* the accessory on its own (cards, tiles) — Toby.jsx draws it on his head */
 export function AccIcon({ acc, size = 48, className = '' }) {
@@ -86,13 +87,13 @@ export function WardrobeButton({ progress, onClick, compact = false, className =
   const fresh = newAccs(progress).length
   return (
     <Motion.button type="button" onClick={onClick} whileTap={{ scale: 0.94 }}
-      className={`relative flex flex-shrink-0 items-center gap-2 rounded-full bg-white/10 font-black text-white transition hover:bg-white/15
-        ${compact ? 'h-10 w-10 justify-center' : 'h-11 px-4 text-[14px] lg:h-12 lg:text-[15px]'} ${className}`}
+      className={`relative flex flex-shrink-0 items-center gap-2 rounded-full border border-white/[0.08] bg-[#111118] font-bold text-white transition hover:bg-[#17171F]
+        ${compact ? 'h-10 w-10 justify-center' : 'h-10 px-4 text-[14px] lg:h-11 lg:text-[15px]'} ${className}`}
       aria-label="Toby’ning kiyimlari">
       <Shirt size={compact ? 18 : 19} />
       {!compact && <span>Kiyimlar</span>}
       {fresh > 0 && (
-        <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-black text-white shadow-lg">
+        <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#FFB020] px-1 text-[11px] font-extrabold text-[#1A1203] shadow-lg">
           {fresh}
         </span>
       )}
@@ -105,22 +106,22 @@ function Tile({ acc, name, need, stars, owned, worn, onPick }) {
   return (
     <Motion.button type="button" onClick={() => onPick(acc)} whileTap={{ scale: 0.95 }}
       className={`relative flex flex-col items-center justify-center rounded-3xl px-2 pb-3 pt-3 text-center transition
-        ${worn ? 'bg-amber-300/20 ring-2 ring-amber-300' : locked ? 'bg-white/[0.04]' : 'bg-white/[0.08] hover:bg-white/[0.13]'}`}
+        ${worn ? 'bg-[#FFB020]/[0.12] ring-2 ring-[#FFB020]' : locked ? 'bg-white/[0.03] ring-1 ring-white/[0.05]' : 'bg-[#17171F] ring-1 ring-white/[0.07] hover:bg-[#1D1D27]'}`}
       aria-label={locked ? `${name} — ${need} ★ kerak` : name}>
       <span className={locked ? 'opacity-35 grayscale' : ''}><AccIcon acc={acc} size={58} /></span>
-      <span className="mt-1.5 text-[13.5px] font-black leading-tight text-white lg:text-[15px]">{name}</span>
+      <span className="mt-1.5 text-[13.5px] font-bold leading-tight text-white lg:text-[15px]">{name}</span>
       {locked ? (
-        <span className="mt-1 flex items-center gap-1 rounded-full bg-black/30 px-2 py-0.5 text-[11.5px] font-bold text-white/75">
+        <span className="mt-1 flex items-center gap-1 rounded-full bg-white/[0.06] px-2 py-0.5 text-[11.5px] font-semibold text-white/60">
           <Lock size={11} /> {need} ★ kerak
         </span>
       ) : worn ? (
-        <span className="mt-1 flex items-center gap-1 text-[12px] font-bold text-amber-200"><Check size={12} strokeWidth={3} /> Kiyilgan</span>
+        <span className="mt-1 flex items-center gap-1 text-[12px] font-bold text-[#FFC95C]"><Check size={12} strokeWidth={3} /> Kiyilgan</span>
       ) : (
-        <span className="mt-1 text-[12px] font-bold text-white/50">Kiyish</span>
+        <span className="mt-1 text-[12px] font-semibold text-white/45">Kiyish</span>
       )}
       {locked && (
         <span className="mt-1.5 h-1.5 w-[70%] overflow-hidden rounded-full bg-white/10">
-          <span className="block h-full rounded-full bg-amber-300" style={{ width: `${Math.min(100, (stars / need) * 100)}%` }} />
+          <span className="block h-full rounded-full bg-[#FFB020]" style={{ width: `${Math.min(100, (stars / need) * 100)}%` }} />
         </span>
       )}
     </Motion.button>
@@ -160,29 +161,29 @@ function Sheet({ progress, onWear, onClose, reduced }) {
       <Motion.div role="dialog" aria-modal="true" aria-label="Toby’ning kiyimlari"
         initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }} transition={{ type: 'spring', stiffness: 320, damping: 30 }}
         onClick={e => e.stopPropagation()}
-        className="max-h-[94dvh] w-full overflow-y-auto rounded-t-[32px] border border-white/10 bg-[#15132A] p-4 pb-[max(18px,env(safe-area-inset-bottom))] shadow-2xl sm:max-w-[920px] sm:rounded-[34px] sm:p-6">
+        className="max-h-[94dvh] w-full overflow-y-auto rounded-t-[30px] border border-white/[0.08] bg-[#111118] p-4 pb-[max(18px,env(safe-area-inset-bottom))] shadow-2xl sm:max-w-[920px] sm:rounded-[32px] sm:p-6">
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-300">Garderob</p>
-            <h2 className="text-[22px] font-black leading-tight sm:text-[28px]">Toby’ning kiyimlari</h2>
+            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#FFB020]">Garderob</p>
+            <h2 className="text-[21px] font-extrabold leading-tight tracking-tight sm:text-[26px]">Toby’ning kiyimlari</h2>
           </div>
-          <span className="flex items-center gap-1.5 rounded-full bg-amber-400/15 px-3 py-1.5 text-[15px] font-black tabular-nums text-amber-200">
-            <Star size={16} className="fill-amber-300 text-amber-300" /> {stars}
+          <span className="flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-[#17171F] px-3 py-1.5 text-[14.5px] font-bold tabular-nums">
+            <StarIcon size={15} /> {stars}
           </span>
-          <button type="button" onClick={onClose} aria-label="Yopish" className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 hover:bg-white/15">
+          <button type="button" onClick={onClose} aria-label="Yopish" className="flex h-10 w-10 items-center justify-center rounded-full border border-white/[0.08] bg-[#17171F] text-white/75 hover:bg-[#1D1D27]">
             <X size={18} />
           </button>
         </div>
 
         <div className="mt-4 grid gap-4 sm:grid-cols-[260px_1fr] lg:grid-cols-[320px_1fr]">
           {/* preview */}
-          <div className="relative flex flex-col items-center overflow-hidden rounded-[28px] p-3 sm:p-4" style={{ background: 'linear-gradient(160deg, #FBBF24 0%, #EA580C 100%)' }}>
-            <div className="pointer-events-none absolute -left-10 -top-12 h-40 w-40 rounded-full bg-white/25 blur-2xl" />
+          <div className="relative flex flex-col items-center overflow-hidden rounded-[26px] border border-white/[0.06] bg-[#17171F] p-3 sm:p-4"
+            style={{ backgroundImage: 'radial-gradient(80% 60% at 50% 30%, rgba(255,176,32,0.20) 0%, transparent 70%)' }}>
             <div className="relative h-40 w-36 sm:h-60 sm:w-52 lg:h-72 lg:w-60">
               <TobyAvatar className="h-full w-full" acc={worn} mood={hop ? 'proud' : 'happy'} pose={hop ? 'up' : 'wave'} jump={hop} reduced={reduced} />
             </div>
-            <p className="relative mt-1 text-[16px] font-black text-white drop-shadow">{worn ? accName(worn) : 'Hech narsa kiymagan'}</p>
-            <p className="relative text-[12.5px] font-semibold text-white/85">Toby buni hamma joyda kiyadi</p>
+            <p className="relative mt-1 text-[16px] font-extrabold text-white">{worn ? accName(worn) : 'Hech narsa kiymagan'}</p>
+            <p className="relative text-[12.5px] font-medium text-white/50">Toby buni hamma joyda kiyadi</p>
           </div>
 
           {/* items */}
@@ -196,30 +197,30 @@ function Sheet({ progress, onWear, onClose, reduced }) {
             <AnimatePresence>
               {nope && (
                 <Motion.p key={nope.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0, x: reduced ? 0 : [0, -6, 6, -3, 0] }} exit={{ opacity: 0 }}
-                  className="mt-3 rounded-2xl bg-rose-500/15 px-3 py-2 text-center text-[14px] font-bold text-rose-100">
+                  className="mt-3 rounded-2xl bg-rose-500/[0.10] px-3 py-2 text-center text-[14px] font-semibold text-rose-100 ring-1 ring-rose-400/20">
                   «{accName(nope.acc)}» uchun {nope.need} ★ kerak — sizda {stars} ★. Zonalarda va o‘yin xonasida yulduz yig‘ing!
                 </Motion.p>
               )}
             </AnimatePresence>
-            <div className="mt-3 rounded-2xl bg-white/[0.05] p-3">
+            <div className="mt-3 rounded-2xl bg-[#17171F] p-3">
               {next ? (
                 <>
                   <div className="flex items-center gap-2.5">
                     <AccIcon acc={next.acc} size={34} className="flex-shrink-0" />
-                    <p className="min-w-0 flex-1 text-[14px] font-bold leading-snug text-white/80">
-                      Keyingi sovg‘a: <b className="text-white">{next.name}</b> — yana <b className="text-amber-200">{next.need - stars} ★</b>
+                    <p className="min-w-0 flex-1 text-[14px] font-medium leading-snug text-white/70">
+                      Keyingi sovg‘a: <b className="font-bold text-white">{next.name}</b> — yana <b className="font-bold text-[#FFC95C]">{next.need - stars} ★</b>
                     </p>
                   </div>
-                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
-                    <div className="h-full rounded-full bg-gradient-to-r from-amber-300 to-orange-500" style={{ width: `${Math.min(100, (stars / next.need) * 100)}%` }} />
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/[0.08]">
+                    <div className="h-full rounded-full bg-[#FFB020]" style={{ width: `${Math.min(100, (stars / next.need) * 100)}%` }} />
                   </div>
                 </>
               ) : (
-                <p className="text-center text-[14px] font-black text-amber-200">Hammasi ochildi — siz zo‘rsiz!</p>
+                <p className="text-center text-[14px] font-bold text-[#FFC95C]">Hammasi ochildi — siz zo‘rsiz!</p>
               )}
             </div>
             <button type="button" onClick={onClose}
-              className="mt-3 w-full rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 py-3.5 text-[16px] font-black text-amber-950 shadow-lg">
+              className="mt-3 w-full rounded-full bg-[#FFB020] py-3.5 text-[16px] font-extrabold text-[#1A1203]">
               Tayyor
             </button>
           </div>

@@ -12,13 +12,14 @@ const INK = '#1F2937'
 const pivot = (x, y) => ({ transformBox: 'view-box', originX: `${x}px`, originY: `${y}px` })
 
 /*
- * acc: one name or a list — apron · glasses · bow · cap · bun · hat · mustache · driver · tie
+ * acc: one name or a list — apron · glasses · bow · cap · bun · hat · mustache · driver · tie · coat · stetho
  * hold: an item in the left paw (moves with the arm) · leftAngle: the left arm's angle (125 = pointing up-left)
+ * rightAngle: the right arm's angle when it neither waves nor eats (−70 = held out to the right)
  * hair: colour of the bun / fringe
  */
 export function Buddy({
   color = '#B197FC', belly = '#EDE9FE', dark = '#7C5CE0', acc, hair = '#7C2D12', apron = '#22C55E',
-  hold, leftAngle = 0, talking, wave, eat, cheer, reduced,
+  hold, leftAngle = 0, rightAngle = 0, talking, wave, eat, cheer, reduced,
 }) {
   const has = (k) => (Array.isArray(acc) ? acc.includes(k) : acc === k)
   const bounce = cheer && !reduced ? { y: [0, -14, 0] } : { y: 0 }
@@ -33,13 +34,34 @@ export function Buddy({
         <ellipse cx="0" cy="-40" rx="32" ry="40" fill={color} stroke={dark} strokeWidth="2" />
         <ellipse cx="0" cy="-20" rx="20" ry="17" fill={belly} />
         {has('apron') && (
+          // on the belly, below the mouth (it used to start at the cheeks and covered the face like a mask)
           <g>
-            <path d="M-14-44h28v28q0 10-14 10t-14-10z" fill={apron} />
-            <path d="M-14-44q14-18 28 0" stroke={dark} strokeWidth="3" fill="none" opacity="0.6" />
-            <rect x="-6" y="-30" width="12" height="8" rx="2" fill="#fff" opacity="0.35" />
+            <path d="M-13-31l-6-8M13-31l6-8" stroke={dark} strokeWidth="2.6" strokeLinecap="round" opacity="0.55" />
+            <path d="M-13-31h26v20q0 9-13 9t-13-9z" fill={apron} stroke={dark} strokeWidth="1.2" strokeOpacity="0.25" />
+            <rect x="-6" y="-21" width="12" height="7" rx="2" fill={dark} opacity="0.12" />
           </g>
         )}
         {has('tie') && <path d="M-3.5-27h7l-1.5 3.5 2.5 12-4.5 4.5-4.5-4.5 2.5-12z" fill="#DC2626" />}
+        {has('coat') && (
+          <g>
+            {/* an open white doctor's coat over the body */}
+            <path d="M-29-52Q-35-22-27-4Q-14 2-7 1L-9-38Q-14-48-22-54z" fill="#fff" stroke="#CBD5E1" strokeWidth="1.5" />
+            <path d="M29-52Q35-22 27-4Q14 2 7 1L9-38Q14-48 22-54z" fill="#fff" stroke="#CBD5E1" strokeWidth="1.5" />
+            <path d="M-9-38-16-30M9-38l7 8" stroke="#CBD5E1" strokeWidth="1.5" />
+            <rect x="14" y="-24" width="10" height="9" rx="2" fill="#F1F5F9" stroke="#CBD5E1" strokeWidth="1" />
+            <path d="M17-27v5M20-27v5" stroke="#3B82F6" strokeWidth="1.6" strokeLinecap="round" />
+          </g>
+        )}
+        {has('stetho') && (
+          // round the neck and down the chest (it used to run up past the eyes, across the face)
+          <g fill="none" strokeLinecap="round">
+            <path d="M-14-34Q-13-18 0-16Q13-18 14-34" stroke="#334155" strokeWidth="2.6" />
+            <circle cx="-14" cy="-34" r="1.8" fill="#334155" />
+            <circle cx="14" cy="-34" r="1.8" fill="#334155" />
+            <path d="M0-16v5" stroke="#334155" strokeWidth="2.6" />
+            <circle cx="0" cy="-7" r="4" fill="#94A3B8" stroke="#475569" strokeWidth="1.5" />
+          </g>
+        )}
         {/* left arm: hangs, or points (teacher), holding `hold` */}
         <Motion.g style={pivot(-27, -46)} initial={false} animate={{ rotate: leftAngle }} transition={{ type: 'spring', stiffness: 120, damping: 14 }}>
           {hold && <ItemArt name={hold} transform="translate(-37 -18) rotate(-10) scale(.85)" />}
@@ -47,7 +69,7 @@ export function Buddy({
         </Motion.g>
         {/* right arm: waves or eats */}
         <Motion.g style={pivot(27, -46)} initial={false}
-          animate={wave && !reduced ? { rotate: [-120, -150, -120] } : eat && !reduced ? { rotate: [100, 120, 100] } : { rotate: wave ? -130 : eat ? 110 : 0 }}
+          animate={wave && !reduced ? { rotate: [-120, -150, -120] } : eat && !reduced ? { rotate: [100, 120, 100] } : { rotate: wave ? -130 : eat ? 110 : rightAngle }}
           transition={wave || eat ? { duration: wave ? 0.5 : 0.8, repeat: Infinity } : { duration: 0.3 }}>
           <ellipse cx="31" cy="-34" rx="7" ry="13" fill={color} stroke={dark} strokeWidth="2" transform="rotate(-18 31 -34)" />
         </Motion.g>
@@ -144,9 +166,43 @@ export function Kid({ v = 0, ...props }) {
   return <Buddy {...KIDS[v % KIDS.length]} {...props} />
 }
 
-/* a grandma on the bus, reading the paper */
+/* a grandma on the bus, reading the paper (hold={null}: empty paws — at the party) */
 export function Grandma(props) {
   return <Buddy color="#E9D5FF" belly="#FAF5FF" dark="#9333EA" acc={['bun', 'glasses']} hair="#E5E7EB" hold="newspaper" leftAngle={40} {...props} />
+}
+
+/* the doctor: mint, glasses, a white coat and a stethoscope */
+export function Doctor(props) {
+  return <Buddy color="#A7F3D0" belly="#ECFDF5" dark="#059669" acc={['coat', 'stetho', 'glasses']} {...props} />
+}
+
+/* the shopkeeper: lavender with an apron */
+export function Shopkeeper(props) {
+  return <Buddy color="#C4B5FD" belly="#EDE9FE" dark="#8B5CF6" acc="apron" {...props} />
+}
+
+/* who (content.js SPEAKERS key) → their figure */
+const CAST = {
+  mum: (p) => <Mum {...p} />,
+  teacher: (p) => <Teacher {...p} />,
+  brown: (p) => <Neighbor {...p} hold={null} />,
+  shopkeeper: (p) => <Shopkeeper {...p} />,
+  driver: (p) => <Driver {...p} />,
+  grandma: (p) => <Grandma {...p} hold={null} leftAngle={0} />,
+  girl: (p) => <Kid v={1} {...p} />,
+  boy: (p) => <Kid v={0} {...p} />,
+  doctor: (p) => <Doctor {...p} />,
+}
+
+/* a character's head and shoulders in a small round frame (the question / listen bubbles) */
+export function Portrait({ who, talking = false, reduced = false, className = '' }) {
+  const draw = CAST[who]
+  if (!draw) return null
+  return (
+    <svg viewBox="-42 -104 84 84" className={className} aria-hidden>
+      {draw({ talking, reduced })}
+    </svg>
+  )
 }
 
 /* Biscuit the dog, facing right. collar ≈ (14, −28) */

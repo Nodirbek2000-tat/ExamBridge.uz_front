@@ -14,16 +14,18 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion as Motion } from 'framer-motion'
-import { ChevronLeft, CloudOff, Star, Volume2, X } from 'lucide-react'
+import { ChevronLeft, CloudOff, Volume2, X } from 'lucide-react'
 import { FATAL, useSpeech } from '../../../games/voice/useSpeech'
 import { preloadLines, sayLine, stopVoice } from '../../../games/voice/voiceTts'
-import { MicButton, VoiceNotice } from '../../../games/voice/VoiceUI'
+import { VoiceNotice } from '../../../games/voice/VoiceUI'
 import RoomScene from './RoomScene'
 import { CommandIcon, RoomChipRow, RoomPanel } from './RoomChips'
 import { AccIcon, WardrobeButton } from './Wardrobe'
+import { PlayMic, Waveform } from './PlayMic'
+import { StarIcon } from './ui'
 import {
   BY_KEY, COMMANDS, COMMAND_COUNT, HELLO, MISCHIEFS, MISCHIEF_BY_KIND, MISCHIEF_GIVE_UP_MS, MISCHIEF_MAX_MS, MISCHIEF_MIN_MS,
-  DIZZY, HAT_ALREADY, NO_HAT, POKES, POKE_DIZZY_MS, POKE_DIZZY_N, REFUSE, ROOM_LINES, SLEEPY, SORRY, WONT, fixesMischief, readToday,
+  DIZZY, HAT_ALREADY, NO_HAT, POKES, POKE_DIZZY_MS, POKE_DIZZY_N, REFUSE, ROOM_MODEL_VOICE, ROOM_TOBY_VOICE, ROOM_VOICE_LINES, SLEEPY, SORRY, WONT, fixesMischief, readToday,
   accName, accUnlocks, allStars, resolveAlternatives, roomSaid, roomStars, suggestions, writeToday,
 } from './room'
 
@@ -45,18 +47,6 @@ function useStable(fn) {
   const ref = useRef(fn)
   useEffect(() => { ref.current = fn })
   return useCallback((...args) => ref.current(...args), [])
-}
-
-/* five bars that follow the mic level */
-function Meter({ level }) {
-  return (
-    <span className="ml-2 inline-flex h-5 items-end gap-[3px] align-middle" aria-hidden>
-      {[0.35, 0.7, 1, 0.7, 0.35].map((k, i) => (
-        <span key={i} className="w-[4px] rounded-full bg-rose-300 transition-[height] duration-100"
-          style={{ height: `${Math.max(4, Math.min(20, 4 + level * k * 26))}px` }} />
-      ))}
-    </span>
-  )
 }
 
 /* a line on a small pill: tap → hear it */
@@ -155,7 +145,7 @@ export default function RoomScreen({ progress, acc = null, online = null, paused
       }
       voiceEnd.current = end
       t = setTimeout(end, 3500 + text.length * 90)
-      sayLine(text).then(end, end)
+      sayLine(text, { voice: ROOM_TOBY_VOICE }).then(end, end)
     })
     if (!alive.current || id !== voiceId.current) return
     setTalking(false)
@@ -191,7 +181,7 @@ export default function RoomScreen({ progress, acc = null, online = null, paused
     alive.current = true
     const pend = timers.current
     nextMischief.current = Date.now() + rand(MISCHIEF_MIN_MS, MISCHIEF_MAX_MS)
-    const cancel = preloadLines(ROOM_LINES)
+    const cancel = preloadLines(ROOM_VOICE_LINES)
     const hello = setTimeout(() => {
       doAct({ mood: 'happy', pose: 'wave' }, 2400)
       speak(HELLO)
@@ -481,7 +471,7 @@ export default function RoomScreen({ progress, acc = null, online = null, paused
     hush()
     bump()
     setChipVoice(key)
-    sayLine(cmd.say).then(() => { if (alive.current) setChipVoice(k => (k === key ? null : k)) })
+    sayLine(cmd.say, { voice: ROOM_MODEL_VOICE }).then(() => { if (alive.current) setChipVoice(k => (k === key ? null : k)) })
   }
 
   /* a tap on Toby: giggle → surprised → love → wink …, five quick taps → dizzy; asleep → he mumbles */
@@ -574,19 +564,20 @@ export default function RoomScreen({ progress, acc = null, online = null, paused
   const pool = fresh.length ? fresh : COMMANDS
   const example = pool[hint % pool.length]
   let status
-  if (micOn && (busy || !listening)) status = { text: 'Tekshirilmoqda…', tone: 'text-sky-200' }
-  else if (micOn && interim && interim !== '…') status = { text: `“${interim}”`, tone: 'text-white italic', meter: true }
-  else if (micOn) status = { text: 'Tinglayapman… buyruq bering!', tone: 'text-rose-200', meter: true }
+  if (micOn && (busy || !listening)) status = { text: 'Tekshirilmoqda…', tone: 'text-white/70' }
+  else if (micOn && interim && interim !== '…') status = { text: `“${interim}”`, tone: 'text-white italic' }
+  else if (micOn) status = { text: 'Tinglayapman… buyruq bering!', tone: 'text-white' }
   else if (notice === 'no-speech') status = { text: 'Hech narsa eshitilmadi — bosing va balandroq ayting', tone: 'text-amber-200' }
   else if (notice === 'retry') status = { text: 'Yana bir bor bosing — endi ishlaydi', tone: 'text-amber-200' }
   else if (notice === 'network') status = { text: 'Internetni tekshiring — ovozni tanish uchun internet kerak', tone: 'text-amber-200' }
   else if (notice === 'server') status = { text: 'Ovozni tekshirib bo‘lmadi — yana urinib ko‘ring', tone: 'text-amber-200' }
   else if (m) status = { text: 'Toby nima qilyapti? Unga ayting:', say: m.fix, tone: 'text-amber-200' }
-  else if (asleep) status = { text: 'Toby uxlayapti. Uyg‘otish uchun ayting:', say: 'wake', tone: 'text-indigo-200' }
+  else if (asleep) status = { text: 'Toby uxlayapti. Uyg‘otish uchun ayting:', say: 'wake', tone: 'text-white/75' }
   else status = { text: 'Mikrofonni bosing va ayting:', say: example.key, tone: 'text-white/75' }
 
   const micState = fatal ? 'disabled' : micOn ? (listening ? 'listening' : 'busy') : 'idle'
   const micLabel = micState === 'listening' ? 'To‘xtatish' : micState === 'busy' ? 'Kuting…' : 'Bosing va ayting'
+  const waveTone = micOn ? 'live' : heard && !heard.unknown && !heard.sleepy ? 'ok' : 'idle'
   const highlight = m ? m.fix : asleep ? 'wake' : null
 
   return (
@@ -594,20 +585,20 @@ export default function RoomScreen({ progress, acc = null, online = null, paused
       {/* header */}
       <header className="flex items-center gap-3">
         <button type="button" onClick={onExit} aria-label="Xaritaga qaytish"
-          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-white/10 text-white/80 transition hover:bg-white/15 lg:h-12 lg:w-12">
+          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-white/[0.08] bg-[#111118] text-white/75 transition hover:bg-[#17171F] lg:h-11 lg:w-11">
           <ChevronLeft size={22} />
         </button>
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-fuchsia-300 lg:text-[13px]">Play Room</p>
-          <h1 className="truncate text-[20px] font-black leading-tight tracking-tight lg:text-[30px]">Toby bilan o‘yna</h1>
+          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#FFB020] lg:text-[12px]">Play Room</p>
+          <h1 className="truncate text-[19px] font-extrabold leading-tight tracking-tight lg:text-[28px]">Toby bilan o‘yna</h1>
         </div>
         {online === false && (
-          <span className="hidden items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-bold text-white/60 sm:flex" title="Natijalar shu qurilmada saqlanadi">
+          <span className="hidden items-center gap-1 rounded-full bg-white/[0.06] px-2.5 py-1 text-[11px] font-semibold text-white/55 sm:flex" title="Natijalar shu qurilmada saqlanadi">
             <CloudOff size={13} /> Offline
           </span>
         )}
-        <span className="flex items-center gap-1.5 rounded-full bg-amber-400/15 px-3 py-2 text-[14px] font-black tabular-nums text-amber-200 lg:text-[16px]" title="O‘yin xonasi yulduzlari">
-          <Star size={16} className="fill-amber-300 text-amber-300" /> {stars}/{COMMAND_COUNT}
+        <span className="flex flex-shrink-0 items-center gap-1.5 rounded-full border border-white/[0.08] bg-[#111118] px-3 py-1.5 text-[13.5px] font-bold tabular-nums lg:px-4 lg:py-2 lg:text-[15px]" title="O‘yin xonasi yulduzlari">
+          <StarIcon size={15} /> {stars}/{COMMAND_COUNT}
         </span>
         <WardrobeButton progress={progress} onClick={onWardrobe} compact className="sm:hidden" />
         <WardrobeButton progress={progress} onClick={onWardrobe} className="hidden sm:flex" />
@@ -616,17 +607,17 @@ export default function RoomScreen({ progress, acc = null, online = null, paused
       <div className="mt-3 flex flex-1 flex-col lg:mt-4 lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
         <div className="flex min-w-0 flex-col">
           {/* the room */}
-          <div className="relative aspect-square max-h-[56dvh] w-full overflow-hidden rounded-[28px] bg-[#FCD6B4] shadow-2xl ring-1 ring-white/10 sm:aspect-[4/3] lg:aspect-auto lg:h-[min(calc(100dvh-260px),760px)] lg:max-h-none lg:min-h-[440px] lg:rounded-[36px]">
+          <div className="relative aspect-square max-h-[56dvh] w-full overflow-hidden rounded-[24px] bg-[#FCD6B4] ring-1 ring-white/[0.08] sm:aspect-[4/3] lg:aspect-auto lg:h-[min(calc(100dvh-260px),760px)] lg:max-h-none lg:min-h-[440px] lg:rounded-[36px]">
             <RoomScene toby={toby} spot={spot} motion={body} fx={fx} mischief={mischief?.kind || null} night={asleep}
               stage={act?.stage || null} bubble={bubble} onPoke={poke} reduced={reduced} />
 
             {/* counters */}
             <div className="pointer-events-none absolute left-3 top-3 flex flex-col items-start gap-1.5 lg:left-5 lg:top-5">
-              <span className="rounded-full bg-black/45 px-3 py-1 text-[12px] font-black text-white backdrop-blur lg:text-[15px]">
+              <span className="rounded-full bg-[#0B0B10]/60 px-3 py-1 text-[12px] font-bold text-white backdrop-blur lg:text-[14px]">
                 Bugun<span className="hidden min-[480px]:inline"> aytilgan buyruqlar</span>: <span className="tabular-nums text-emerald-300">{today.length}</span> / {COMMAND_COUNT}
               </span>
               {calmed > 0 && (
-                <span className="rounded-full bg-black/45 px-3 py-1 text-[12px] font-black text-sky-200 backdrop-blur lg:text-[14px]">Tinchlantirdingiz: {calmed}</span>
+                <span className="rounded-full bg-[#0B0B10]/60 px-3 py-1 text-[12px] font-bold text-white/80 backdrop-blur lg:text-[14px]">Tinchlantirdingiz: {calmed}</span>
               )}
             </div>
 
@@ -635,12 +626,12 @@ export default function RoomScreen({ progress, acc = null, online = null, paused
               {m && (
                 <Motion.div key={`${mischief.id}-${wiggle}`} initial={{ opacity: 0, y: -16, scale: 0.94 }}
                   animate={{ opacity: 1, y: 0, scale: 1, x: wiggle && !reduced ? [0, -10, 10, -6, 6, 0] : 0 }} exit={{ opacity: 0, y: -12 }}
-                  className="absolute inset-x-3 top-12 z-10 mx-auto max-w-[620px] rounded-3xl bg-gradient-to-r from-amber-400 to-orange-500 p-2.5 text-center shadow-2xl lg:top-16 lg:p-4">
-                  <p className="text-[14px] font-black leading-tight text-amber-950 lg:text-[20px]">Toby nima qilyapti? {m.what}</p>
+                  className="absolute inset-x-3 top-12 z-10 mx-auto max-w-[620px] rounded-[24px] bg-[#FFB020] p-2.5 text-center shadow-[0_12px_32px_rgba(0,0,0,0.3)] lg:top-16 lg:p-4">
+                  <p className="text-[14px] font-extrabold leading-tight text-[#1A1203] lg:text-[20px]">Toby nima qilyapti? {m.what}</p>
                   <div className="mt-1.5 flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
-                    <span className="text-[13px] font-bold text-amber-950/80 lg:text-[17px]">Unga ayting:</span>
+                    <span className="text-[13px] font-bold text-[#1A1203]/75 lg:text-[17px]">Unga ayting:</span>
                     <SayChip k={m.fix} onTap={onChip} big />
-                    {m.fix !== 'stop' && <span className="text-[12px] font-bold text-amber-950/70 lg:text-[15px]">yoki “Stop!”</span>}
+                    {m.fix !== 'stop' && <span className="text-[12px] font-bold text-[#1A1203]/65 lg:text-[15px]">yoki “Stop!”</span>}
                   </div>
                 </Motion.div>
               )}
@@ -650,8 +641,8 @@ export default function RoomScreen({ progress, acc = null, online = null, paused
             <AnimatePresence>
               {gain && (
                 <Motion.div key={gain.id} initial={{ opacity: 0, y: -10, scale: 0.8 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0 }}
-                  className="pointer-events-none absolute right-3 top-3 z-20 flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-300 to-yellow-400 px-3 py-1.5 text-[13px] font-black text-amber-950 shadow-xl lg:right-5 lg:top-5 lg:text-[17px]">
-                  {gain.star ? <><Star size={16} className="fill-amber-700 text-amber-700" /> +1 ★ Yangi buyruq!</> : 'Barakalla! Toby sizni tingladi'}
+                  className="pointer-events-none absolute right-3 top-3 z-20 flex items-center gap-1.5 rounded-full bg-[#FFB020] px-3 py-1.5 text-[13px] font-extrabold text-[#1A1203] shadow-[0_8px_24px_rgba(0,0,0,0.25)] lg:right-5 lg:top-5 lg:text-[16px]">
+                  {gain.star ? <><StarIcon size={16} /> +1 · Yangi buyruq!</> : 'Barakalla! Toby sizni tingladi'}
                 </Motion.div>
               )}
             </AnimatePresence>
@@ -660,16 +651,16 @@ export default function RoomScreen({ progress, acc = null, online = null, paused
               {unlock && (
                 <Motion.div key={unlock.id} initial={{ opacity: 0, scale: 0.6, y: 20, x: '-50%' }} animate={{ opacity: 1, scale: 1, y: 0, x: '-50%' }}
                   exit={{ opacity: 0, scale: 0.8, x: '-50%' }} transition={{ type: 'spring', stiffness: 320, damping: 20, delay: reduced ? 0 : 0.5 }}
-                  className="absolute left-1/2 top-[22%] z-30 flex w-[min(92%,420px)] items-center gap-3 rounded-[26px] bg-gradient-to-br from-violet-600 to-fuchsia-600 p-3 shadow-2xl ring-4 ring-white/60 lg:p-4">
+                  className="absolute left-1/2 top-[22%] z-30 flex w-[min(92%,420px)] items-center gap-3 rounded-[26px] border border-white/[0.10] bg-[#17171F] p-3 shadow-[0_20px_50px_rgba(0,0,0,0.45)] lg:p-4">
                   <Motion.span className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-2xl bg-white lg:h-20 lg:w-20"
                     animate={reduced ? undefined : { rotate: [0, -10, 10, -6, 0], scale: [1, 1.12, 1] }} transition={{ duration: 1.2, delay: 0.7 }}>
                     <AccIcon acc={unlock.acc} size={52} />
                   </Motion.span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[12px] font-black uppercase tracking-[0.14em] text-amber-200 lg:text-[13px]">Yangi kiyim ochildi!</p>
-                    <p className="truncate text-[18px] font-black leading-tight text-white lg:text-[22px]">{accName(unlock.acc)}</p>
+                    <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#FFB020] lg:text-[12.5px]">Yangi kiyim ochildi!</p>
+                    <p className="truncate text-[18px] font-extrabold leading-tight text-white lg:text-[22px]">{accName(unlock.acc)}</p>
                     <button type="button" onClick={() => { setUnlock(null); onWardrobe?.() }}
-                      className="mt-1.5 rounded-full bg-white px-3 py-1 text-[13px] font-black text-fuchsia-700 shadow lg:text-[15px]">
+                      className="mt-1.5 rounded-full bg-[#FFB020] px-3 py-1 text-[13px] font-extrabold text-[#1A1203] lg:text-[15px]">
                       Kiyib ko‘rish
                     </button>
                   </div>
@@ -726,32 +717,27 @@ export default function RoomScreen({ progress, acc = null, online = null, paused
               <VoiceNotice error={fatal} />
               {fatal !== 'unsupported' && (
                 <div className="flex justify-center">
-                  <button type="button" onClick={retryFatal} className="rounded-full bg-gradient-to-r from-sky-400 to-indigo-600 px-5 py-2.5 text-sm font-bold">Qayta urinish</button>
+                  <button type="button" onClick={retryFatal} className="rounded-full bg-[#FFB020] px-5 py-2.5 text-sm font-bold text-[#1A1203]">Qayta urinish</button>
                 </div>
               )}
             </div>
           ) : (
             <div className="mt-2 grid grid-cols-1 items-center gap-1 lg:mt-4 lg:grid-cols-[1fr_auto_1fr] lg:gap-6">
               <div className="flex min-h-[48px] flex-col items-center justify-center text-center lg:min-h-[108px] lg:items-start lg:text-left" aria-live="polite">
-                <p className={`line-clamp-2 text-[15px] font-bold leading-snug lg:text-[22px] ${status.tone}`}>
-                  {status.text}{status.meter && <Meter level={level} />}
-                </p>
+                <p className={`line-clamp-2 text-[15px] font-semibold leading-snug lg:text-[20px] ${status.tone}`}>{status.text}</p>
                 {status.say && <div className="mt-1.5"><SayChip k={status.say} onTap={onChip} /></div>}
-                {micOn && (
-                  <div className="mt-2 h-1.5 w-40 overflow-hidden rounded-full bg-white/10 lg:w-64">
-                    <Motion.div key={listenKey} className="h-full rounded-full bg-rose-400" initial={{ width: '100%' }} animate={{ width: '0%' }}
-                      transition={{ duration: LISTEN_MS / 1000, ease: 'linear' }} />
-                  </div>
-                )}
+                <div className="mt-2 w-full max-w-[300px] px-4 lg:max-w-[340px] lg:px-0">
+                  <Waveform active={micOn && listening} level={level} pulse={micOn ? (interim || '').length : 0} tone={waveTone} />
+                </div>
               </div>
-              <div className="flex justify-center py-1">
-                <div className="lg:hidden"><MicButton state={micState} onPress={onMic} size={84} label={micLabel} level={level} /></div>
-                <div className="hidden lg:block"><MicButton state={micState} onPress={onMic} size={108} label={micLabel} level={level} /></div>
+              <div className="flex flex-col items-center gap-1.5 py-1">
+                <PlayMic state={micState} onPress={onMic} ms={LISTEN_MS} runKey={listenKey} reduced={reduced} />
+                <span className="text-[12.5px] font-semibold text-white/50 lg:text-[14px]">{micLabel}</span>
               </div>
               <div className="hidden lg:block">
-                <div className="ml-auto max-w-[300px] rounded-3xl bg-white/[0.05] p-4 text-[15px] font-semibold leading-snug text-white/65">
-                  <p><b className="text-white">Bir marta bosing</b> (yoki <b className="text-white">Probel</b>) — Toby o‘zi tinglaydi. Buyruqni eshitishi bilan bajaradi!</p>
-                  <p className="mt-1.5">Uzoq jim tursangiz, Toby sho‘xlik qiladi — <b className="text-rose-300">“Don’t …!”</b> deb to‘xtating.</p>
+                <div className="ml-auto max-w-[300px] rounded-[22px] border border-white/[0.08] bg-[#111118] p-4 text-[14.5px] font-medium leading-snug text-white/60">
+                  <p><b className="font-bold text-white">Bir marta bosing</b> (yoki <b className="font-bold text-white">Probel</b>) — Toby o‘zi tinglaydi. Buyruqni eshitishi bilan bajaradi!</p>
+                  <p className="mt-1.5">Uzoq jim tursangiz, Toby sho‘xlik qiladi — <b className="font-bold text-[#FFB020]">“Don’t …!”</b> deb to‘xtating.</p>
                 </div>
               </div>
             </div>

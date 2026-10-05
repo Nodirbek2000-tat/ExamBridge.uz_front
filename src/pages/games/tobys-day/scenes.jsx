@@ -26,12 +26,15 @@ import { Park, Shop } from './scene-town'
 import { BusInside, BusStop, Street } from './scene-street'
 import { Classroom } from './scene-school'
 import { CookingRoom } from './scene-cooking'
+import { PartyRoom } from './scene-party'
+import { ClinicRoom } from './scene-clinic'
 import ActionFx from './scene-fx'
 
 const PLACES = {
   bedroom: Bedroom, night: Bedroom, bathroom: Bathroom, kitchen: Kitchen, living: Living,
   hall: Hall, street: Street, busstop: BusStop, bus: BusInside,
   classroom: Classroom, shop: Shop, park: Park, cooking: CookingRoom,
+  party: PartyRoom, clinic: ClinicRoom,
 }
 if (import.meta.env?.DEV) {
   const missing = PLACE_KEYS.filter(k => !PLACES[k])
@@ -40,7 +43,7 @@ if (import.meta.env?.DEV) {
 // rooms whose effects are drawn by scene-fx.jsx (the newer rooms draw their own)
 const FX_PLACES = new Set(['bedroom', 'night', 'bathroom', 'kitchen', 'living', 'shop', 'park'])
 // places where world.sitting means Toby sits down (sit pose)
-const SEATS = new Set(['park', 'bus', 'classroom'])
+const SEATS = new Set(['park', 'bus', 'classroom', 'clinic'])
 
 /* where Toby's feet are, and how big he is (o: opacity, od: its delay) */
 function spotFor(place, w, action) {
@@ -77,6 +80,10 @@ function spotFor(place, w, action) {
       if (action === 'cut') return { x: 168, y: 288, s: 0.7 }
       if (['intopot', 'salt', 'stir', 'taste', 'ready'].includes(action)) return { x: 222, y: 288, s: 0.7 }
       return { x: 172, y: 288, s: 0.7 }
+    case 'party':          // the party table (and the cake) is on the right, in front
+      return action === 'blow' || action === 'cake' ? { x: 194, y: 290, s: 0.72 } : { x: 160, y: 290, s: 0.72 }
+    case 'clinic':         // on the examination bed once he sits down
+      return w.sitting ? { x: 146, y: 252, s: 0.62 } : { x: 150, y: 290, s: 0.7 }
     default: return { x: 180, y: 288, s: 0.72 }
   }
 }
@@ -114,7 +121,7 @@ function tobyProps(step, w, phase, acting, tickle, bounce, place) {
   else if (phase === 'fail') {
     mood = sleeping ? 'sleep' : 'confused'
     if (!sleeping && !seated) pose = 'shrug'
-  } else mood = sleeping ? 'sleep' : tickle ? 'laugh' : 'idle'
+  } else mood = sleeping ? 'sleep' : tickle ? 'laugh' : w.unwell ? 'sick' : 'idle'
   if (w.hasBasket && !left) {
     left = 'basket'
     leftProps = { basket: w.basket, fresh: acting && step.action === 'pick' }
@@ -134,7 +141,7 @@ function tobyProps(step, w, phase, acting, tickle, bounce, place) {
   }
 }
 
-export default function Scene({ step, world, phase, speaker, tickle = false, bounce = 0, onPoke, reduced = false, acc = null }) {
+export default function Scene({ step, world, phase, speaker, talker = null, tickle = false, bounce = 0, onPoke, reduced = false, acc = null }) {
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '')
   const place = PLACES[step.place] ? step.place : 'kitchen'
   const Place = PLACES[place]
@@ -142,9 +149,12 @@ export default function Scene({ step, world, phase, speaker, tickle = false, bou
   const chosen = acting ? chosenOption(step, world) : null
   const sp = spotFor(place, world, step.action)
   const t = tobyProps(step, world, phase, acting, tickle, bounce, place)
+  // the party hat from the birthday zone replaces the wardrobe accessory for the rest of the party
+  const wear = place === 'party' && (world.partyHat || (acting && step.action === 'partyhat')) ? 'party' : acc
   // ids per room: while two rooms cross-fade, each keeps its own gradients
-  const roomProps = { w: world, uid: `${uid}${place}`, acting, action: step.action, reduced, speaker, night: place === 'night', sp, chosen, acc }
+  const roomProps = { w: world, uid: `${uid}${place}`, acting, action: step.action, reduced, speaker, talker, night: place === 'night', sp, chosen, acc: wear }
   const fx = FX_PLACES.has(place)
+  const fxTalker = speaker === 'other' ? talker : null
 
   // a trip (bike ride, the slide): Toby goes there and comes back
   const trip = acting && phase === 'success' && !reduced ? TRIPS[place]?.[step.action] : null
@@ -168,7 +178,7 @@ export default function Scene({ step, world, phase, speaker, tickle = false, bou
           <Place layer="back" {...roomProps} />
         </Motion.g>
       </AnimatePresence>
-      {fx && <ActionFx layer="back" step={step} w={world} sp={sp} acting={acting} reduced={reduced} />}
+      {fx && <ActionFx layer="back" step={step} w={world} sp={sp} acting={acting} reduced={reduced} talker={fxTalker} />}
 
       {dog && (
         <Motion.g initial={{ x: -60, y: 292, opacity: 0 }} animate={{ x: dogX, y: 292, opacity: 1 }}
@@ -182,7 +192,7 @@ export default function Scene({ step, world, phase, speaker, tickle = false, bou
 
       <Motion.g style={{ transformBox: 'view-box', originX: '0px', originY: '0px' }} initial={false} animate={target} transition={move}>
         <g transform="translate(-100 -236)" onClick={onPoke} style={{ cursor: onPoke ? 'pointer' : undefined }}>
-          <Toby {...t} acc={acc} talking={speaker === 'toby'} reduced={reduced} />
+          <Toby {...t} acc={wear} talking={speaker === 'toby'} reduced={reduced} />
         </g>
       </Motion.g>
 
@@ -196,7 +206,7 @@ export default function Scene({ step, world, phase, speaker, tickle = false, bou
           <Place layer="front" {...roomProps} />
         </Motion.g>
       </AnimatePresence>
-      {fx && <ActionFx layer="front" step={step} w={world} sp={sp} acting={acting} reduced={reduced} />}
+      {fx && <ActionFx layer="front" step={step} w={world} sp={sp} acting={acting} reduced={reduced} talker={fxTalker} />}
     </svg>
   )
 }

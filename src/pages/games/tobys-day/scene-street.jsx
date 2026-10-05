@@ -368,8 +368,10 @@ function CityStrip({ dx }) {
   )
 }
 
-export function BusInside({ layer, w, uid, acting, action, reduced, speaker }) {
+export function BusInside({ layer, w, uid, acting, action, reduced, speaker, talker }) {
   const arrived = !!w.arrived
+  const grandmaTalks = speaker === 'other' && talker === 'grandma'
+  const driverTalks = speaker === 'other' && !grandmaTalks
   if (layer === 'front') {
     return (
       <g>
@@ -466,15 +468,15 @@ export function BusInside({ layer, w, uid, acting, action, reduced, speaker }) {
       <rect x="304" y="54" width="54" height="30" rx="15" fill="#334155" />
       <rect x="306" y="56" width="50" height="26" rx="13" fill="#E0F2FE" />
       <g clipPath={`url(#${uid}mirror)`}>
-        <g transform="translate(331 100) scale(.62)"><Driver talking={speaker === 'other'} reduced={reduced} /></g>
+        <g transform="translate(331 100) scale(.62)"><Driver talking={driverTalks} reduced={reduced} /></g>
       </g>
       <g transform="translate(470 236)">
         <rect x="-30" y="-60" width="60" height="60" rx="10" fill="#1D4ED8" />
-        <Driver talking={speaker === 'other'} wave={acting && action === 'getoff'} reduced={reduced} />
+        <Driver talking={driverTalks} wave={acting && action === 'getoff'} reduced={reduced} />
         <circle cx="-34" cy="-46" r="16" fill="none" stroke="#334155" strokeWidth="5" />
       </g>
-      {/* a grandma reading the paper */}
-      <g transform="translate(30 222)"><Grandma reduced={reduced} /></g>
+      {/* a grandma reading the paper (she looks up to talk to Toby) */}
+      <g transform="translate(30 222)"><Grandma talking={grandmaTalks} leftAngle={grandmaTalks ? 10 : 40} reduced={reduced} /></g>
     </g>
   )
 }

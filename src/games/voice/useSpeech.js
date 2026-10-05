@@ -16,6 +16,8 @@
  *   alternatives the promise resolves with: in server mode they arrive only at the end.
  * - stop() ends early; stop({ discard: true }) also skips the server (nobody needs the result).
  * - level (0–1) moves with the voice; busy is true while the server is transcribing.
+ * - useSpeech({ game: 'runner' }) tags server clips with the game (per-game cost counter);
+ *   error 'limit' = the server's daily allowance is used up (switch to a no-mic mode, don't retry).
  * - Server mode records each phrase as its own clip; stop() / the time limit wait for phrases
  *   still being transcribed and also send the unfinished last one, so nothing said is lost.
  * - On Android the mic is not opened twice (it can break the recogniser): the
@@ -40,15 +42,22 @@ function pickMime() {
   return ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'].find(m => MediaRecorder.isTypeSupported(m)) || ''
 }
 
-async function transcribeOnServer(blob) {
+async function transcribeOnServer(blob, game) {
   if (!blob || blob.size < 1200) return ''                 // shorter than a word
   const fd = new FormData()
   fd.append('audio', blob, `clip.${blob.type.includes('mp4') ? 'm4a' : blob.type.includes('ogg') ? 'ogg' : 'webm'}`)
-  const r = await api.post('/games/voice/transcribe/', fd, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 25000 })
-  return String(r.data?.text || '').trim()
+  if (game) fd.append('game', game)                        // per-game cost counter on the server
+  try {
+    const r = await api.post('/games/voice/transcribe/', fd, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 25000 })
+    return String(r.data?.text || '').trim()
+  } catch (e) {
+    // 429 = today's allowance (the learner's or the site's) is used up — retrying will not help
+    if (e?.response?.status === 429) throw Object.assign(new Error('limit'), { code: 'limit' })
+    throw e
+  }
 }
 
-export function useSpeech({ lang = 'en-US' } = {}) {
+export function useSpeech({ lang = 'en-US', game } = {}) {
   const [listening, setListening] = useState(false)
   const [busy, setBusy] = useState(false)
   const [interim, setInterim] = useState('')
@@ -122,6 +131,7 @@ export function useSpeech({ lang = 'en-US' } = {}) {
     const timers = []
     const pending = new Set()                               // phrase clips still being transcribed
     let phraseFailed = false                                // a phrase upload failed (not the same as silence)
+    let phraseLimit = false                                 // …because the daily allowance is used up
 
     const build = () => {
       const n = Math.max(1, ...finals.map(f => f.length))
@@ -153,7 +163,7 @@ export function useSpeech({ lang = 'en-US' } = {}) {
       heardSpeech = false
       silentSince = 0
       const job = stopRecorder(old)
-        .then(blob => transcribeOnServer(blob))
+        .then(blob => transcribeOnServer(blob, game))
         .then((text) => {
           if (!text) return
           finals.push([text])                               // kept even if listening ends meanwhile — finish() waits for it
@@ -162,7 +172,7 @@ export function useSpeech({ lang = 'en-US' } = {}) {
           if (mine()) setInterim(alts[0] || '')
           if (onInterim && onInterim(alts)) finish({ discard: true })   // matched: no more server work
         })
-        .catch(() => { phraseFailed = true })
+        .catch((e) => { phraseFailed = true; if (e?.code === 'limit') phraseLimit = true })
         .finally(() => {
           pending.delete(job)
           if (mine() && !done && !pending.size) setBusy(false)
@@ -224,10 +234,10 @@ export function useSpeech({ lang = 'en-US' } = {}) {
       if (!discard && blob && !FATAL.has(err) && ((!alts.length && browserFailed) || tail)) {
         if (mine()) setBusy(true)
         try {
-          const text = await transcribeOnServer(blob)
+          const text = await transcribeOnServer(blob, game)
           if (text) { finals.push([text]); alts = build(); err = '' } else if (!alts.length && !err) err = 'no-speech'
-        } catch {
-          if (!alts.length) err = err || 'server-failed'
+        } catch (e) {
+          if (!alts.length) err = e?.code === 'limit' ? 'limit' : err || 'server-failed'
         }
       }
       if (SERVICE_ERRORS.has(err) && modeRef.current !== 'server' && canRecord()) {
@@ -237,7 +247,7 @@ export function useSpeech({ lang = 'en-US' } = {}) {
       }
       if (mine()) { setBusy(false); setInterim('') }
       if (FATAL.has(err) && mine()) setError(err)
-      if (!alts.length && !err) err = phraseFailed ? 'server-failed' : 'no-speech'
+      if (!alts.length && !err) err = phraseLimit ? 'limit' : phraseFailed ? 'server-failed' : 'no-speech'
       resolve({ alternatives: alts, error: alts.length ? '' : err })
     }
     finishRef.current = finish
@@ -288,7 +298,7 @@ export function useSpeech({ lang = 'en-US' } = {}) {
     if (useServer || !isAndroid()) startRecording()
     timers.push(setTimeout(() => finish(), maxMs))
     started = Date.now()
-  }), [lang, ensureMic])
+  }), [lang, game, ensureMic])
 
   useEffect(() => () => {
     finishRef.current?.({ discard: true })

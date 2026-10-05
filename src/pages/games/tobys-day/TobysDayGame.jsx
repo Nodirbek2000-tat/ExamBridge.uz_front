@@ -7,14 +7,18 @@
  *
  * Progress: GET/PUT /games/voice/tobys-day/progress/, POST …/runs/,
  * GET …/leaderboard/ — every call falls back to localStorage (progress.js).
- * data.room and data.wardrobe (room.js) are saved inside the same JSON.
+ * data.room and data.wardrobe (room.js), data.daily and data.bonus (missions.js)
+ * are saved inside the same JSON. Every open is counted for the admin
+ * (useGameOpen → /api/games/stats/open/).
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion as Motion, useReducedMotion } from 'framer-motion'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useGameOpen } from '../../../games/useGameOpen'
 import { SLUG, ZONES } from './content'
 import { applyRun, mergeProgress } from './logic'
+import { bumpDaily, claimMission, runDelta, stepDelta } from './missions'
 import { loadLeaderboard, loadProgress, postRun, readLocal, saveProgress, writeLocal } from './progress'
 import { addSaid, newAccs, ownedAccs, wornAcc } from './room'
 import ZoneMap from './ZoneMap'
@@ -27,6 +31,7 @@ const fade = { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity
 const SAVE_DELAY = 1500       // room commands / wardrobe: one save for a burst of changes
 
 export default function TobysDayGame() {
+  useGameOpen(SLUG)
   const navigate = useNavigate()
   const location = useLocation()
   const [params, setParams] = useSearchParams()
@@ -85,17 +90,28 @@ export default function TobysDayGame() {
     setProgress(next)
   }, [])
 
-  const update = useCallback((fn) => {
+  /* save = false: this device only for now — the next save (end of the zone, room, wardrobe) takes it along */
+  const update = useCallback((fn, save = true) => {
     const next = fn(progressRef.current)
     progressRef.current = next
     setProgress(next)
     writeLocal(next)                                      // this device has it at once
+    if (!save) return
     clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(flush, SAVE_DELAY)
   }, [flush])
 
   const onSaid = useCallback((key, todayCount) => {
-    update(p => ({ ...p, room: addSaid(p.room, key, todayCount) }))
+    update(p => bumpDaily({ ...p, room: addSaid(p.room, key, todayCount) }, { room: 1 }))
+  }, [update])
+
+  /* a line passed in a zone → today's mission counters (sent with the save at the end of the zone) */
+  const onStep = useCallback((s) => {
+    update(p => bumpDaily(p, stepDelta(s)), false)
+  }, [update])
+
+  const onClaim = useCallback((id) => {
+    update(p => claimMission(p, id))
   }, [update])
 
   const onWear = useCallback((worn) => {
@@ -137,7 +153,7 @@ export default function TobysDayGame() {
   const finish = useCallback(async (zi, run) => {
     const zone = ZONES[zi]
     const before = progressRef.current
-    const after = applyRun(before, zone, run)
+    const after = bumpDaily(applyRun(before, zone, run), runDelta(run))
     progressRef.current = after
     setProgress(after)
     clearTimeout(saveTimer.current)                       // this save carries the room / wardrobe changes too
@@ -169,12 +185,12 @@ export default function TobysDayGame() {
   }, [queryClient])
 
   return (
-    <>
+    <div className="min-h-[100dvh] bg-[#0B0B10] text-white">
       <AnimatePresence mode="wait" initial={false}>
         {view === 'map' && (
           <Motion.div key="map" {...fade}>
             <ZoneMap progress={progress} online={online} board={board} acc={acc} onStart={start} onRoom={openRoom}
-              onWardrobe={openWardrobe} onBack={() => navigate('/games')} reduced={reduced} />
+              onWardrobe={openWardrobe} onClaim={onClaim} onBack={() => navigate('/games')} reduced={reduced} />
           </Motion.div>
         )}
         {view === 'room' && (
@@ -185,7 +201,7 @@ export default function TobysDayGame() {
         )}
         {view === 'play' && (
           <Motion.div key={`play-${screen.key}`} {...fade}>
-            <PlayScreen zone={ZONES[screen.zi]} startXp={progress.xp} acc={acc} onExit={toMap}
+            <PlayScreen zone={ZONES[screen.zi]} startXp={progress.xp} acc={acc} onExit={toMap} onStep={onStep}
               onFinish={(run) => finish(screen.zi, run)} reduced={reduced} />
           </Motion.div>
         )}
@@ -198,6 +214,6 @@ export default function TobysDayGame() {
         )}
       </AnimatePresence>
       <WardrobeSheet open={wardrobe} progress={progress} onWear={onWear} onClose={() => setWardrobe(false)} reduced={reduced} />
-    </>
+    </div>
   )
 }

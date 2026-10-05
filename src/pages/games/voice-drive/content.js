@@ -164,6 +164,12 @@ export const LEVELS = [
 
 export const levelById = (id) => LEVELS.find(l => l.id === id) || LEVELS[0]
 
+/* Every line the game speaks (the commands, in the coach's voice) — for preloading / pre-generating clips. */
+export const VOICE = 'coach'
+export function allVoiceLines() {
+  return [...new Set(LEVELS.flatMap(l => l.commands.map(c => c.text)))].map(text => ({ text, voice: VOICE }))
+}
+
 /* Stars for a finished run, by score. */
 export const STAR_AT = [800, 2500, 6000]
 export const starsFor = (score) => STAR_AT.filter(s => score >= s).length

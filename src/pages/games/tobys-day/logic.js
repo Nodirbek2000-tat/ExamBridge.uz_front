@@ -5,6 +5,7 @@
  */
 import { bestMatch, normalizeWords } from '../../../games/voice/speechMatch'
 import { ZONES } from './content'
+import { cleanDaily, emptyDaily, mergeDaily } from './missions'
 
 /* ── what the recogniser heard → the spelling our lines use ─────────────── */
 // Chrome writes some words its own way ("goodnight", "icecream", "pyjamas" in
@@ -20,6 +21,9 @@ const HEARD_FIXES = [
   [/\bhome\s*-?\s*work\b/g, 'homework'],
   [/\bt\.\s?v\.?/g, 'tv'],
   [/\btoby's\b/g, 'toby'],
+  [/\bhead\s*-?\s*aches?\b/g, 'headache'],
+  [/\b(stomach|tummy)\s*-?\s*aches?\b/g, 'stomachache'],
+  [/\bthermometers?\b/g, 'thermometer'],
 ]
 export function fixHeard(text) {
   return HEARD_FIXES.reduce((t, [re, to]) => t.replace(re, to), String(text || '').toLowerCase()).trim()
@@ -43,30 +47,64 @@ export function listenMs(step) {
 
 /* was the option's key word (apples, milk…) actually heard? */
 function keywordHeard(result, keyword) {
+  if (!keyword) return true
   const kw = normalizeWords(keyword)[0]
   if (!kw) return true
   const w = result.words.find(x => normalizeWords(x.text).includes(kw))
   return !!w && w.status !== 'miss'
 }
 
+const failed = (r) => ({ ...r, passed: false, verdict: r.score >= 0.5 ? 'almost' : 'wrong' })
+
+/* "carrots" / "Carrots." → the same word (picture taps on listen / gap steps) */
+export const sameWord = (a, b) => {
+  const x = normalizeWords(a).join(' ')
+  return !!x && x === normalizeWords(b).join(' ')
+}
+
+/* the word a listen / gap step cannot pass without (the picture's word) */
+export const keyWordOf = (step) => (step.type === 'gap' ? step.gap : step.type === 'listen' ? step.answer : null)
+
 /*
  * Judge one attempt. Normal step → bestMatch of its line.
- * Choice step → every option is tried; the best one that passed (and whose key
+ * Listen / gap step → the same, but the picture's word must be heard too
+ * ("I add a little ball" is not "I add a little salt").
+ * Choice / ask step → every option is tried; the best one that passed (and whose key
  * word was heard) wins; if none passed, the closest one is returned so its
  * words can be coloured.
- * → { result, option }  (option = null for normal steps)
+ * → { result, option }  (option = null for steps without options)
  */
 export function judge(step, alternatives) {
   const alts = alternatives.map(fixHeard).filter(Boolean)
-  if (!step.choice) return { result: bestMatch(step.say, alts, { passAt: PASS_AT }), option: null }
+  if (!step.choice) {
+    const r = bestMatch(step.say, alts, { passAt: PASS_AT })
+    const kw = keyWordOf(step)
+    return { result: r.passed && kw && !keywordHeard(r, kw) ? failed(r) : r, option: null }
+  }
   let best = null
   for (const o of step.choice) {
     const r = bestMatch(o.say, alts, { passAt: PASS_AT })
     const ok = r.passed && keywordHeard(r, o.keyword)
-    const result = ok ? r : { ...r, passed: false, verdict: r.score >= 0.5 ? 'almost' : 'wrong' }
+    const result = ok ? r : failed(r)
     if (!best || (ok && !best.ok) || (ok === best.ok && r.score > best.result.score)) best = { result, option: o, ok }
   }
   return { result: best.result, option: best.option }
+}
+
+/*
+ * Listen / gap: did the learner say one of the WRONG pictures' words instead
+ * ("… cold milk")? → that option, or null. Used for a clearer hint.
+ */
+export function wrongWordSaid(step, alternatives) {
+  if (!step.options || !keyWordOf(step)) return null
+  const heard = new Set(alternatives.map(fixHeard).flatMap(a => normalizeWords(a)))
+  const right = normalizeWords(keyWordOf(step))
+  for (const o of step.options) {
+    const w = normalizeWords(o.word)
+    if (!w.length || w.join() === right.join()) continue
+    if (w.every(x => heard.has(x))) return o
+  }
+  return null
 }
 
 /*
@@ -134,10 +172,11 @@ export function medal(stars, zone) {
   return p >= 0.9 ? 3 : p >= 0.7 ? 2 : p >= 0.4 ? 1 : 0
 }
 
-/* what a passed / skipped step changes in the world */
+/* what a passed / skipped step changes in the world (a choice also adds the picked item to world.basket) */
 export function patchFor(step, world, option) {
-  if (step.choice) return option ? { basket: [...(world.basket || []), option.item] } : {}
-  return step.after || {}
+  const after = step.after || {}
+  if (step.choice) return option?.item ? { ...after, basket: [...(world.basket || []), option.item] } : after
+  return after
 }
 
 /* ── saved progress ────────────────────────────────────────────────────── */
@@ -147,6 +186,8 @@ export function patchFor(step, world, option) {
  *   zones:    { [zoneKey]: { stars, best, plays } },
  *   wardrobe: { owned: [acc…], worn: acc | null, t? },   // t = Date.now() of the last change (newest wins on merge)
  *   room:     { said: { [commandKey]: count }, best },   // the play room (TobysDayGame / Room*)
+ *   daily:    { d: 'YYYY-MM-DD', n: { [counter]: n }, got: [missionId…] },   // today's missions (missions.js)
+ *   bonus:    stars won with missions,
  * }
  * Everything is validated and capped so the JSON stays far below the 20 KB limit.
  */
@@ -160,7 +201,7 @@ const MAX_SAID = 64
 const MAX_COUNT = 999999
 
 export function emptyProgress() {
-  return { v: 1, zones: {}, coins: 0, xp: 0, level: 1, wardrobe: { owned: [], worn: null }, room: { said: {}, best: 0 } }
+  return { v: 1, zones: {}, coins: 0, xp: 0, level: 1, wardrobe: { owned: [], worn: null }, room: { said: {}, best: 0 }, daily: emptyDaily(), bonus: 0 }
 }
 
 function cleanWardrobe(w) {
@@ -220,6 +261,8 @@ export function cleanProgress(raw) {
   }
   p.wardrobe = cleanWardrobe(raw.wardrobe)
   p.room = cleanRoom(raw.room)
+  p.daily = cleanDaily(raw.daily)
+  p.bonus = Math.min(num(raw.bonus), MAX_COUNT)
   p.level = levelInfo(p.xp).level
   return p
 }
@@ -266,6 +309,8 @@ export function mergeProgress(a, b) {
   }
   out.wardrobe = mergeWardrobe(x.wardrobe, y.wardrobe)
   out.room = mergeRoom(x.room, y.room)
+  out.daily = mergeDaily(x.daily, y.daily)
+  out.bonus = Math.max(x.bonus, y.bonus)
   out.level = levelInfo(out.xp).level
   return out
 }

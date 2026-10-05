@@ -77,6 +77,14 @@ const ShadowingGame = lazyWithPreload(() => import('./pages/games/shadowing/Shad
 // Speak & Play — voice games (say the line, the character / car does it)
 const TobysDayGame = lazyWithPreload(() => import('./pages/games/tobys-day/TobysDayGame'))
 const VoiceDriveGame = lazyWithPreload(() => import('./pages/games/voice-drive/VoiceDriveGame'))
+const SpeakingGame = lazyWithPreload(() => import('./pages/games/speaking/SpeakingGame'))
+const RunnerGame = lazyWithPreload(() => import('./pages/games/runner/RunnerGame'))
+const WordBattleGame = lazyWithPreload(() => import('./pages/games/word-battle/WordBattleGame'))
+const AdminGamesWords = lazyWithPreload(() => import('./pages/admin/games/AdminGamesWords'))
+const AdminGamesRunner = lazyWithPreload(() => import('./pages/admin/games/AdminGamesRunner'))
+const AdminGamesWordBattle = lazyWithPreload(() => import('./pages/admin/games/AdminGamesWordBattle'))
+const AdminGamesOverview = lazyWithPreload(() => import('./pages/admin/games/AdminGamesOverview'))
+const AdminGamesSpeaking = lazyWithPreload(() => import('./pages/admin/games/AdminGamesSpeaking'))
 
 // Study Tools
 const ArticlesPage = lazyWithPreload(() => import('./pages/study/ArticlesPage'))
@@ -295,6 +303,9 @@ export default function App() {
         <Route path="shadowing" element={<ShadowingGame />} />
         <Route path="tobys-day" element={<TobysDayGame />} />
         <Route path="voice-drive" element={<VoiceDriveGame />} />
+        <Route path="speaking" element={<SpeakingGame />} />
+        <Route path="runner" element={<RunnerGame />} />
+        <Route path="word-battle" element={<WordBattleGame />} />
       </Route>
 
       {/* Study Tools — its own section with a dedicated top nav */}
@@ -381,6 +392,14 @@ export default function App() {
           <Route path="writing-samples" element={<AdminStudyWritingSamples />} />
           <Route path="shadowing" element={<AdminStudyPodcasts section="shadowing" />} />
           <Route path="podcasts" element={<AdminStudyPodcasts section="podcast" />} />
+        </Route>
+        {/* Games */}
+        <Route path="games">
+          <Route index element={<AdminGamesOverview />} />
+          <Route path="speaking" element={<AdminGamesSpeaking />} />
+          <Route path="words" element={<AdminGamesWords />} />
+          <Route path="runner" element={<AdminGamesRunner />} />
+          <Route path="word-battle" element={<AdminGamesWordBattle />} />
         </Route>
         <Route path="testmakon-users" element={<AdminTestmakonUsers />} />
         <Route path="centers" element={<AdminCenters />} />
