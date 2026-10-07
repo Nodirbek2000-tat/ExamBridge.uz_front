@@ -39,9 +39,9 @@ function splitVendors(id) {
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   build: {
-    // Endi bitta ulkan fayl bo'lmagani uchun ogohlantirish chegarasini pasaytiramiz —
-    // biror chunk shundan oshsa, demak yana nimadir noto'g'ri birikkan
+    target: 'es2020',
     chunkSizeWarningLimit: 700,
+    reportCompressedSize: false,
     rollupOptions: {
       output: { manualChunks: splitVendors },
     },
