@@ -12,6 +12,8 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { AlertTriangle, ArrowLeft, Check, Clock, Loader2, Mic, MicOff, Play, RotateCcw, ThumbsDown, ThumbsUp, Volume2 } from 'lucide-react'
 import api from '../../api/client'
 import { preloadTts } from '../../utils/ttsPreload'
+import { speakingLimit } from '../../utils/speakingLimit'
+import { SpeakingLimitCard } from '../../components/exam/SpeakingLimitNotice'
 
 const HOME = '/app/cefr/skills?tab=speaking'
 const SR = typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null
@@ -127,6 +129,7 @@ export default function CEFRSpeakingExam() {
   const [mic, setMic] = useState('idle')                // idle | asking | ok | denied | missing
   const [live, setLive] = useState('')
   const [uploadError, setUploadError] = useState('')
+  const [uploadLimit, setUploadLimit] = useState(null)    // the daily speaking limit refused the submit
   const [leaving, setLeaving] = useState(false)
 
   const streamRef = useRef(null)
@@ -188,7 +191,7 @@ export default function CEFRSpeakingExam() {
   }, [])
 
   useEffect(() => {
-    if (stage !== 'run') return
+    if (stage !== 'run' && stage !== 'failed') return     // 'failed' still holds the recordings
     const warn = (e) => { e.preventDefault(); e.returnValue = '' }
     window.addEventListener('beforeunload', warn)
     return () => window.removeEventListener('beforeunload', warn)
@@ -293,6 +296,7 @@ export default function CEFRSpeakingExam() {
   const upload = async () => {
     setStage('upload')
     setUploadError('')
+    setUploadLimit(null)
     const fd = new FormData()
     fd.append('answers', JSON.stringify(answersRef.current.map(({ blob, ...a }) => a)))   // eslint-disable-line no-unused-vars
     answersRef.current.forEach((a, i) => { if (a.blob) fd.append(`audio_${i}`, a.blob, `answer${i}.webm`) })
@@ -301,6 +305,8 @@ export default function CEFRSpeakingExam() {
       streamRef.current?.getTracks().forEach(t => t.stop())
       navigate(result, { replace: true })
     } catch (e) {
+      // the answers stay in answersRef, so "Qayta yuborish" / "Try again" sends the same recordings
+      setUploadLimit(speakingLimit(e))
       setUploadError(e.response?.data?.error || e.response?.data?.detail || 'Your answers could not be saved. Check the connection and try again.')
       setStage('failed')
     }
@@ -511,8 +517,13 @@ export default function CEFRSpeakingExam() {
       </nav>
 
       <AnimatePresence>
-        {(stage === 'upload' || stage === 'failed') && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+        {stage === 'failed' && uploadLimit && (
+          <motion.div key="limit" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+            <SpeakingLimitCard message={uploadLimit.message} kept onRetry={upload} />
+          </motion.div>
+        )}
+        {(stage === 'upload' || (stage === 'failed' && !uploadLimit)) && (
+          <motion.div key="upload" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
             <div className="w-full max-w-sm space-y-4 rounded-3xl bg-white p-6 text-center shadow-2xl">
               {stage === 'upload' ? (
                 <>
@@ -535,7 +546,7 @@ export default function CEFRSpeakingExam() {
           </motion.div>
         )}
         {leaving && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <motion.div key="leaving" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
             <div className="w-full max-w-sm space-y-4 rounded-3xl bg-white p-6 text-center shadow-2xl">
               <p className="text-lg font-black text-gray-900">Leave the test?</p>
               <p className="text-[15px] text-gray-600">Your recordings will be lost and the test will not be scored.</p>

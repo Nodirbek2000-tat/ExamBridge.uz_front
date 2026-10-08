@@ -13,6 +13,8 @@ import {
   ResultHeader, LoadingCard, ErrorCard, ScoreHero, CriterionCard, HighlightedText, MarkLegend, SectionTitle, AudioPlayer,
 } from '../../components/feedback/FeedbackKit'
 import { buildMarks, matchedMarks, txt } from '../../components/feedback/feedbackUtils'
+import { SpeakingLimitCard } from '../../components/exam/SpeakingLimitNotice'
+import { speakingLimit } from '../../utils/speakingLimit'
 
 // red = grammar / vocabulary mistakes, amber = fluency & pronunciation notes
 const CRITERIA = [
@@ -102,10 +104,12 @@ export default function SpeakingResultPage({ exam = 'ielts' }) {
   const [taskInfo, setTaskInfo] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [limit, setLimit] = useState(null)       // unsaved answers are not scored while the daily limit is reached
 
   const runAnalysis = useCallback(async (txs, task, respId) => {
     setLoading(true)
     setError(null)
+    setLimit(null)
     const testType = task?.test_type || task?.task_test_type || 'PART'
     const part = task?.part || task?.task_part
     try {
@@ -117,7 +121,9 @@ export default function SpeakingResultPage({ exam = 'ielts' }) {
       })
       setResult(r.data)
     } catch (e) {
-      setError(e.response?.data?.error || e.message)
+      const lim = speakingLimit(e)
+      if (lim) setLimit(lim)
+      else setError(e.response?.data?.error || e.message)
     } finally {
       setLoading(false)
     }
@@ -180,6 +186,11 @@ export default function SpeakingResultPage({ exam = 'ielts' }) {
       <div className="min-h-0 flex-1 overflow-y-auto pb-16">
         <div className="mx-auto w-full max-w-5xl space-y-8 px-4 pt-6 sm:px-6 sm:pt-8">
           {loading && <LoadingCard title="Listening to your answers…" steps={['Fluency', 'Vocabulary', 'Grammar', 'Pronunciation']} />}
+          {limit && !loading && (
+            <div className="flex justify-center">
+              <SpeakingLimitCard message={limit.message} onBack={() => navigate(cfg.home)} backLabel="Speaking bo'limiga qaytish" />
+            </div>
+          )}
           {error && !loading && (
             <ErrorCard message={error} onRetry={transcripts.length ? () => runAnalysis(transcripts, taskInfo, hasId ? responseId : null) : null} />
           )}

@@ -5,6 +5,9 @@ import { motion } from 'framer-motion'
 import { Mic, MicOff, Loader2, Volume2, Check, Lightbulb, Upload } from 'lucide-react'
 import api from '../../api/client'
 import { preloadTts } from '../../utils/ttsPreload'
+import { speakingLimit } from '../../utils/speakingLimit'
+import { useSpeakingAttempt } from '../../hooks/useSpeakingAttempt'
+import { SpeakingLimitCard, SpeakingLimitScreen } from '../../components/exam/SpeakingLimitNotice'
 
 const AI_PERSONAS = [
   { name: 'Sarah',   gender: 'female', voice: 'nova',    speed: 0.95, greeting: "Hello! I'm Sarah, your CEFR speaking examiner today." },
@@ -162,8 +165,11 @@ export default function CEFRSpeakingAttempt() {
   const { taskId } = useParams()
   const [searchParams] = useSearchParams()
   const rawAttempt = searchParams.get('attempt')
-  const attemptId = rawAttempt && rawAttempt !== 'undefined' && rawAttempt !== 'null' ? rawAttempt : null
+  const urlAttemptId = rawAttempt && rawAttempt !== 'undefined' && rawAttempt !== 'null' ? rawAttempt : null
   const navigate = useNavigate()
+  // the server hands out the attempt (and says when the daily speaking limit is reached) before anything is recorded
+  const { gate, attemptId, limit: startLimit } = useSpeakingAttempt(taskId, urlAttemptId)
+  const [submitLimit, setSubmitLimit] = useState(null)
 
   const [persona] = useState(() => AI_PERSONAS[Math.floor(Math.random() * AI_PERSONAS.length)])
   const [state, setState] = useState('MIC_GATE')
@@ -211,7 +217,9 @@ export default function CEFRSpeakingAttempt() {
     }
   }
 
+  // ask for the microphone once the server let the test start
   useEffect(() => {
+    if (gate !== 'ok') return
     if (navigator.permissions) {
       navigator.permissions.query({ name: 'microphone' }).then(result => {
         if (result.state === 'granted') setState('LOADING')
@@ -220,7 +228,15 @@ export default function CEFRSpeakingAttempt() {
     } else {
       handleAllowMic()
     }
-  }, [])
+  }, [gate])
+
+  // a submit refused by the daily limit keeps the recordings on this page: warn before they are lost
+  useEffect(() => {
+    if (!submitLimit) return
+    const warn = (e) => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [submitLimit])
 
   const { data: task } = useQuery({
     queryKey: ['cefr-speaking-task', taskId],
@@ -419,6 +435,7 @@ export default function CEFRSpeakingAttempt() {
       return
     }
     setSubmitting(true)
+    setSubmitLimit(null)
     try {
       const formData = new FormData()
       formData.append('task_id', String(taskId))
@@ -426,13 +443,24 @@ export default function CEFRSpeakingAttempt() {
       questionAudiosRef.current.forEach((blob, i) => { if (blob) formData.append(`audio_${i}`, blob, `q${i}.webm`) })
       const resp = await api.post(`/ielts/speaking/${attemptId}/submit/`, formData, { headers: { 'Content-Type': 'multipart/form-data' } })
       navigate(`/exam/cefr/speaking/result/${resp.data.id}`, { replace: true })
-    } catch {
+    } catch (err) {
+      const limit = speakingLimit(err)
+      if (limit) {
+        // daily limit: stay here with the recordings, so the same answers can be sent later
+        setSubmitLimit(limit)
+        setSubmitting(false)
+        return
+      }
       navigate('/exam/cefr/speaking/result/0', { state: { task, transcripts, persona }, replace: true })
     }
   }
 
   const currentQ = questions[qIndex]
   const progressLabel = currentQ && questions.length ? `PART ${currentQ.part} | Q ${qIndex + 1}/${questions.length}` : null
+
+  if (gate === 'limit') {
+    return <SpeakingLimitScreen message={startLimit.message} onBack={() => navigate('/app/cefr/skills?tab=speaking')} />
+  }
 
   if (state === 'MIC_GATE') {
     return (
@@ -493,6 +521,9 @@ export default function CEFRSpeakingAttempt() {
         <div className="w-full max-w-lg flex flex-col items-center flex-1 justify-center gap-8 sm:gap-10">
           <ExaminerBlock persona={persona} state={state} />
 
+          {state === 'FAREWELL' && submitLimit ? (
+            <SpeakingLimitCard message={submitLimit.message} kept onRetry={handleFinish} retrying={submitting} />
+          ) : (
           <motion.div key={`${qIndex}-${state}`} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
             className="w-full rounded-[28px] sm:rounded-[36px] bg-white shadow-lg shadow-slate-200/80 border border-slate-100 px-6 sm:px-10 py-8 sm:py-12">
             {state === 'LOADING' ? (
@@ -529,6 +560,7 @@ export default function CEFRSpeakingAttempt() {
               </>
             )}
           </motion.div>
+          )}
 
           {state === 'AI_SPEAKING' && (
             <div className="flex items-center gap-2 text-emerald-600 text-xs font-semibold">

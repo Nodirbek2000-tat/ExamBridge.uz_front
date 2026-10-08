@@ -5,6 +5,9 @@ import { motion } from 'framer-motion'
 import { Mic, MicOff, Loader2, Volume2, Check, Lightbulb, Upload } from 'lucide-react'
 import api from '../../api/client'
 import { preloadTts } from '../../utils/ttsPreload'
+import { speakingLimit } from '../../utils/speakingLimit'
+import { useSpeakingAttempt } from '../../hooks/useSpeakingAttempt'
+import { SpeakingLimitCard, SpeakingLimitScreen } from '../../components/exam/SpeakingLimitNotice'
 
 // ── AI personas mapped to OpenAI TTS voices ────────────────────────────────
 // alloy=neutral, echo=male-clear, fable=male-warm, onyx=male-deep,
@@ -193,8 +196,11 @@ export default function IELTSSpeakingAttempt() {
   const { taskId } = useParams()
   const [searchParams] = useSearchParams()
   const rawAttempt = searchParams.get('attempt')
-  const attemptId = rawAttempt && rawAttempt !== 'undefined' && rawAttempt !== 'null' ? rawAttempt : null
+  const urlAttemptId = rawAttempt && rawAttempt !== 'undefined' && rawAttempt !== 'null' ? rawAttempt : null
   const navigate = useNavigate()
+  // the server hands out the attempt (and says when the daily speaking limit is reached) before anything is recorded
+  const { gate, attemptId, limit: startLimit } = useSpeakingAttempt(taskId, urlAttemptId)
+  const [submitLimit, setSubmitLimit] = useState(null)
 
   const [persona] = useState(() => AI_PERSONAS[Math.floor(Math.random() * AI_PERSONAS.length)])
   const [state, setState] = useState('MIC_GATE')   // MIC_GATE first, then LOADING → ...
@@ -250,9 +256,10 @@ export default function IELTSSpeakingAttempt() {
     }
   }
 
-  // Auto-request mic permission on mount
+  // Auto-request mic permission once the server let the test start
   // If already granted → skip gate entirely and go straight to test
   useEffect(() => {
+    if (gate !== 'ok') return
     if (navigator.permissions) {
       navigator.permissions.query({ name: 'microphone' }).then(result => {
         if (result.state === 'granted') {
@@ -264,7 +271,15 @@ export default function IELTSSpeakingAttempt() {
     } else {
       handleAllowMic()          // Permissions API not supported → try directly
     }
-  }, [])
+  }, [gate])
+
+  // a submit refused by the daily limit keeps the recordings on this page: warn before they are lost
+  useEffect(() => {
+    if (!submitLimit) return
+    const warn = (e) => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [submitLimit])
 
   // Load task
   const { data: task } = useQuery({
@@ -658,6 +673,7 @@ export default function IELTSSpeakingAttempt() {
       return
     }
     setSubmitting(true)
+    setSubmitLimit(null)
     try {
       const formData = new FormData()
       formData.append('task_id', String(taskId))
@@ -669,7 +685,14 @@ export default function IELTSSpeakingAttempt() {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
       navigate(`/exam/ielts/speaking/result/${resp.data.id}`, { replace: true })
-    } catch {
+    } catch (err) {
+      const limit = speakingLimit(err)
+      if (limit) {
+        // daily limit: stay here with the recordings, so the same answers can be sent later
+        setSubmitLimit(limit)
+        setSubmitting(false)
+        return
+      }
       // Navigate with state as fallback if submit failed
       navigate('/exam/ielts/speaking/result/0', {
         state: { task, transcripts, persona },
@@ -682,6 +705,10 @@ export default function IELTSSpeakingAttempt() {
   const progressLabel = currentQ && questions.length
     ? `PART ${currentQ.part} | Q ${qIndex + 1}/${questions.length}`
     : null
+
+  if (gate === 'limit') {
+    return <SpeakingLimitScreen message={startLimit.message} onBack={() => navigate('/app/ielts/skills?tab=speaking')} />
+  }
 
   // ── MIC GATE full-screen ──────────────────────────────────────────────────
   if (state === 'MIC_GATE') {
@@ -766,6 +793,9 @@ export default function IELTSSpeakingAttempt() {
         <div className="w-full max-w-lg flex flex-col items-center flex-1 justify-center gap-8 sm:gap-10">
           <ExaminerBlock persona={persona} state={state} />
 
+          {state === 'FAREWELL' && submitLimit ? (
+            <SpeakingLimitCard message={submitLimit.message} kept onRetry={handleFinish} retrying={submitting} />
+          ) : (
           <motion.div
             key={`${qIndex}-${state}`}
             initial={{ opacity: 0, y: 14 }}
@@ -817,6 +847,7 @@ export default function IELTSSpeakingAttempt() {
               </>
             )}
           </motion.div>
+          )}
 
           {state === 'AI_SPEAKING' && (
             <div className="flex items-center gap-2 text-sky-600 text-xs font-semibold">

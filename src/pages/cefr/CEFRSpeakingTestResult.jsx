@@ -13,6 +13,8 @@ import {
   AudioPlayer, CefrScoreHero, CriterionCard, ErrorCard, HighlightedText, LoadingCard, MarkLegend, ResultHeader, SectionTitle,
 } from '../../components/feedback/FeedbackKit'
 import { buildMarks, matchedMarks, scoreTheme } from '../../components/feedback/feedbackUtils'
+import { SpeakingLimitDialog } from '../../components/exam/SpeakingLimitNotice'
+import { speakingLimit } from '../../utils/speakingLimit'
 
 const HOME = '/app/cefr/skills?tab=speaking'
 // red = grammar / vocabulary mistakes, amber = task and fluency notes
@@ -115,6 +117,7 @@ export default function CEFRSpeakingTestResult() {
   const queryClient = useQueryClient()
   const [tab, setTab] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [limitMsg, setLimitMsg] = useState(null)
 
   const { data, error, isLoading } = useQuery({
     queryKey: ['cefr-speaking-response', responseId],
@@ -133,6 +136,9 @@ export default function CEFRSpeakingTestResult() {
     try {
       const r = await api.post(`/cefr/speaking/${data.test.id}/start/`)
       navigate(`/exam/cefr/speaking/test/${r.data.response_id}`)
+    } catch (err) {
+      const limit = speakingLimit(err)              // daily speaking limit: say so, start nothing
+      if (limit) setLimitMsg(limit.message)
     } finally {
       setBusy(false)
     }
@@ -225,6 +231,7 @@ export default function CEFRSpeakingTestResult() {
           )}
         </div>
       </div>
+      {limitMsg && <SpeakingLimitDialog message={limitMsg} onClose={() => setLimitMsg(null)} />}
     </div>
   )
 }

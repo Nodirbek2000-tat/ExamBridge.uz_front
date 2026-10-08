@@ -8,6 +8,8 @@ import {
 } from 'lucide-react'
 import api from '../../api/client'
 import { useAuthStore } from '../../store/authStore'
+import { speakingLimit } from '../../utils/speakingLimit'
+import { SpeakingLimitDialog } from '../../components/exam/SpeakingLimitNotice'
 
 // ── Mini audio player ────────────────────────────────────────────────────────
 function MiniAudioPlayer({ src }) {
@@ -170,6 +172,7 @@ export default function IELTSSpeakingList({ embedded = false, accentBtn = 'bg-sk
   const user = useAuthStore((s) => s.user)
   const [filter, setFilter] = useState('all')
   const [starting, setStarting] = useState(null)
+  const [limitMsg, setLimitMsg] = useState(null)
 
   const { data = [], isLoading } = useQuery({
     queryKey: ['speaking-tasks'],
@@ -190,8 +193,10 @@ export default function IELTSSpeakingList({ embedded = false, accentBtn = 'bg-sk
     try {
       const res = await api.post('/ielts/attempt/start/', { task_type: 'speaking', task_id: task.id })
       navigate(`/exam/ielts/speaking/${task.id}?attempt=${res.data.attempt_id}`)
-    } catch {
-      navigate(`/exam/ielts/speaking/${task.id}`)
+    } catch (err) {
+      const limit = speakingLimit(err)
+      if (limit) setLimitMsg(limit.message)          // daily speaking limit: say so, start nothing
+      else navigate(`/exam/ielts/speaking/${task.id}`)
     } finally {
       setStarting(null)
     }
@@ -324,6 +329,7 @@ export default function IELTSSpeakingList({ embedded = false, accentBtn = 'bg-sk
           })}
         </div>
       )}
+      {limitMsg && <SpeakingLimitDialog message={limitMsg} onClose={() => setLimitMsg(null)} />}
     </div>
   )
 }

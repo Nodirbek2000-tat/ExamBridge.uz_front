@@ -4,6 +4,8 @@ import { useQuery } from '@tanstack/react-query'
 import { Mic, Loader2, ChevronLeft, Clock, Layers, CheckCircle2, RotateCcw } from 'lucide-react'
 import api from '../../api/client'
 import { useAuthStore } from '../../store/authStore'
+import { speakingLimit } from '../../utils/speakingLimit'
+import { SpeakingLimitDialog } from '../../components/exam/SpeakingLimitNotice'
 
 function speakingMeta(task) {
   if (task.test_type === 'MOCK') return { time: '11–14 min', detail: '3 Parts', badge: 'Full Mock' }
@@ -16,6 +18,7 @@ export default function CEFRSpeakingList({ embedded = false, accentBtn = 'bg-eme
   const user = useAuthStore(s => s.user)
   const [filter, setFilter] = useState('all')
   const [starting, setStarting] = useState(null)
+  const [limitMsg, setLimitMsg] = useState(null)
 
   const { data = [], isLoading } = useQuery({
     queryKey: ['cefr-speaking-tasks'],
@@ -34,8 +37,10 @@ export default function CEFRSpeakingList({ embedded = false, accentBtn = 'bg-eme
     try {
       const res = await api.post('/ielts/attempt/start/', { task_type: 'speaking', task_id: task.id })
       navigate(`/exam/cefr/speaking/${task.id}?attempt=${res.data.attempt_id}`)
-    } catch {
-      navigate(`/exam/cefr/speaking/${task.id}`)
+    } catch (err) {
+      const limit = speakingLimit(err)
+      if (limit) setLimitMsg(limit.message)          // daily speaking limit: say so, start nothing
+      else navigate(`/exam/cefr/speaking/${task.id}`)
     } finally {
       setStarting(null)
     }
@@ -141,6 +146,7 @@ export default function CEFRSpeakingList({ embedded = false, accentBtn = 'bg-eme
           })}
         </div>
       )}
+      {limitMsg && <SpeakingLimitDialog message={limitMsg} onClose={() => setLimitMsg(null)} />}
     </div>
   )
 }

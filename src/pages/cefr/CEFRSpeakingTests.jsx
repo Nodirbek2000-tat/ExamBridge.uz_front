@@ -5,6 +5,8 @@ import { useQuery } from '@tanstack/react-query'
 import { Clock3, Crown, Layers, Loader2, Mic } from 'lucide-react'
 import api from '../../api/client'
 import { cefrLevelLabel, cefrTheme } from '../../components/feedback/feedbackUtils'
+import { speakingLimit } from '../../utils/speakingLimit'
+import { SpeakingLimitDialog } from '../../components/exam/SpeakingLimitNotice'
 
 const PART_LABEL = { '1.1': 'Part 1.1 · about you', '1.2': 'Part 1.2 · two pictures', '2': 'Part 2 · long turn', '3': 'Part 3 · for & against' }
 
@@ -12,6 +14,7 @@ export default function CEFRSpeakingTests({ accentBtn = 'bg-rose-500 hover:bg-ro
   const navigate = useNavigate()
   const [starting, setStarting] = useState(null)
   const [message, setMessage] = useState('')
+  const [limitMsg, setLimitMsg] = useState(null)
 
   const { data = [], isLoading } = useQuery({
     queryKey: ['cefr-speaking-tests'],
@@ -27,7 +30,9 @@ export default function CEFRSpeakingTests({ accentBtn = 'bg-rose-500 hover:bg-ro
       const r = await api.post(`/cefr/speaking/${test.id}/start/`)
       navigate(`/exam/cefr/speaking/test/${r.data.response_id}`)
     } catch (e) {
-      setMessage(e.response?.status === 403 ? 'This test is for Premium members.' : 'The test could not be started. Try again.')
+      const limit = speakingLimit(e)
+      if (limit) setLimitMsg(limit.message)          // daily speaking limit (shared with IELTS)
+      else setMessage(e.response?.status === 403 ? 'This test is for Premium members.' : 'The test could not be started. Try again.')
     } finally {
       setStarting(null)
     }
@@ -90,6 +95,7 @@ export default function CEFRSpeakingTests({ accentBtn = 'bg-rose-500 hover:bg-ro
           </div>
         )}
       </div>
+      {limitMsg && <SpeakingLimitDialog message={limitMsg} onClose={() => setLimitMsg(null)} />}
     </div>
   )
 }
