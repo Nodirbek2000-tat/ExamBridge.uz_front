@@ -136,8 +136,7 @@
       display: flex; align-items: center; gap: 10px;
       font-size: 20px; font-weight: 800; color: var(--navy);
     }
-    .nav-logo svg { width: 32px; height: 32px; }
-    .nav-logo span { color: var(--blue); }
+    .nav-logo img { height: 34px; width: auto; display: block; }
     .nav-links {
       display: flex; align-items: center; gap: 8px;
     }
@@ -147,13 +146,13 @@
       transition: color .2s, background .2s;
     }
     .nav-links a:hover { color: var(--navy); background: var(--bg-soft); }
-    .btn-nav {
+    .nav-links .btn-nav {
       font-size: 14px; font-weight: 600;
       background: var(--blue); color: #fff;
       padding: 8px 18px; border-radius: 8px;
       transition: background .2s;
     }
-    .btn-nav:hover { background: var(--blue-dark); }
+    .nav-links .btn-nav:hover { background: var(--blue-dark); color: #fff; }
 
     /* ── HERO ── */
     .hero {
@@ -365,7 +364,7 @@
     @media (max-width: 640px) {
       .hero-stats { gap: 24px; }
       .cta-banner { padding: 40px 24px; margin: 0 16px; }
-      .nav-links { display: none; }
+      .nav-links a:not(.btn-nav) { display: none; } .nav-links .btn-nav { padding: 7px 14px; font-size: 13px; }
     }
   </style>
 </head>
@@ -375,13 +374,7 @@
 <nav>
   <div class="nav-inner">
     <a href="/" class="nav-logo">
-      <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="32" cy="32" r="30" fill="#eff6ff"/>
-        <path d="M32 11c11.6 0 21 9.4 21 21 0 6.3-2.8 12-7.2 15.9" stroke="#2563eb" stroke-width="3.5" stroke-linecap="round"/>
-        <path d="M32 19c7.2 0 13 5.8 13 13 0 4.2-2 8-5.2 10.3" stroke="#0ea5e9" stroke-width="2.5" stroke-linecap="round"/>
-        <circle cx="32" cy="32" r="4.5" fill="#2563eb"/>
-      </svg>
-      Exam<span>Bridge</span>
+      <img src="/brand/exambridge-logo.png" alt="ExamBridge" width="140" height="34">
     </a>
     <div class="nav-links">
       <a href="/ielts">IELTS</a>
