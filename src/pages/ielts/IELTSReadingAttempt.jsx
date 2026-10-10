@@ -387,6 +387,23 @@ function injectPassageHighlights(html, items) {
 }
 
 // -- "Questions N�M �" lines before first [gap] > plain header (no card border) -
+// Imported group instructions sometimes carry editor HTML (<br>, <p>, <strong>,
+// &nbsp;). The blocks below expect plain text with \n lines and **bold**.
+function plainGroupInstruction(text) {
+  if (!text || !/<|&[a-z#\d]+;/i.test(text)) return text
+  return text
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>\s*<p[^>]*>/gi, '\n')
+    .replace(/<(strong|b)\b[^>]*>([\s\S]*?)<\/\1>/gi, (_, _t, inner) => (inner.replace(/<[^>]+>/g, '').trim() ? `**${inner}**` : inner))
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/gi, '&')
+}
+
 function splitIeltsGroupPreamble(fullGi) {
   if (!fullGi?.trim()) return { preamble: '', body: fullGi || '' }
   const lines = fullGi.split('\n')
@@ -1704,7 +1721,13 @@ export default function IELTSReadingAttempt() {
   // Keep null entries so indices stay aligned with partIds — do NOT filter(Boolean)
   const allPassagesData = passageQueries.map(q => q.data || null)
   const passage = allPassagesData[activePartIndex] || null
-  const questions = passage?.questions || []
+  const rawQuestions = passage?.questions
+  const questions = useMemo(
+    () => (rawQuestions || []).map(q => (
+      q.group_instruction ? { ...q, group_instruction: plainGroupInstruction(q.group_instruction) } : q
+    )),
+    [rawQuestions],
+  )
   const examKindLabel = partIds.length > 1 ? 'Full Mock' : `Part ${passage?.passage_number || 1}`
   const headerTitle = `${cleanPassageTitle || 'Reading Passage'}${reviewMode ? ' · Review' : ''}`
 
