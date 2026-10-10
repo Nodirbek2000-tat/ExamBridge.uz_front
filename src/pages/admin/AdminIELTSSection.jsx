@@ -63,6 +63,8 @@ const SECTION_CONFIG = {
     endpoint: '/admin/ielts/reading/',
     importEndpoint: '/import/ielts/reading/',
     detailEndpoint: (pk) => `/admin/ielts/reading/${pk}/detail/`,
+    // detail/ faqat GET — premium va Cambridge PATCH update/ ga boradi
+    premiumEndpoint: (pk) => `/admin/ielts/reading/${pk}/update/`,
     hasDifficulty: true, hasEdit: true,
     exampleJson: `// ═══════════════════════════════════════════════════════
 // IELTS READING — BARCHA 16 SAVOL TURLARINING TO'LIQ QOLLANMASI
@@ -93,6 +95,8 @@ const SECTION_CONFIG = {
   "is_standalone": true,
   "difficulty": "MEDIUM",
   "is_premium": false,
+  // is_cambridge: true = Cambridge material (o'quvchida "Cambridge" filtrida chiqadi)
+  "is_cambridge": false,
   "questions": [
 
     // ─── 1. TFNG ─────────────────────────────────────────
@@ -491,6 +495,8 @@ const SECTION_CONFIG = {
   "test_type": "FULL_MOCK",
   "difficulty": "MEDIUM",
   "is_premium": true,
+  // is_cambridge: true = Cambridge material (o'quvchida "Cambridge" filtrida chiqadi)
+  "is_cambridge": false,
   "parts": [
     {
       "passage_number": 1,
@@ -585,6 +591,7 @@ const SECTION_CONFIG = {
     endpoint: '/admin/ielts/listening/',
     importEndpoint: '/import/ielts/listening/',
     detailEndpoint: (pk) => `/admin/ielts/listening/${pk}/detail/`,
+    premiumEndpoint: (pk) => `/admin/ielts/listening/${pk}/update/`,
     hasDifficulty: true, hasEdit: true, hasAudio: true,
     exampleJson: `// ═══════════════════════════════════════════════════════
 // IELTS LISTENING — TO'LIQ IMPORT GUIDE
@@ -609,6 +616,8 @@ const SECTION_CONFIG = {
   "is_standalone": true,
   "difficulty": "EASY",
   "is_premium": false,
+  // is_cambridge: true = Cambridge material (o'quvchida "Cambridge" filtrida chiqadi)
+  "is_cambridge": false,
   "transcript": "Full audio transcript (optional). Use [1], [2] markers for answer positions.",
   "questions": [
 
@@ -775,6 +784,8 @@ const SECTION_CONFIG = {
   "title": "IELTS Listening Mock Test 1",
   "difficulty": "MEDIUM",
   "is_premium": false,
+  // is_cambridge: true = Cambridge material (o'quvchida "Cambridge" filtrida chiqadi)
+  "is_cambridge": false,
   "sections": [
     {
       "section_number": 1,
@@ -1244,14 +1255,41 @@ function EditModal({ item, section, onClose, onSuccess }) {
   )
 }
 
+// ── Cambridge toggle (passage/section and mock test) ──────────────────────────
+function CambridgeToggle({ active, loading, onClick, size = 'sm' }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={loading}
+      className={`flex-shrink-0 flex items-center gap-1.5 rounded-lg text-xs font-semibold transition disabled:opacity-50 border ${
+        size === 'md' ? 'px-3 py-2' : 'px-2.5 py-1.5'
+      } ${
+        active
+          ? 'text-rose-600 bg-rose-50 hover:bg-rose-100 border-rose-200'
+          : 'text-gray-400 hover:text-rose-600 hover:bg-rose-50 border-gray-200'
+      }`}
+      title={active ? 'Cambridge emas qilish' : 'Cambridge material deb belgilash'}
+    >
+      {loading ? <Loader2 size={12} className="animate-spin" /> : <BookOpen size={12} />}
+      {active ? 'Cambridge ✓' : 'Cambridge'}
+    </button>
+  )
+}
+
 // ── Single section/passage row ────────────────────────────────────────────────
-function SectionRow({ item, index, section, config, colors, onEdit, onAudio, onImage, onDelete, onTogglePremium, indent }) {
+function SectionRow({ item, index, section, config, colors, onEdit, onAudio, onImage, onDelete, onTogglePremium, onToggleCambridge, indent }) {
   const metas = config.renderMeta(item)
   const [premiumLoading, setPremiumLoading] = useState(false)
+  const [cambridgeLoading, setCambridgeLoading] = useState(false)
   const handlePremium = async () => {
     if (!onTogglePremium) return
     setPremiumLoading(true)
     try { await onTogglePremium(item, !item.is_premium) } finally { setPremiumLoading(false) }
+  }
+  const handleCambridge = async () => {
+    setCambridgeLoading(true)
+    try { await onToggleCambridge(item, !item.is_cambridge) } finally { setCambridgeLoading(false) }
   }
   return (
     <div className={`flex items-center gap-4 px-5 py-4 hover:bg-sky-50/30 transition-colors ${indent ? 'pl-12 bg-gray-50/40' : ''}`}>
@@ -1267,6 +1305,11 @@ function SectionRow({ item, index, section, config, colors, onEdit, onAudio, onI
           {item.is_premium && (
             <span className="text-xs px-2 py-0.5 rounded-full bg-slate-50 text-slate-600 flex items-center gap-1">
               <Star size={9} fill="currentColor" /> Premium
+            </span>
+          )}
+          {item.is_cambridge && !indent && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 font-semibold flex items-center gap-1">
+              <BookOpen size={10} /> Cambridge
             </span>
           )}
         </div>
@@ -1312,6 +1355,10 @@ function SectionRow({ item, index, section, config, colors, onEdit, onAudio, onI
             {item.is_premium ? 'Premium ✓' : 'Premium'}
           </button>
         )}
+        {/* Cambridge material — o'quvchi ro'yxatida "Cambridge" filtrida chiqadi */}
+        {onToggleCambridge && !indent && (section === 'reading' || section === 'listening') && (
+          <CambridgeToggle active={item.is_cambridge} loading={cambridgeLoading} onClick={handleCambridge} />
+        )}
         {/* Import formatidagi JSON nusxasi — reading va listening uchun */}
         {(section === 'reading' || section === 'listening') && (
           <CopyJsonButton url={`/admin/export/ielts/${section}/${item.id}/`} />
@@ -1342,9 +1389,10 @@ function SectionRow({ item, index, section, config, colors, onEdit, onAudio, onI
 }
 
 // ── Mock test group row (collapsible) ─────────────────────────────────────────
-function MockGroupRow({ testId, testTitle, parts, testIsPremium, section, config, colors, onEdit, onAudio, onImage, onDelete, onTestAudio, onTestPremium }) {
+function MockGroupRow({ testId, testTitle, parts, testIsPremium, testIsCambridge, section, config, colors, onEdit, onAudio, onImage, onDelete, onTestAudio, onTestPremium, onTestCambridge }) {
   const [open, setOpen] = useState(false)
   const [premiumLoading, setPremiumLoading] = useState(false)
+  const [cambridgeLoading, setCambridgeLoading] = useState(false)
   const totalQ = parts.reduce((s, p) => s + (p.question_count ?? p.total_questions ?? 0), 0)
   const hasAllAudio = section === 'listening' ? parts.every(p => p.audio_file) : true
   const someAudio = section === 'listening' ? parts.some(p => p.audio_file) : false
@@ -1354,6 +1402,12 @@ function MockGroupRow({ testId, testTitle, parts, testIsPremium, section, config
     e.stopPropagation()
     setPremiumLoading(true)
     try { await onTestPremium(testId, !testIsPremium) } finally { setPremiumLoading(false) }
+  }
+
+  const handleToggleCambridge = async (e) => {
+    e.stopPropagation()
+    setCambridgeLoading(true)
+    try { await onTestCambridge(testId, !testIsCambridge) } finally { setCambridgeLoading(false) }
   }
 
   return (
@@ -1375,6 +1429,11 @@ function MockGroupRow({ testId, testTitle, parts, testIsPremium, section, config
               {testIsPremium && (
                 <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 font-semibold flex items-center gap-1">
                   <Star size={9} fill="currentColor" /> Premium
+                </span>
+              )}
+              {testIsCambridge && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 font-semibold flex items-center gap-1">
+                  <BookOpen size={10} /> Cambridge
                 </span>
               )}
             </div>
@@ -1418,6 +1477,11 @@ function MockGroupRow({ testId, testTitle, parts, testIsPremium, section, config
           {premiumLoading ? <Loader2 size={12} className="animate-spin" /> : <Star size={12} fill={testIsPremium ? 'currentColor' : 'none'} />}
           {testIsPremium ? 'Premium ✓' : 'Premium'}
         </button>
+
+        {/* Cambridge toggle — butun mock test (barcha partlari) uchun */}
+        {onTestCambridge && (
+          <CambridgeToggle active={testIsCambridge} loading={cambridgeLoading} onClick={handleToggleCambridge} size="md" />
+        )}
 
         {/* Upload unified audio button for listening mock tests */}
         {section === 'listening' && (
@@ -1471,7 +1535,7 @@ function MockGroupRow({ testId, testTitle, parts, testIsPremium, section, config
 
 // ── TAB 1: Content (Ro'yxat) ──────────────────────────────────────────────────
 function ContentTab({ section, config, colors, items, isLoading, error,
-  onEdit, onAudio, onImage, onDelete, onTestAudio, onTestPremium, onTogglePremium }) {
+  onEdit, onAudio, onImage, onDelete, onTestAudio, onTestPremium, onTogglePremium, onTestCambridge, onToggleCambridge }) {
   const [search, setSearch] = useState('')
   const [diffFilter, setDiffFilter] = useState('ALL')
 
@@ -1490,7 +1554,7 @@ function ContentTab({ section, config, colors, items, isLoading, error,
     const standalone = []
     for (const item of filtered) {
       if (item.test_id) {
-        if (!groups[item.test_id]) groups[item.test_id] = { testId: item.test_id, testTitle: item.test_title || `Mock Test #${item.test_id}`, testIsPremium: item.test_is_premium || false, parts: [] }
+        if (!groups[item.test_id]) groups[item.test_id] = { testId: item.test_id, testTitle: item.test_title || `Mock Test #${item.test_id}`, testIsPremium: item.test_is_premium || false, testIsCambridge: item.test_is_cambridge || false, parts: [] }
         else if (item.test_is_premium !== undefined) groups[item.test_id].testIsPremium = item.test_is_premium
         groups[item.test_id].parts.push(item)
       } else {
@@ -1560,6 +1624,7 @@ function ContentTab({ section, config, colors, items, isLoading, error,
                 testId={g.testId}
                 testTitle={g.testTitle}
                 testIsPremium={g.testIsPremium}
+                testIsCambridge={g.testIsCambridge}
                 parts={g.parts}
                 section={section}
                 config={config}
@@ -1570,6 +1635,7 @@ function ContentTab({ section, config, colors, items, isLoading, error,
                 onDelete={onDelete}
                 onTestAudio={onTestAudio}
                 onTestPremium={onTestPremium}
+                onTestCambridge={onTestCambridge}
               />
             ))}
             {/* Standalone items */}
@@ -1586,6 +1652,7 @@ function ContentTab({ section, config, colors, items, isLoading, error,
                 onImage={onImage}
                 onDelete={onDelete}
                 onTogglePremium={onTogglePremium}
+                onToggleCambridge={onToggleCambridge}
                 indent={false}
               />
             ))}
@@ -2036,6 +2103,17 @@ export default function AdminIELTSSection({ section }) {
     invalidate()
   }
 
+  // Cambridge belgisi faqat reading/listening'da (premium bilan bir xil endpointlar)
+  const hasCambridge = section === 'reading' || section === 'listening'
+  const handleTestCambridge = async (testId, isCambridge) => {
+    await api.patch(`/admin/ielts/tests/${testId}/premium/`, { is_cambridge: isCambridge })
+    invalidate()
+  }
+  const handleToggleCambridge = async (item, isCambridge) => {
+    await api.patch(config.premiumEndpoint(item.id), { is_cambridge: isCambridge })
+    invalidate()
+  }
+
   const deleteAllEndpoint = section === 'reading'
     ? '/admin/ielts/reading/all/'
     : section === 'listening'
@@ -2104,6 +2182,8 @@ export default function AdminIELTSSection({ section }) {
               items={items} isLoading={isLoading} error={error}
               onEdit={setEditItem} onAudio={setAudioItem} onImage={setImageItem} onDelete={setDeleteId}
               onTestAudio={setTestAudioItem} onTestPremium={handleTestPremium} onTogglePremium={handleTogglePremium}
+              onTestCambridge={hasCambridge ? handleTestCambridge : undefined}
+              onToggleCambridge={hasCambridge ? handleToggleCambridge : undefined}
             />
           )}
           {activeTab === 'questions' && (

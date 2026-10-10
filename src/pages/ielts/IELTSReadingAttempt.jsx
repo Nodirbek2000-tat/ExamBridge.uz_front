@@ -1705,6 +1705,8 @@ export default function IELTSReadingAttempt() {
   const allPassagesData = passageQueries.map(q => q.data || null)
   const passage = allPassagesData[activePartIndex] || null
   const questions = passage?.questions || []
+  const examKindLabel = partIds.length > 1 ? 'Full Mock' : `Part ${passage?.passage_number || 1}`
+  const headerTitle = `${cleanPassageTitle || 'Reading Passage'}${reviewMode ? ' · Review' : ''}`
 
   // Unified timer: keyed to attemptId, total = 20min ? passages (min 20, max 60)
   const totalTimeSec = Math.max(20, Math.min(60, partIds.length * 20)) * 60
@@ -2148,6 +2150,19 @@ export default function IELTSReadingAttempt() {
   const divider  = D ? 'border-gray-700' : 'border-sky-100'
   const textMain = D ? 'text-gray-100' : 'text-gray-800'
   const textSub  = D ? 'text-gray-400' : 'text-gray-500'
+  // "Full Mock" / "Part N" badge + title (title ends in "…" when it is long)
+  const examTitle = (
+    <>
+      <span className={`flex-shrink-0 px-2.5 py-1 rounded-lg text-xs font-extrabold tracking-wide whitespace-nowrap ${
+        D ? 'bg-sky-500/15 text-sky-300' : 'bg-sky-100 text-sky-700'
+      }`}>
+        {examKindLabel}
+      </span>
+      <p className="min-w-0 truncate font-semibold text-[15px] sm:text-[17px]" title={headerTitle}>
+        {headerTitle}
+      </p>
+    </>
+  )
   const qCard    = (active) => D
     ? active ? 'border-sky-500 bg-gray-700/60' : 'border-gray-700 bg-gray-800 hover:border-gray-600'
     : active ? 'border-sky-300 bg-sky-50/50 shadow-sm' : 'border-gray-200 bg-white hover:border-gray-300'
@@ -2257,10 +2272,13 @@ export default function IELTSReadingAttempt() {
           <span className="hidden sm:inline">Back</span>
         </button>
 
-        {/* Title */}
-        <p className="flex-1 font-semibold text-[15px] sm:text-[17px] truncate min-w-0">
-          {cleanPassageTitle || 'Reading Passage'}{reviewMode ? ' � Review' : ''}
-        </p>
+        {/* Title — stops before the centred timer. Phones have no room beside
+            the timer, so there it gets its own row under the bar. */}
+        <div className={`flex-1 min-w-0 ${reviewMode ? '' : 'hidden sm:block'}`}>
+          <div className={`flex items-center gap-2 min-w-0 ${reviewMode ? '' : 'max-w-[calc(50vw-225px)]'}`}>
+            {examTitle}
+          </div>
+        </div>
 
         {/* Progress */}
         {!reviewMode && (
@@ -2392,8 +2410,14 @@ export default function IELTSReadingAttempt() {
         </div>
         )}
 
-      
+
       </div>
+
+      {!reviewMode && (
+        <div className={`sm:hidden flex items-center gap-2 min-w-0 px-4 h-10 border-b flex-shrink-0 ${topbar}`}>
+          {examTitle}
+        </div>
+      )}
 
       {/* -- Body ---------------------------------------------------------- */}
       <div className="flex flex-1 overflow-hidden relative flex-col md:flex-row px-1 md:px-2">
@@ -2720,7 +2744,7 @@ export default function IELTSReadingAttempt() {
                     onClick={() => setActivePartIndex(pidx)}
                   >
                     <span className={`text-xs sm:text-sm font-black whitespace-nowrap ${isActivePart ? 'text-sky-600' : D ? 'text-gray-400' : 'text-gray-500'}`}>
-                      Part {pidx + 1}
+                      Part {partPassage?.passage_number || pidx + 1}
                     </span>
                     {isActivePart ? (
                       <div className="flex flex-nowrap items-center gap-1.5 min-w-0 overflow-x-auto py-0.5">

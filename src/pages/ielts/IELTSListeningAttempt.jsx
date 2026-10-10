@@ -535,7 +535,7 @@ function StartAudioScreen({ section, sectionTitle, onStart, dark, totalQuestions
         </div>
         <h1 className="text-2xl font-black mb-1">{sectionTitle}</h1>
         <p className={`text-sm mb-6 ${textSub}`}>
-          IELTS Listening{isFull ? ` ? Full Mock${isUnifiedAudio ? ' ? Unified Audio' : ' ? 4 parts'}` : ''}
+          IELTS Listening{isFull ? ` · Full Mock${isUnifiedAudio ? ' · Unified Audio' : ' · 4 parts'}` : ` · Part ${section?.section_number || 1}`}
         </p>
         <div className="grid grid-cols-3 gap-3 mb-7">
           <div className={`rounded-2xl p-3 ${D ? 'bg-gray-700' : 'bg-sky-50/80'}`}>
@@ -1040,6 +1040,20 @@ export default function IELTSListeningAttempt() {
   const textMain = D ? 'text-gray-100' : 'text-gray-800'
   const textSub = D ? 'text-gray-400' : 'text-gray-500'
   const qCard = () => D ? 'bg-gray-800' : 'bg-white'
+  // "Full Mock" / "Part N" badge + title (title ends in "…" when it is long)
+  const examTitle = (
+    <>
+      <span className={`flex-shrink-0 px-2.5 py-1 rounded-lg text-xs font-extrabold tracking-wide whitespace-nowrap ${
+        D ? 'bg-violet-500/15 text-violet-300' : 'bg-violet-100 text-violet-700'
+      }`}>
+        {isFull ? 'Full Mock' : `Part ${section?.section_number || 1}`}
+      </span>
+      <p className="min-w-0 truncate font-semibold text-sm sm:text-base" title={sectionTitle}>
+        {sectionTitle}
+        {reviewMode ? ' · Review' : ''}
+      </p>
+    </>
+  )
 
   const fontCls = fontSize === 'small' ? 'text-base' : fontSize === 'large' ? 'text-xl' : 'text-lg'
   const questionZoom = fontSize === 'small' ? 0.93 : fontSize === 'large' ? 1.08 : 1
@@ -1047,7 +1061,7 @@ export default function IELTSListeningAttempt() {
 
   const qRange =
     questions.length > 0
-      ? `${questions[0].number}?${questions[questions.length - 1].number}`
+      ? `${questions[0].number}–${questions[questions.length - 1].number}`
       : '?'
   const partLabel = section?.part_label || `Part ${activePartIndex + 1}`
 
@@ -1118,10 +1132,10 @@ export default function IELTSListeningAttempt() {
           <span className={`text-xs sm:text-sm ${textSub} hidden md:inline`}>Test taker ID: {testTakerId}</span>
         </div>
 
-        <p className="flex-1 font-semibold text-sm sm:text-base truncate min-w-0 text-center sm:text-left">
-          {sectionTitle}
-          {reviewMode ? ' ? Review' : ''}
-        </p>
+        {/* Title; on phones it moves to its own row under the bar */}
+        <div className="flex-1 min-w-0 flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-2 min-w-0">{examTitle}</div>
+        </div>
 
         {!reviewMode && (
           <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
@@ -1240,6 +1254,10 @@ export default function IELTSListeningAttempt() {
         </div>
       </div>
 
+      <div className={`sm:hidden flex items-center gap-2 min-w-0 px-4 h-10 border-b flex-shrink-0 ${topbar}`}>
+        {examTitle}
+      </div>
+
       {/* Sticky top review audio player — always visible at top in review */}
       {reviewMode && (() => {
         const topAudio = isUnifiedAudio
@@ -1257,7 +1275,7 @@ export default function IELTSListeningAttempt() {
         <div className="px-4 py-2">
           <p className={`text-sm ${textMain}`}>
             <span className="font-bold">{partLabel}</span>
-            <span className="mx-2">?</span>
+            <span className="mx-2">·</span>
             Listen and answer questions {qRange}.
           </p>
           {isUnifiedAudio && (
@@ -1452,7 +1470,7 @@ export default function IELTSListeningAttempt() {
                           <span className="w-[3px] h-[5px] bg-emerald-500 rounded animate-pulse" style={{ animationDelay: '0.3s' }} />
                         </span>
                       )}
-                      Part {pidx + 1}
+                      Part {partSection?.section_number || pidx + 1}
                     </span>
                     {isActivePart ? (
                       <div className="flex flex-nowrap items-center gap-1.5 min-w-0 overflow-x-auto py-0.5">
