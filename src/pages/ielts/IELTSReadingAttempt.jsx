@@ -841,7 +841,7 @@ function MFeatBlock({ questions, answers, onAnswer, dark, reviewMode, reviewMap,
         </div>
       )}
       {/* Per-question rows with dropdown */}
-      <div className={`rounded-2xl border overflow-visible ${D ? 'border-gray-700' : 'border-gray-200'}`}>
+      <div className="rounded-2xl overflow-visible">
         {questions.map((q, idx) => {
           const val = answers[String(q.id)] || ''
           const rr = reviewMode && showCorrectInReview
@@ -944,7 +944,7 @@ function MInfoBlock({ questions, answers, onAnswer, dark, reviewMode, reviewMap,
   return (
     <div className="mb-2">
       {gi && <GroupInstruction text={gi} dark={D} />}
-      <div className={`rounded-2xl border overflow-hidden ${D ? 'border-gray-700' : 'border-gray-200'}`}>
+      <div className="rounded-2xl overflow-hidden">
         {questions.map((q, idx) => {
           const val = answers[String(q.id)] || ''
           const rr = reviewMode && showCorrectInReview
@@ -1147,7 +1147,7 @@ function InlineGapBlock({ questions, answers, onAnswer, dark, reviewMode, review
   return (
     <>
       {preamble ? <GroupInstruction text={preamble} dark={D} /> : null}
-      <div className={`rounded-xl overflow-hidden mb-2 border ${D ? 'border-gray-700 bg-gray-800/30' : 'border-gray-200 bg-white'}`}>
+      <div className="rounded-xl overflow-hidden mb-2">
         {/* Text body with inline gaps */}
         <div className="px-5 py-4 text-sm space-y-0.5">
           {renderLines()}
@@ -1315,7 +1315,7 @@ function FlowBlock({ questions, answers, onAnswer, dark, reviewMode, reviewMap, 
     <>
       {gi && <GroupInstruction text={gi} dark={D} />}
       {groupList?.length > 0 && <GroupList items={groupList} dark={D} />}
-      <div className={`rounded-2xl border overflow-hidden mb-2 ${D ? 'border-gray-700' : 'border-gray-200'}`}>
+      <div className="rounded-2xl overflow-hidden mb-2">
         <div className="p-4 space-y-0">
           {boxes.map((box, bi) => {
             const q = box.q
@@ -2186,9 +2186,6 @@ export default function IELTSReadingAttempt() {
       </p>
     </>
   )
-  const qCard    = (active) => D
-    ? active ? 'border-sky-500 bg-gray-700/60' : 'border-gray-700 bg-gray-800 hover:border-gray-600'
-    : active ? 'border-sky-300 bg-sky-50/50 shadow-sm' : 'border-gray-200 bg-white hover:border-gray-300'
 
   // Font size UX:
   // - A- should still be comfortable (current "large" baseline)
@@ -2637,7 +2634,7 @@ export default function IELTSReadingAttempt() {
                     id={`q-${q.id}`}
                     ref={el => { questionRefs.current[q.id] = el }}
                     onClick={() => setActiveQ(qi)}
-                    className={`group relative p-4 rounded-2xl border cursor-pointer transition ${qCard(activeQ === qi)}`}>
+                    className="group relative p-4 rounded-2xl cursor-pointer">
                     <div className="flex items-center gap-2 mb-2">
                       <span className={`inline-flex items-center justify-center w-7 h-7 rounded-lg border text-sm font-black ${
                         D ? 'border-gray-600 bg-gray-700 text-gray-100' : 'border-gray-300 bg-white text-gray-800'
