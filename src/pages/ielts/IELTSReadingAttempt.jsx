@@ -632,7 +632,7 @@ function HeadingSlot({ q, value, dark, reviewMode, rr, showCorrect, selected, on
   const D = dark
   const [over, setOver] = useState(false)
   const choiceText = (letter) => q.choices?.find(c => c.option === letter)?.text || ''
-  const box = 'w-full sm:w-[72%] rounded-xl px-3.5 not-prose'
+  const box = 'w-full sm:w-[64%] rounded-lg px-3 not-prose text-[0.92em]'
 
   if (reviewMode) {
     const given = rr?.user_answer ?? value ?? ''
@@ -671,12 +671,12 @@ function HeadingSlot({ q, value, dark, reviewMode, rr, showCorrect, selected, on
       onDrop={drop}
       onClick={() => { if (selected) onPlace(q.id, selected) }}
       onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && selected) { e.preventDefault(); onPlace(q.id, selected) } }}
-      className={`${box} min-h-[46px] my-3 flex items-center gap-2 border transition cursor-pointer select-none ${
+      className={`${box} min-h-[40px] my-3 flex items-center gap-2 border-2 border-dashed transition cursor-pointer select-none ${
         over || (selected && !value)
-          ? (D ? 'border-sky-400 bg-sky-500/10' : 'border-sky-400 bg-sky-50')
+          ? (D ? 'border-sky-400 bg-sky-500/15' : 'border-sky-400 bg-sky-100')
           : value
-            ? (D ? 'border-gray-600 bg-gray-800' : 'border-gray-300 bg-white')
-            : (D ? 'border-dashed border-gray-600 bg-gray-800/60' : 'border-dashed border-gray-300 bg-gray-50')
+            ? (D ? 'border-gray-500 bg-gray-700' : 'border-slate-400 bg-slate-100')
+            : (D ? 'border-gray-600 bg-gray-800' : 'border-slate-300 bg-slate-100')
       }`}
     >
       {value ? (
@@ -684,7 +684,7 @@ function HeadingSlot({ q, value, dark, reviewMode, rr, showCorrect, selected, on
           <span
             draggable
             onDragStart={(e) => { e.dataTransfer.setData(HEADING_MIME, value); e.dataTransfer.effectAllowed = 'move' }}
-            className="flex-1 min-w-0 py-2 font-semibold cursor-grab"
+            className="flex-1 min-w-0 py-1.5 font-semibold cursor-grab"
           >
             {choiceText(value)}
           </span>
@@ -698,14 +698,14 @@ function HeadingSlot({ q, value, dark, reviewMode, rr, showCorrect, selected, on
           </button>
         </>
       ) : (
-        <span className="font-bold py-2">{q.number}</span>
+        <span className="font-bold py-1.5">{q.number}</span>
       )}
     </div>
   )
 }
 
-// Right panel: instruction + list of headings. A heading already placed in the
-// passage leaves an empty space, so the list never jumps around.
+// Right panel: instruction + list of headings. A heading placed in the passage
+// leaves the list (it comes back when removed from its slot).
 function HeadingBankBlock({ questions, answers, dark, reviewMode, reviewMap, showCorrectInReview, selected, onSelect }) {
   const D = dark
   const gi = questions[0]?.group_instruction || ''
@@ -739,23 +739,20 @@ function HeadingBankBlock({ questions, answers, dark, reviewMode, reviewMap, sho
               </div>
             )
           }
-          const isUsed = used.has(c.option)
+          if (used.has(c.option)) return null
           const isSel = selected === c.option
           return (
             <button
               key={c.option}
               type="button"
-              draggable={!isUsed}
+              draggable
               onDragStart={(e) => { e.dataTransfer.setData(HEADING_MIME, c.option); e.dataTransfer.effectAllowed = 'move'; onSelect(null) }}
               onClick={() => onSelect(isSel ? null : c.option)}
               aria-pressed={isSel}
-              tabIndex={isUsed ? -1 : 0}
-              className={`text-left px-3.5 py-2 rounded-lg border font-medium transition cursor-grab active:cursor-grabbing ${
-                isUsed ? 'invisible' : ''
-              } ${
+              className={`text-left px-3 py-1.5 text-[0.92em] rounded-lg border-2 border-dashed font-medium transition cursor-grab active:cursor-grabbing ${
                 isSel
-                  ? 'border-sky-500 ring-2 ring-sky-200 bg-sky-50 text-sky-800'
-                  : D ? 'border-gray-600 bg-gray-800 hover:border-gray-400' : 'border-gray-200 bg-white hover:border-gray-400'
+                  ? 'border-sky-500 ring-2 ring-sky-200 bg-sky-100 text-sky-800'
+                  : D ? 'border-gray-500 bg-gray-700 hover:border-gray-300' : 'border-slate-300 bg-slate-100 hover:border-slate-400'
               }`}
             >
               {c.text}
