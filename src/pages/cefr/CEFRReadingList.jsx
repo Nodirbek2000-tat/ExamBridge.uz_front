@@ -3,8 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Search, Clock3, HelpCircle, Loader2, BookOpen, ChevronUp, ChevronDown, Layers } from 'lucide-react'
 import api from '../../api/client'
+import KindChips, { kindChips, countKinds } from '../../components/exam/KindChips'
 
 const LEVELS = ['ALL', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2']
+const KINDS = kindChips(5)
+// 'FULL' for a full mock, otherwise the part number
+const kindOf = (item) => (item.item_type === 'full_mock' ? 'FULL' : String(item.passage_number || 1))
 
 function LevelBadge({ level }) {
   const tone =
@@ -36,6 +40,7 @@ export default function CEFRReadingList({ accentBtn = 'bg-sky-500 hover:bg-sky-6
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [level, setLevel] = useState('ALL')
+  const [kind, setKind] = useState('ALL')
   const [expanded, setExpanded] = useState(true)
   const [starting, setStarting] = useState(null)
 
@@ -44,17 +49,19 @@ export default function CEFRReadingList({ accentBtn = 'bg-sky-500 hover:bg-sky-6
     queryFn: () => api.get('/cefr/reading/').then((r) => r.data),
   })
 
+  const kindCounts = useMemo(() => countKinds(data || [], kindOf), [data])
   const { passages, fullMocks } = useMemo(() => {
     const filtered = (data || []).filter((p) => {
       const matchSearch = (p.title || '').toLowerCase().includes(search.toLowerCase())
       const matchLevel = level === 'ALL' || p.level === level
-      return matchSearch && matchLevel
+      const matchKind = kind === 'ALL' || kindOf(p) === kind
+      return matchSearch && matchLevel && matchKind
     })
     return {
       passages: filtered.filter((p) => p.item_type !== 'full_mock'),
       fullMocks: filtered.filter((p) => p.item_type === 'full_mock'),
     }
-  }, [data, search, level])
+  }, [data, search, level, kind])
 
   const allItems = [...fullMocks, ...passages]
 
@@ -106,6 +113,10 @@ export default function CEFRReadingList({ accentBtn = 'bg-sky-500 hover:bg-sky-6
         </button>
 
         {expanded && (
+          <>
+          <div className="px-4 pt-4">
+            <KindChips kinds={KINDS} value={kind} onChange={setKind} counts={kindCounts} loading={isLoading} tone="sky" />
+          </div>
           <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
             {isLoading &&
               [...Array(6)].map((_, i) => <div key={i} className="h-24 rounded-xl border border-gray-100 bg-gray-50 animate-pulse" />)}
@@ -169,12 +180,13 @@ export default function CEFRReadingList({ accentBtn = 'bg-sky-500 hover:bg-sky-6
             })}
 
             {!isLoading && !allItems.length && (
-              <div className="py-16 text-center text-gray-400">
+              <div className="md:col-span-2 py-16 text-center text-gray-400">
                 <BookOpen size={34} className="mx-auto mb-2 text-gray-300" />
                 No passages found
               </div>
             )}
           </div>
+          </>
         )}
       </div>
     </div>

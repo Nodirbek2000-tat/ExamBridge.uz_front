@@ -35,7 +35,7 @@ const QT_COLORS = {
   MCQ:'bg-blue-100 text-blue-700', MULTI:'bg-violet-100 text-violet-700',
   GAP:'bg-slate-100 text-slate-700', TABLE:'bg-sky-100 text-sky-700',
   TFNG:'bg-green-100 text-green-700', YNNG:'bg-teal-100 text-teal-700',
-  MATCH:'bg-indigo-100 text-indigo-700', MINFO:'bg-pink-100 text-pink-700',
+  MATCH:'bg-indigo-100 text-indigo-700', MHEAD:'bg-violet-100 text-violet-700', MINFO:'bg-pink-100 text-pink-700',
   MFEAT:'bg-fuchsia-100 text-fuchsia-700', MEND:'bg-purple-100 text-purple-700',
   SENT:'bg-rose-100 text-rose-700', SHORT:'bg-gray-100 text-gray-700',
   SUMM:'bg-yellow-100 text-yellow-700', NOTE:'bg-lime-100 text-lime-700',
@@ -44,7 +44,7 @@ const QT_COLORS = {
 }
 const QT_LABEL = {
   MCQ:'MCQ', MULTI:'Multi', GAP:'Gap', TABLE:'Table', TFNG:'T/F/NG',
-  YNNG:'Y/N/NG', MATCH:'Headings', MINFO:'M.Info', MFEAT:'M.Feat',
+  YNNG:'Y/N/NG', MATCH:'Headings', MHEAD:'Headings drag', MINFO:'M.Info', MFEAT:'M.Feat',
   MEND:'M.End', SENT:'Sentence', SHORT:'Short', SUMM:'Summary',
   NOTE:'Notes', FLOW:'Flow', MAP:'Map', DIAG:'Diagram',
 }
@@ -537,6 +537,54 @@ const SECTION_CONFIG = {
 }
 
 // ═══════════════════════════════════════════════════════
+// ── OPTION 3: MHEAD — sarlavhani matn ichidagi katakka sudrash ──
+// O'ng tomonda "List of Headings" turadi, o'quvchi sarlavhani passage ichidagi
+// raqamli katakka sudrab (telefonda: bosib, keyin katakni bosib) qo'yadi.
+//
+// QOIDALAR:
+//   1) content ichida katak turadigan joyga ALOHIDA QATORDA [[N]] yozing
+//      (N = savol number). Odatda har paragrafdan oldin: "...\\n\\n[[14]]\\nParagraph text..."
+//   2) Har [[N]] uchun bitta "question_type": "MHEAD" savol, "correct_answer" = sarlavha harfi
+//   3) "choices" (sarlavhalar ro'yxati) va "group_instruction" — faqat BIRINCHI MHEAD savolda
+//      yetarli, qolganlari undan oladi (hammasiga yozsangiz ham bo'ladi)
+//   4) Sarlavhalar soni katakdan ko'p bo'lishi mumkin (ortiqcha variantlar)
+//   5) Import tekshiradi: [[N]] bor-u savol yo'q (yoki aksincha) bo'lsa — xato qaytaradi
+//   6) FULL MOCK: xuddi shu narsa "parts" ichidagi har bir part'ning
+//      "content" va "questions" ida yoziladi (masalan Part 2: [[14]]...[[19]])
+{
+  "title": "Solving the problem of waste disposal",
+  "content": "Solving the problem of waste disposal\\nHow a new generation of incineration plants may help\\n\\n[[14]]\\nFor many years, burning rubbish has been portrayed as the lazy option...\\n\\n[[15]]\\nThose who support burning waste say that a new generation of incinerators...",
+  "passage_number": 2,
+  "is_standalone": true,
+  "difficulty": "MEDIUM",
+  "is_premium": false,
+  "is_cambridge": false,
+  "questions": [
+    {
+      "number": 14,
+      "question_type": "MHEAD",
+      "correct_answer": "D",
+      "answer_review": "Norway isn't alone: Germany, Sweden, Belgium and the Netherlands all burn significant quantities of rubbish",
+      "group_instruction": "Questions 14–15\\nChoose the correct heading for each paragraph from the list of headings below.\\n**List of Headings**",
+      "choices": [
+        {"option": "A", "text": "New terminology reflecting changing attitudes to waste disposal"},
+        {"option": "B", "text": "Fundamental changes in behaviour in the past and future"},
+        {"option": "C", "text": "Ways of rewarding the public for recycling"},
+        {"option": "D", "text": "A surprising approach to waste disposal by several countries"},
+        {"option": "E", "text": "Difficult choices for individuals and businesses"},
+        {"option": "F", "text": "Arguments against incineration from a country that uses it"},
+        {"option": "G", "text": "A number of justifications for the use of incineration"}
+      ]
+    },
+    {
+      "number": 15,
+      "question_type": "MHEAD",
+      "correct_answer": "G",
+      "answer_review": "a new generation of incinerators"
+    }
+  ]
+}
+
 // QISQACHA ESLATMALAR
 // ═══════════════════════════════════════════════════════
 // question_type  | UI ko'rinishi                | choices kerakmi?
@@ -552,6 +600,7 @@ const SECTION_CONFIG = {
 // TABLE          | markdown jadval [N] ★★       | yo'q  (content da [N] bo'lsa jadval blok)
 // FLOW           | flowchart qutchalar ★★★      | yo'q  (bitta group → bitta oqim)
 // MATCH          | dropdown yoki matn           | HA (roman: i,ii,iii)
+// MHEAD          | sarlavhani matnga sudrash ★  | HA (birinchi savolda) + content'da [[N]]
 // MINFO          | harf grid (A B C...) ★       | optional (default A–H)
 // MFEAT          | dropdown (legend yuqori)     | HA (A,B,C,D...)
 // MEND           | GRID MATRIX ★                | HA — group bo'lsa grid ko'rinadi

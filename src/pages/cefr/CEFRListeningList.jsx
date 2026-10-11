@@ -3,8 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Search, Clock3, HelpCircle, Loader2, Headphones, ChevronUp, ChevronDown, Layers } from 'lucide-react'
 import api from '../../api/client'
+import KindChips, { kindChips, countKinds } from '../../components/exam/KindChips'
 
 const LEVELS = ['ALL', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2']
+const KINDS = kindChips(6)
+// 'FULL' for a full mock, otherwise the part number
+const kindOf = (item) => (item.item_type === 'full_mock' ? 'FULL' : String(item.section_number || 1))
 
 function LevelBadge({ level }) {
   const tone =
@@ -36,6 +40,7 @@ export default function CEFRListeningList({ accentBtn = 'bg-sky-500 hover:bg-sky
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [level, setLevel] = useState('ALL')
+  const [kind, setKind] = useState('ALL')
   const [expanded, setExpanded] = useState(true)
   const [starting, setStarting] = useState(null)
 
@@ -44,15 +49,17 @@ export default function CEFRListeningList({ accentBtn = 'bg-sky-500 hover:bg-sky
     queryFn: () => api.get('/cefr/listening/').then((r) => r.data),
   })
 
+  const kindCounts = useMemo(() => countKinds(data || [], kindOf), [data])
   const items = useMemo(() => {
     const filtered = (data || []).filter((s) => {
       const matchSearch = (s.title || '').toLowerCase().includes(search.toLowerCase())
       const matchLevel = level === 'ALL' || s.level === level
-      return matchSearch && matchLevel
+      const matchKind = kind === 'ALL' || kindOf(s) === kind
+      return matchSearch && matchLevel && matchKind
     })
     // Full mocks first, then single parts
     return [...filtered.filter(s => s.item_type === 'full_mock'), ...filtered.filter(s => s.item_type !== 'full_mock')]
-  }, [data, search, level])
+  }, [data, search, level, kind])
   const mockCount = items.filter(s => s.item_type === 'full_mock').length
 
   const handleStart = async (section) => {
@@ -92,6 +99,10 @@ export default function CEFRListeningList({ accentBtn = 'bg-sky-500 hover:bg-sky
         </button>
 
         {expanded && (
+          <>
+          <div className="px-4 pt-4">
+            <KindChips kinds={KINDS} value={kind} onChange={setKind} counts={kindCounts} loading={isLoading} tone="violet" />
+          </div>
           <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
             {isLoading &&
               [...Array(6)].map((_, i) => <div key={i} className="h-24 rounded-xl border border-gray-100 bg-gray-50 animate-pulse" />)}
@@ -163,12 +174,13 @@ export default function CEFRListeningList({ accentBtn = 'bg-sky-500 hover:bg-sky
               })}
 
             {!isLoading && !items.length && (
-              <div className="py-16 text-center text-gray-400">
+              <div className="md:col-span-2 py-16 text-center text-gray-400">
                 <Headphones size={34} className="mx-auto mb-2 text-gray-300" />
                 No sections found
               </div>
             )}
           </div>
+          </>
         )}
       </div>
     </div>

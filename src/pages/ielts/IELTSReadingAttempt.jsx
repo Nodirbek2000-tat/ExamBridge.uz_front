@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { useParams, useSearchParams, useNavigate, useLocation } from 'react-router-dom'
 import { useQuery, useQueries } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -250,6 +251,9 @@ function passageMarkdownToHtml(text) {
     if (h1) return `<h2 class="font-extrabold text-xl mt-5 mb-2">${applyInline(h1[1])}</h2>`
     // Empty line > paragraph break marker
     if (line.trim() === '') return '__PARA_BREAK__'
+    // [[14]] on its own line > slot for a dragged heading (MHEAD); React fills it via a portal
+    const slot = line.match(/^\s*\[\[(\d+)\]\]\s*$/)
+    if (slot) return `__PARA_BREAK__<div class="heading-slot" data-heading-slot="${slot[1]}" contenteditable="false"></div>__PARA_BREAK__`
     return applyInline(line)
   })
   // Join lines, wrap paragraph groups in <p>
@@ -260,7 +264,7 @@ function passageMarkdownToHtml(text) {
     .filter(Boolean)
     .map(p => {
       // If it's already a block element, don't wrap in <p>
-      if (/^<h[1-6]/.test(p.trim())) return p.replace(/\n/g, '<br/>')
+      if (/^<(h[1-6]|div)/.test(p.trim())) return p.replace(/\n/g, '<br/>')
       return `<p class="mb-3">${p.replace(/\n/g, '<br/>')}</p>`
     })
     .join('\n')
@@ -601,6 +605,173 @@ function LetterGrid({ value, onChange, choices, dark }) {
   )
 }
 
+// -- MHEAD: headings dragged (or tapped) into [[N]] slots inside the passage ----
+const HEADING_MIME = 'text/x-ielts-heading'
+
+// Passage HTML to store after a highlight edit — without the React-rendered slot contents
+function passageMarkup(el) {
+  const clone = el.cloneNode(true)
+  clone.querySelectorAll('[data-heading-slot]').forEach(s => { s.innerHTML = '' })
+  return clone.innerHTML
+}
+
+function ResultBadge({ ok }) {
+  return ok ? (
+    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500 text-white text-xs font-bold">
+      <CheckCircle2 size={12} /> Correct
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-red-500 text-white text-xs font-bold">
+      <X size={12} strokeWidth={3} /> Wrong
+    </span>
+  )
+}
+
+// One slot in the passage. Empty: dashed box with the question number; filled: the heading.
+function HeadingSlot({ q, value, dark, reviewMode, rr, showCorrect, selected, onPlace, onClear }) {
+  const D = dark
+  const [over, setOver] = useState(false)
+  const choiceText = (letter) => q.choices?.find(c => c.option === letter)?.text || ''
+  const box = 'w-full sm:w-[72%] rounded-xl px-3.5 not-prose'
+
+  if (reviewMode) {
+    const given = rr?.user_answer ?? value ?? ''
+    return (
+      <div id={`q-${q.id}`} className={`${box} py-2.5 my-3 border ${D ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+        <p className={`text-sm font-semibold ${D ? 'text-gray-400' : 'text-gray-500'}`}>{q.number})</p>
+        <p className="font-semibold mt-0.5">{given ? `${given} - ${choiceText(given)}` : '—'}</p>
+        {rr && (
+          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+            <ResultBadge ok={rr.is_correct} />
+            {showCorrect && !rr.is_correct && (
+              <span className="text-sm text-emerald-600 font-semibold">
+                Correct: {rr.correct_answer} - {choiceText(String(rr.correct_answer).toUpperCase())}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const drop = (e) => {
+    e.preventDefault()
+    setOver(false)
+    const letter = e.dataTransfer.getData(HEADING_MIME)
+    if (letter) onPlace(q.id, letter)
+  }
+  return (
+    <div
+      id={`q-${q.id}`}
+      role="button"
+      tabIndex={0}
+      aria-label={value ? `Question ${q.number}: ${choiceText(value)}` : `Question ${q.number}: drop a heading here`}
+      onDragOver={(e) => { e.preventDefault(); setOver(true) }}
+      onDragLeave={() => setOver(false)}
+      onDrop={drop}
+      onClick={() => { if (selected) onPlace(q.id, selected) }}
+      onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && selected) { e.preventDefault(); onPlace(q.id, selected) } }}
+      className={`${box} min-h-[46px] my-3 flex items-center gap-2 border transition cursor-pointer select-none ${
+        over || (selected && !value)
+          ? (D ? 'border-sky-400 bg-sky-500/10' : 'border-sky-400 bg-sky-50')
+          : value
+            ? (D ? 'border-gray-600 bg-gray-800' : 'border-gray-300 bg-white')
+            : (D ? 'border-dashed border-gray-600 bg-gray-800/60' : 'border-dashed border-gray-300 bg-gray-50')
+      }`}
+    >
+      {value ? (
+        <>
+          <span
+            draggable
+            onDragStart={(e) => { e.dataTransfer.setData(HEADING_MIME, value); e.dataTransfer.effectAllowed = 'move' }}
+            className="flex-1 min-w-0 py-2 font-semibold cursor-grab"
+          >
+            {choiceText(value)}
+          </span>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onClear(q.id) }}
+            className={`flex-shrink-0 p-1 rounded-md ${D ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-400 hover:text-gray-700 hover:bg-gray-100'}`}
+            aria-label={`Remove heading from question ${q.number}`}
+          >
+            <X size={15} />
+          </button>
+        </>
+      ) : (
+        <span className="font-bold py-2">{q.number}</span>
+      )}
+    </div>
+  )
+}
+
+// Right panel: instruction + list of headings. A heading already placed in the
+// passage leaves an empty space, so the list never jumps around.
+function HeadingBankBlock({ questions, answers, dark, reviewMode, reviewMap, showCorrectInReview, selected, onSelect }) {
+  const D = dark
+  const gi = questions[0]?.group_instruction || ''
+  const choices = questions[0]?.choices || []
+  const used = new Set(questions.map(q => answers[String(q.id)]).filter(Boolean))
+  // review: which letters the learner picked, and whether each pick was right
+  const picks = {}
+  if (reviewMode) {
+    questions.forEach(q => {
+      const rr = reviewMap?.[String(q.id)] || reviewMap?.[`n-${q.number}`]
+      const given = String(rr?.user_answer ?? answers[String(q.id)] ?? '').toUpperCase()
+      if (given) picks[given] = picks[given] === false ? false : Boolean(rr?.is_correct)
+    })
+  }
+
+  return (
+    <div className="mb-6">
+      {gi ? <GroupInstruction text={gi} dark={D} /> : null}
+      <div className="flex flex-col items-start gap-2.5 mt-2">
+        {choices.map(c => {
+          if (reviewMode) {
+            const pick = showCorrectInReview ? picks[c.option] : undefined
+            return (
+              <div key={c.option} className="flex items-center gap-3">
+                <span className="w-6 font-bold">{c.option})</span>
+                <span className={`px-3.5 py-2 rounded-lg border font-medium ${
+                  pick === true ? 'border-emerald-400' : pick === false ? 'border-red-400' : (D ? 'border-gray-600' : 'border-gray-200')
+                }`}>{c.text}</span>
+                {pick === true && <CheckCircle2 size={18} className="text-emerald-500" />}
+                {pick === false && <X size={18} className="text-red-500" />}
+              </div>
+            )
+          }
+          const isUsed = used.has(c.option)
+          const isSel = selected === c.option
+          return (
+            <button
+              key={c.option}
+              type="button"
+              draggable={!isUsed}
+              onDragStart={(e) => { e.dataTransfer.setData(HEADING_MIME, c.option); e.dataTransfer.effectAllowed = 'move'; onSelect(null) }}
+              onClick={() => onSelect(isSel ? null : c.option)}
+              aria-pressed={isSel}
+              tabIndex={isUsed ? -1 : 0}
+              className={`text-left px-3.5 py-2 rounded-lg border font-medium transition cursor-grab active:cursor-grabbing ${
+                isUsed ? 'invisible' : ''
+              } ${
+                isSel
+                  ? 'border-sky-500 ring-2 ring-sky-200 bg-sky-50 text-sky-800'
+                  : D ? 'border-gray-600 bg-gray-800 hover:border-gray-400' : 'border-gray-200 bg-white hover:border-gray-400'
+              }`}
+            >
+              {c.text}
+            </button>
+          )
+        })}
+      </div>
+      {!reviewMode && (
+        <p className={`text-xs mt-3 ${D ? 'text-gray-500' : 'text-gray-400'}`}>
+          Drag a heading into the box in the text, or tap a heading and then tap the box.
+        </p>
+      )}
+    </div>
+  )
+}
+
 // -- Group segments: groups consecutive compatible questions for special rendering -
 function groupSegments(questions) {
   const segments = []
@@ -643,6 +814,18 @@ function groupSegments(questions) {
           })
       segments.push({ type: 'grid', questions: grp.map(qq => ({ ...qq, choices: qq.choices?.length ? qq.choices : autoChoices })) })
       i = j; continue
+    }
+
+    // MHEAD > list of headings; the answers live in the passage slots
+    if (qt === 'MHEAD') {
+      const grp = [q]
+      let j = i + 1
+      while (j < questions.length &&
+        questions[j].group_instruction === gi &&
+        questions[j].question_type === 'MHEAD') {
+        grp.push(questions[j]); j++
+      }
+      segments.push({ type: 'mhead', questions: grp }); i = j; continue
     }
 
     // MEND / MATCH with choices > grid matrix
@@ -1722,12 +1905,24 @@ export default function IELTSReadingAttempt() {
   const allPassagesData = passageQueries.map(q => q.data || null)
   const passage = allPassagesData[activePartIndex] || null
   const rawQuestions = passage?.questions
-  const questions = useMemo(
-    () => (rawQuestions || []).map(q => (
-      q.group_instruction ? { ...q, group_instruction: plainGroupInstruction(q.group_instruction) } : q
-    )),
-    [rawQuestions],
-  )
+  const questions = useMemo(() => {
+    let lastHead = null
+    return (rawQuestions || []).map(q => {
+      let out = q.group_instruction ? { ...q, group_instruction: plainGroupInstruction(q.group_instruction) } : q
+      // MHEAD: the heading list and instruction may be written on the first question only
+      if (out.question_type === 'MHEAD') {
+        if (lastHead) {
+          if (!out.choices?.length) out = { ...out, choices: lastHead.choices }
+          if (!out.group_instruction) out = { ...out, group_instruction: lastHead.group_instruction }
+        }
+        lastHead = out
+      } else {
+        lastHead = null
+      }
+      return out
+    })
+  }, [rawQuestions])
+  const headingQuestions = useMemo(() => questions.filter(q => q.question_type === 'MHEAD'), [questions])
   const examKindLabel = partIds.length > 1 ? 'Full Mock' : `Part ${passage?.passage_number || 1}`
   const headerTitle = `${cleanPassageTitle || 'Reading Passage'}${reviewMode ? ' · Review' : ''}`
 
@@ -1918,7 +2113,7 @@ export default function IELTSReadingAttempt() {
         selectedMark.style.borderRadius = '2px'
         selectedMark.style.padding = '0 1px'
       }
-      setPassageHtml(passageRef.current.innerHTML)
+      setPassageHtml(passageMarkup(passageRef.current))
     } else {
       const saved = selectionRangeRef.current
       if (!saved) return
@@ -1946,7 +2141,7 @@ export default function IELTSReadingAttempt() {
         mark.appendChild(content)
         range.insertNode(mark)
       }
-      setPassageHtml(passageRef.current.innerHTML)
+      setPassageHtml(passageMarkup(passageRef.current))
     }
     window.getSelection()?.removeAllRanges()
     selectionRangeRef.current = null
@@ -1958,7 +2153,7 @@ export default function IELTSReadingAttempt() {
     const selectedMark = passageRef.current.querySelector(`mark[data-hl-id="${selectionInfo.markId}"]`)
     if (!selectedMark) return
     selectedMark.replaceWith(document.createTextNode(selectedMark.textContent || ''))
-    setPassageHtml(passageRef.current.innerHTML)
+    setPassageHtml(passageMarkup(passageRef.current))
     selectionRangeRef.current = null
     setSelectionInfo(null)
   }
@@ -2004,6 +2199,21 @@ export default function IELTSReadingAttempt() {
       }
     })
   }
+  // MHEAD: a heading goes into one slot only — placing it again moves it
+  const [selectedHeading, setSelectedHeading] = useState(null)
+  const placeHeading = (qId, letter) => {
+    if (reviewMode) return
+    setAnswersByPart((prev) => {
+      const key = String(currentPassageId)
+      const part = { ...(prev[key] || {}) }
+      headingQuestions.forEach(hq => { if (part[String(hq.id)] === letter) part[String(hq.id)] = '' })
+      part[String(qId)] = letter
+      return { ...prev, [key]: part }
+    })
+    setSelectedHeading(null)
+  }
+  const [headingSlots, setHeadingSlots] = useState([])
+
   const answeredCount = Object.values(answers).filter(Boolean).length
   const isAnswered = (qId) => Boolean(answers[String(qId)])
   const reviewMap = useMemo(() => {
@@ -2060,6 +2270,26 @@ export default function IELTSReadingAttempt() {
     }
     return items
   }, [reviewMode, showCorrectInReview, passage, reviewMap])
+
+  // Same object while the HTML is unchanged: React 19 re-sets innerHTML whenever the
+  // dangerouslySetInnerHTML object changes, which (with the timer ticking) wiped the
+  // passage DOM every second.
+  const passageInner = useMemo(
+    () => ({ __html: injectPassageHighlights(sanitizeHtml(passageHtml), readingEvidenceItems) }),
+    [passageHtml, readingEvidenceItems],
+  )
+
+  // The passage HTML is set with innerHTML, so the MHEAD slots are looked up after it
+  // changes and filled through portals.
+  useLayoutEffect(() => {
+    const root = passageRef.current
+    const found = root && headingQuestions.length
+      ? [...root.querySelectorAll('[data-heading-slot]')].map(el => ({ el, number: Number(el.dataset.headingSlot) }))
+      : []
+    setHeadingSlots(prev => (
+      prev.length === found.length && prev.every((s, i) => s.el === found[i].el) ? prev : found
+    ))
+  }, [passageInner, headingQuestions, isLoading])
 
   const partProgress = useMemo(() => {
     return partIds.map((pid, idx) => {
@@ -2453,8 +2683,27 @@ export default function IELTSReadingAttempt() {
             onDoubleClick={handlePassageDblClick}
             onClick={handlePassageClick}
             className={`p-5 pb-44 prose max-w-none ${fontCls} ${textMain} cursor-text select-text`}
-            dangerouslySetInnerHTML={{ __html: injectPassageHighlights(sanitizeHtml(passageHtml), readingEvidenceItems) }}
+            dangerouslySetInnerHTML={passageInner}
           />
+          {headingSlots.map(({ el, number }) => {
+            const hq = headingQuestions.find(q => q.number === number)
+            if (!hq) return null
+            return createPortal(
+              <HeadingSlot
+                q={hq}
+                value={answers[String(hq.id)] || ''}
+                dark={D}
+                reviewMode={reviewMode}
+                rr={reviewMap?.[String(hq.id)] || reviewMap?.[`n-${hq.number}`]}
+                showCorrect={showCorrectInReview}
+                selected={selectedHeading}
+                onPlace={placeHeading}
+                onClear={(id) => setAnswer(id, '')}
+              />,
+              el,
+              `slot-${hq.id}`,
+            )
+          })}
         </div>
 
         {/* Mobile divider (vertical resize) */}
@@ -2515,6 +2764,24 @@ export default function IELTSReadingAttempt() {
           <div className="p-4" style={{ zoom: questionZoom }}>
           <div className={`space-y-3 ${fontCls}`}>
             {groupSegments(questions).map((seg, si) => {
+              // -- MHEAD: list of headings (answers go into passage slots) -
+              if (seg.type === 'mhead') {
+                return (
+                  <div key={`mhead-${si}`} ref={el => seg.questions.forEach(q => { questionRefs.current[q.id] = el })}>
+                    <HeadingBankBlock
+                      questions={seg.questions}
+                      answers={answers}
+                      dark={D}
+                      reviewMode={reviewMode}
+                      reviewMap={reviewMap}
+                      showCorrectInReview={showCorrectInReview}
+                      selected={selectedHeading}
+                      onSelect={setSelectedHeading}
+                    />
+                  </div>
+                )
+              }
+
               // -- GRID: MEND / MINFO / MATCH -----------------------------
               if (seg.type === 'grid') {
                 seg.questions.forEach(q => { questionRefs.current[q.id] = null })
