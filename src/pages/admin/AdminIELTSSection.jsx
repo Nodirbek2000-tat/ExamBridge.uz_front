@@ -67,11 +67,12 @@ const SECTION_CONFIG = {
     premiumEndpoint: (pk) => `/admin/ielts/reading/${pk}/update/`,
     hasDifficulty: true, hasEdit: true,
     exampleJson: `// ═══════════════════════════════════════════════════════
-// IELTS READING — BARCHA 16 SAVOL TURLARINING TO'LIQ QOLLANMASI
+// IELTS READING — BARCHA 17 SAVOL TURLARINING TO'LIQ QOLLANMASI
 // ═══════════════════════════════════════════════════════
 //
 // OPTION 1: Bitta mashq (passage)
 // OPTION 2: To'liq mock test (3 ta part)
+// OPTION 3: MHEAD — sarlavhani matn ichidagi [[N]] katakka sudrash (pastda, ESLATMALAR oldida)
 //
 // group_instruction: **bold**, • bullet, \\n newline qo'llab-quvvatlanadi
 // answer_review: MAJBURIY — har qanday savol turiga qo'shish kerak
