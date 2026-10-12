@@ -9,7 +9,7 @@ import {
   RotateCcw, RotateCw, Lock, Bell, ArrowDown,
 } from 'lucide-react'
 import api from '../../api/client'
-import { loadExam, saveExam, clearExam } from '../../utils/examPersist'
+import { clearExam } from '../../utils/examPersist'
 import CefrPartNav from '../../components/exam/CefrPartNav'
 import CefrQuestionPanel, { fitsPanel, OptionMatchBlock } from '../../components/exam/CefrQuestionPanel'
 import { useAuthStore } from '../../store/authStore'
@@ -18,61 +18,43 @@ function Skeleton({ className = '' }) {
   return <div className={`animate-pulse rounded-lg bg-gray-200/70 ${className}`} />
 }
 
-function HiddenExamAudio({ src, active, seekTo = 0, onProgress, onEnded, onBlocked, retry = 0 }) {
+// The one exam player: hidden, no controls, plays the current part and cannot be
+// paused. Leaving the page (or the part changing) stops it and its download.
+function HiddenExamAudio({ src, active, onProgress, onEnded, onDuration, onBlocked, retry = 0 }) {
   const ref = useRef(null)
-  const onProgressRef = useRef(onProgress)
-  const onEndedRef = useRef(onEnded)
-  useEffect(() => { onEndedRef.current = onEnded })
-  const onBlockedRef = useRef(onBlocked)
-  useEffect(() => { onBlockedRef.current = onBlocked })
-  const firstSeekDoneRef = useRef(false)
-  useEffect(() => { onProgressRef.current = onProgress })
-  // Play when active (resume from seekTo on first load); stop when inactive/unmounted
+  const cb = useRef({})
+  useEffect(() => { cb.current = { onProgress, onEnded, onDuration, onBlocked } })
   useEffect(() => {
     const el = ref.current
-    if (!el) return
-    if (active && src) {
-      el.load()
-      const startPlayback = () => {
-        if (!firstSeekDoneRef.current && seekTo > 0) {
-          try { el.currentTime = seekTo } catch { /* */ }
-        }
-        el.play()
-          .then(() => { firstSeekDoneRef.current = true })
-          // The browser refuses sound without a click (e.g. after a page refresh)
-          .catch((e) => { if (e?.name === 'NotAllowedError') onBlockedRef.current?.() })
-      }
-      if (el.readyState >= 1) startPlayback()
-      else el.addEventListener('loadedmetadata', startPlayback, { once: true })
-    } else {
-      try { el.pause() } catch { /* */ }
-    }
-    return () => { try { el.pause() } catch { /* */ } }
-  }, [active, src, seekTo, retry])
-  // Force-resume if paused — only while active (stops on exit)
-  useEffect(() => {
-    const el = ref.current
-    if (!el || !active) return
-    const onPause = () => {
-      if (el.ended) return
-      el.play().catch(() => {})
-    }
+    if (!el || !active || !src) return
+    let stopped = false
+    // Resume if the browser pauses it — but never after we stopped it ourselves
+    // (that used to restart the audio on a detached element after leaving)
+    const onPause = () => { if (!stopped && !el.ended) el.play().catch(() => {}) }
+    const onTime = () => cb.current.onProgress?.(el.currentTime)
+    const onEnd = () => cb.current.onEnded?.()
+    const onMeta = () => cb.current.onDuration?.(el.duration)
     el.addEventListener('pause', onPause)
-    return () => el.removeEventListener('pause', onPause)
-  }, [active, src])
-  // Report progress so a refresh resumes from here
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const onTime = () => onProgressRef.current?.(el.currentTime)
-    // A mock's parts play one after another — the page moves to the next part's audio
-    const onEnd = () => onEndedRef.current?.()
     el.addEventListener('timeupdate', onTime)
     el.addEventListener('ended', onEnd)
-    return () => { el.removeEventListener('timeupdate', onTime); el.removeEventListener('ended', onEnd) }
-  }, [src])
-  if (!src) return null
-  return <audio ref={ref} src={src} preload="auto" className="sr-only" playsInline />
+    el.addEventListener('loadedmetadata', onMeta)
+    el.src = src
+    el.play().catch((e) => {
+      // The browser refuses sound without a click (e.g. after a page refresh)
+      if (!stopped && e?.name === 'NotAllowedError') cb.current.onBlocked?.()
+    })
+    return () => {
+      stopped = true
+      el.removeEventListener('pause', onPause)
+      el.removeEventListener('timeupdate', onTime)
+      el.removeEventListener('ended', onEnd)
+      el.removeEventListener('loadedmetadata', onMeta)
+      try { el.pause() } catch { /* */ }
+      el.removeAttribute('src')
+      try { el.load() } catch { /* */ }   // aborts the download
+    }
+  }, [active, src, retry])
+  return <audio ref={ref} preload="auto" className="sr-only" playsInline />
 }
 
 // Komponent tashqarida: ilgari ReviewAudioPlayer ichida e'lon qilingandi va
@@ -1278,7 +1260,7 @@ export default function CEFRListeningAttempt() {
 
   const answersStorageKey = reviewMode ? null : `cefr-listening-answers-${attemptId}`
   const audioStorageKey = reviewMode ? null : `cefr-listening-audio-${attemptId}`
-  const [answers, setAnswers] = useState(() => loadExam(answersStorageKey) || {})
+  const [answers, setAnswers] = useState({})
   const [activeQ, setActiveQ] = useState(0)
   const [submitting, setSubmitting] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
@@ -1286,10 +1268,8 @@ export default function CEFRListeningAttempt() {
   const allowLeaveRef = useRef(false)
   const questionRefs = useRef({})
   const [audioStarted, setAudioStarted] = useState(false)
-  const pendingSeekRef = useRef(loadExam(audioStorageKey)?.currentTime || 0)
   // Which part's audio is playing — it moves on by itself when a part's audio ends
-  const [audioPart, setAudioPart] = useState(() => loadExam(audioStorageKey)?.part || 0)
-  const lastAudioSaveRef = useRef(0)
+  const [audioPart, setAudioPart] = useState(0)
   // Length of each part's recording (or of the one mock recording), in seconds
   const [audioDurations, setAudioDurations] = useState([])
   // Seconds played in the current recording - drives the clock in the top bar
@@ -1323,22 +1303,18 @@ export default function CEFRListeningAttempt() {
     if (!reviewMode && !isLoading && allSections[0]) setAudioStarted(true)
   }, [reviewMode, isLoading, allSections])
 
-  // Persist answers across refresh
+  // No resuming: opening the test again starts it from the beginning, so drop
+  // anything an older version saved for this attempt
   useEffect(() => {
-    if (!answersStorageKey) return
-    saveExam(answersStorageKey, answers)
-  }, [answers, answersStorageKey])
+    clearExam(answersStorageKey)
+    clearExam(audioStorageKey)
+  }, [answersStorageKey, audioStorageKey])
 
-  // Persist audio progress (throttled) so a refresh resumes from here
-  const handleAudioProgress = useCallback((t) => {
-    if (!audioStarted) return
-    setAudioNow(Math.floor(t))
-    if (!audioStorageKey) return
-    const now = Date.now()
-    if (now - lastAudioSaveRef.current < 1500) return
-    lastAudioSaveRef.current = now
-    saveExam(audioStorageKey, { part: mockAudio ? 0 : audioPart, currentTime: t })
-  }, [audioStorageKey, audioStarted, audioPart, mockAudio])
+  const handleAudioProgress = useCallback((t) => setAudioNow(Math.floor(t)), [])
+  const handleAudioDuration = useCallback((d) => {
+    const i = mockAudio ? 0 : audioPart
+    setAudioDurations(prev => { const next = [...prev]; next[i] = d || 0; return next })
+  }, [mockAudio, audioPart])
 
   // Next part that has audio, or -1 when the recording is over
   const nextAudioPart = useCallback((from) => {
@@ -1359,26 +1335,12 @@ export default function CEFRListeningAttempt() {
     setAudioPart(next)
     setAudioNow(0)
     if (follow) { setActivePart(next); setActiveQ(0) }   // like the real exam
-    if (audioStorageKey) saveExam(audioStorageKey, { part: next, currentTime: 0 })
-  }, [audioPart, nextAudioPart, allSections.length, audioStorageKey])
+  }, [audioPart, nextAudioPart, allSections.length])
   const handleAudioEnded = useCallback(() => {
     audioPlayedRef.current = true
     if (mockAudio) { finishRef.current?.(); return }   // one recording: it ending ends the test
     advanceAudio(true)
   }, [advanceAudio, mockAudio])
-  // While a part plays, fetch the next part's audio so the switch has no loading pause
-  const nextPreloadRef = useRef(null)
-  useEffect(() => {
-    if (mockAudio || reviewMode || !audioStarted) return
-    const next = nextAudioPart(audioPart)
-    const url = next >= 0 ? allSections[next]?.audio_url : null
-    if (!url) return
-    const a = new Audio()
-    a.preload = 'auto'
-    a.src = url
-    nextPreloadRef.current = a
-    return () => { try { a.src = '' } catch { /* */ } nextPreloadRef.current = null }
-  }, [mockAudio, reviewMode, audioStarted, audioPart, nextAudioPart, allSections])
   // A part without audio is skipped straight away (not when the mock has one recording)
   useEffect(() => {
     if (!audioStarted || reviewMode || isLoading || mockAudio) return
@@ -1386,24 +1348,21 @@ export default function CEFRListeningAttempt() {
     if (cur && !cur.audio_url) advanceAudio(false)
   }, [audioStarted, reviewMode, isLoading, allSections, audioPart, advanceAudio, mockAudio])
 
-  // Total audio length for the start screen
-  //
-  // Ayni paytda audio fonda to'liq yuklab ham qo'yiladi (preload='auto').
-  // Oldin 'metadata' edi: faqat davomiyligi o'qilardi, ovoz esa Start
-  // bosilgandan keyin yuklana boshlardi va o'quvchi bir necha soniya kutardi.
+  // Lengths of the later parts for the clock (metadata only). The part that plays
+  // first reports its own length — asking for the same file twice made the
+  // player wait (nginx serves a file being cached to one request at a time).
   const preloaderRef = useRef(null)
   const audioUrlsKey = mockAudio || allSections.map(s => s?.audio_url || '').join('|')
   useEffect(() => {
-    const urls = audioUrlsKey.split('|')
+    const urls = mockAudio ? [] : audioUrlsKey.split('|')
     setAudioDurations([])
-    if (!urls.some(Boolean)) return
+    if (reviewMode || !urls.some(Boolean)) return
     let cancelled = false
-    // First part loads fully (plays at once); the rest only read their length
     const firstWithAudio = urls.findIndex(Boolean)
     const players = urls.map((url, i) => {
-      if (!url) return null
+      if (!url || i === firstWithAudio) return null
       const a = new Audio()
-      a.preload = i === firstWithAudio ? 'auto' : 'metadata'
+      a.preload = 'metadata'
       a.src = url
       a.addEventListener('loadedmetadata', () => {
         if (cancelled) return
@@ -1416,10 +1375,10 @@ export default function CEFRListeningAttempt() {
     return () => {
       cancelled = true
       // Sahifadan chiqilsa yuklashni to'xtatamiz
-      players.forEach(a => { try { a.src = '' } catch { /* */ } })
+      players.forEach(a => { a.removeAttribute('src'); try { a.load() } catch { /* */ } })
       preloaderRef.current = null
     }
-  }, [audioUrlsKey])
+  }, [audioUrlsKey, mockAudio, reviewMode])
 
   const questions = section?.questions || []
   // Choice / T-F / summary parts get the shared CEFR panel (same look as Reading 4–5);
@@ -1747,8 +1706,8 @@ export default function CEFRListeningAttempt() {
       <HiddenExamAudio
         src={!reviewMode && audioStarted ? (mockAudio || allSections[audioPart]?.audio_url || null) : null}
         active={!reviewMode && audioStarted}
-        seekTo={pendingSeekRef.current}
         onProgress={handleAudioProgress}
+        onDuration={handleAudioDuration}
         onEnded={handleAudioEnded}
         onBlocked={() => setAudioBlocked(true)}
         retry={audioRetry}
