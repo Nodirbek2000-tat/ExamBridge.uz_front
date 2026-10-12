@@ -195,7 +195,11 @@ const READING_EXAMPLE = `// ═════════════════�
 // UMUMIY QOIDALAR:
 //   • "type": "reading" — shart
 //   • "level": A1 | A2 | B1 | B2 | C1 | C2
-//   • "passage_number": 1–5 — qaysi part ekanini bildiradi
+//   • "passage_number": 1–5 — SHART: qaysi part ekanini bildiradi.
+//     O'quvchi ro'yxatida test shu raqam bo'yicha "Part 1…5" filtriga tushadi.
+//     "parts" ichida 1 ta part bo'lsa ham u "Full Mock" emas, o'sha Part bo'lib chiqadi;
+//     2+ part = Full Mock. Raqam 1–5 dan tashqari yoki takrorlansa — import xato beradi.
+//     (bitta partli "parts" da raqamni tepada "passage_number" bilan ham yozish mumkin)
 //   • content ichida paragraflar bo'sh qator bilan: "...\\n\\n..."
 //   • **qalin** matn: group_instruction va summary'da ishlaydi
 //   • answer_review — matndan AYNAN ko'chirilgan jumla (review'da
@@ -441,6 +445,10 @@ const LISTENING_EXAMPLE = `// ════════════════�
 //
 // • Bitta part: "section": {...} + "questions": [...]
 // • To'liq mock: "sections": [ {part 1}, ..., {part 6} ] — bitta test bo'lib tushadi
+// • "section_number": 1–6 — SHART: qaysi part ekanini bildiradi. O'quvchi
+//   ro'yxatida shu raqam bo'yicha "Part 1…6" filtriga tushadi. "sections" ichida
+//   1 ta part bo'lsa ham u "Full Mock" emas, o'sha Part bo'lib chiqadi;
+//   2+ part = Full Mock. 1–6 dan tashqari yoki takror raqam — import xato beradi.
 // • Audio 2 xil:
 //   1) Har partga alohida — part qatoridagi ♪ tugmasi (yoki part "audio_url")
 //   2) Butun test uchun BITTA audio — mock qatoridagi "Bitta audio" tugmasi

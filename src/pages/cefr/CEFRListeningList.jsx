@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Search, Clock3, HelpCircle, Loader2, Headphones, ChevronUp, ChevronDown, Layers } from 'lucide-react'
 import api from '../../api/client'
-import KindChips, { kindChips, countKinds } from '../../components/exam/KindChips'
+import KindChips from '../../components/exam/KindChips'
+import { kindChips, countKinds, cefrKind } from '../../utils/examKinds'
 
 const LEVELS = ['ALL', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2']
 const KINDS = kindChips(6)
 // 'FULL' for a full mock, otherwise the part number
-const kindOf = (item) => (item.item_type === 'full_mock' ? 'FULL' : String(item.section_number || 1))
+const kindOf = (item) => cefrKind(item, 'section_number')
 
 function LevelBadge({ level }) {
   const tone =
@@ -60,7 +61,7 @@ export default function CEFRListeningList({ accentBtn = 'bg-sky-500 hover:bg-sky
     // Full mocks first, then single parts
     return [...filtered.filter(s => s.item_type === 'full_mock'), ...filtered.filter(s => s.item_type !== 'full_mock')]
   }, [data, search, level, kind])
-  const mockCount = items.filter(s => s.item_type === 'full_mock').length
+  const mockCount = items.filter(s => kindOf(s) === 'FULL').length
 
   const handleStart = async (section) => {
     const isFullMock = section.item_type === 'full_mock'
@@ -140,17 +141,20 @@ export default function CEFRListeningList({ accentBtn = 'bg-sky-500 hover:bg-sky
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h4 className="font-bold text-gray-900">{section.title}</h4>
-                        {isFullMock ? (
+                        {section.is_mock && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 font-semibold">Mock</span>
+                        )}
+                        {kindOf(section) === 'FULL' ? (
                           <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 font-semibold flex items-center gap-1">
                             <Layers size={10} /> Full Mock
                           </span>
-                        ) : section.is_mock && (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 font-semibold">Mock</span>
+                        ) : (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 font-semibold">Part {kindOf(section)}</span>
                         )}
                       </div>
                       <div className="flex items-center gap-4 text-sm text-gray-500 mt-2 flex-wrap">
                         <LevelBadge level={section.level || 'B1'} />
-                        <span className="text-gray-500">{isFullMock ? `${section.part_count} parts` : '1 part'}</span>
+                        <span className="text-gray-500">{kindOf(section) === 'FULL' ? `${section.part_count} parts` : '1 part'}</span>
                         <span className="inline-flex items-center gap-1">
                           <Clock3 size={14} /> {section.time_limit ?? 25} min
                         </span>

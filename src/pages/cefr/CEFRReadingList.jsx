@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Search, Clock3, HelpCircle, Loader2, BookOpen, ChevronUp, ChevronDown, Layers } from 'lucide-react'
 import api from '../../api/client'
-import KindChips, { kindChips, countKinds } from '../../components/exam/KindChips'
+import KindChips from '../../components/exam/KindChips'
+import { kindChips, countKinds, cefrKind } from '../../utils/examKinds'
 
 const LEVELS = ['ALL', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2']
 const KINDS = kindChips(5)
 // 'FULL' for a full mock, otherwise the part number
-const kindOf = (item) => (item.item_type === 'full_mock' ? 'FULL' : String(item.passage_number || 1))
+const kindOf = (item) => cefrKind(item, 'passage_number')
 
 function LevelBadge({ level }) {
   const tone =
@@ -63,7 +64,7 @@ export default function CEFRReadingList({ accentBtn = 'bg-sky-500 hover:bg-sky-6
     }
   }, [data, search, level, kind])
 
-  const allItems = [...fullMocks, ...passages]
+  const allItems = [...fullMocks, ...passages].map((item) => ({ ...item, kind: kindOf(item) }))
 
   const handleStartPassage = async (passage) => {
     setStarting(passage.id)
@@ -105,7 +106,11 @@ export default function CEFRReadingList({ accentBtn = 'bg-sky-500 hover:bg-sky-6
             <p className="text-sm text-gray-500 mt-2">
               <span className="font-semibold text-gray-900">CEFR Reading</span>
               <span className="ml-2">
-                {isLoading ? '...' : `${fullMocks.length} full mock${fullMocks.length !== 1 ? 's' : ''}, ${passages.length} passage${passages.length !== 1 ? 's' : ''}`}
+                {isLoading ? '...' : (() => {
+                  const full = allItems.filter((i) => i.kind === 'FULL').length
+                  const parts = allItems.length - full
+                  return `${full} full mock${full !== 1 ? 's' : ''}, ${parts} part${parts !== 1 ? 's' : ''}`
+                })()}
               </span>
             </p>
           </div>
@@ -144,15 +149,17 @@ export default function CEFRReadingList({ accentBtn = 'bg-sky-500 hover:bg-sky-6
                       {item.is_mock && (
                         <span className="text-xs px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 font-semibold">Mock</span>
                       )}
-                      {isFullMock && (
+                      {item.kind === 'FULL' ? (
                         <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 font-semibold flex items-center gap-1">
                           <Layers size={10} /> Full Mock
                         </span>
+                      ) : (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 font-semibold">Part {item.kind}</span>
                       )}
                     </div>
                     <div className="flex items-center gap-4 text-sm text-gray-500 mt-2 flex-wrap">
                       <LevelBadge level={item.level || 'B1'} />
-                      {isFullMock ? (
+                      {item.kind === 'FULL' ? (
                         <span className="text-gray-500">{item.part_count} parts</span>
                       ) : (
                         <span className="text-gray-500">1 part</span>
