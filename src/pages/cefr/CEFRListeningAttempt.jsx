@@ -18,75 +18,13 @@ function Skeleton({ className = '' }) {
   return <div className={`animate-pulse rounded-lg bg-gray-200/70 ${className}`} />
 }
 
-function useTimer(initialSeconds, storageKey, frozen = false) {
-  const intervalRef = useRef()
-  const readPersisted = useCallback(() => {
-    if (!storageKey || typeof window === 'undefined') return null
-    try {
-      const raw = localStorage.getItem(storageKey)
-      if (!raw) return null
-      const data = JSON.parse(raw)
-      const remaining = Number(data?.remaining)
-      const paused = Boolean(data?.paused)
-      const ts = Number(data?.ts || Date.now())
-      if (!Number.isFinite(remaining)) return null
-      const elapsed = Math.max(0, Math.floor((Date.now() - ts) / 1000))
-      const restored = paused ? remaining : Math.max(0, remaining - elapsed)
-      return { seconds: restored, paused }
-    } catch {
-      return null
-    }
-  }, [storageKey])
-
-  const [seconds, setSeconds] = useState(() => readPersisted()?.seconds ?? initialSeconds)
-  const [paused, setPaused] = useState(() => readPersisted()?.paused ?? false)
-
-  useEffect(() => {
-    const persisted = readPersisted()
-    setSeconds(persisted?.seconds ?? initialSeconds)
-    setPaused(persisted?.paused ?? false)
-  }, [readPersisted, initialSeconds, storageKey])
-
-  useEffect(() => {
-    if (frozen || paused || seconds <= 0) {
-      clearInterval(intervalRef.current)
-      return
-    }
-    intervalRef.current = setInterval(() => setSeconds((s) => Math.max(0, s - 1)), 1000)
-    return () => clearInterval(intervalRef.current)
-  }, [frozen, paused, seconds])
-
-  useEffect(() => {
-    if (frozen || !storageKey || typeof window === 'undefined') return
-    localStorage.setItem(storageKey, JSON.stringify({ remaining: seconds, paused, ts: Date.now() }))
-  }, [seconds, paused, storageKey, frozen])
-
-  const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
-  const clearPersist = () => {
-    if (!storageKey || typeof window === 'undefined') return
-    localStorage.removeItem(storageKey)
-  }
-
-  return {
-    seconds,
-    fmt: fmt(seconds),
-    paused,
-    start: () => setPaused(false),
-    pause: () => setPaused(true),
-    stop: () => {
-      clearInterval(intervalRef.current)
-      setPaused(true)
-    },
-    clearPersist,
-    urgent: seconds < 120 && seconds > 0,
-  }
-}
-
-function HiddenExamAudio({ src, active, seekTo = 0, onProgress, onEnded }) {
+function HiddenExamAudio({ src, active, seekTo = 0, onProgress, onEnded, onBlocked, retry = 0 }) {
   const ref = useRef(null)
   const onProgressRef = useRef(onProgress)
   const onEndedRef = useRef(onEnded)
   useEffect(() => { onEndedRef.current = onEnded })
+  const onBlockedRef = useRef(onBlocked)
+  useEffect(() => { onBlockedRef.current = onBlocked })
   const firstSeekDoneRef = useRef(false)
   useEffect(() => { onProgressRef.current = onProgress })
   // Play when active (resume from seekTo on first load); stop when inactive/unmounted
@@ -99,8 +37,10 @@ function HiddenExamAudio({ src, active, seekTo = 0, onProgress, onEnded }) {
         if (!firstSeekDoneRef.current && seekTo > 0) {
           try { el.currentTime = seekTo } catch { /* */ }
         }
-        firstSeekDoneRef.current = true
-        el.play().catch(() => {})
+        el.play()
+          .then(() => { firstSeekDoneRef.current = true })
+          // The browser refuses sound without a click (e.g. after a page refresh)
+          .catch((e) => { if (e?.name === 'NotAllowedError') onBlockedRef.current?.() })
       }
       if (el.readyState >= 1) startPlayback()
       else el.addEventListener('loadedmetadata', startPlayback, { once: true })
@@ -108,7 +48,7 @@ function HiddenExamAudio({ src, active, seekTo = 0, onProgress, onEnded }) {
       try { el.pause() } catch { /* */ }
     }
     return () => { try { el.pause() } catch { /* */ } }
-  }, [active, src, seekTo])
+  }, [active, src, seekTo, retry])
   // Force-resume if paused — only while active (stops on exit)
   useEffect(() => {
     const el = ref.current
@@ -1312,50 +1252,6 @@ function QuestionList({
   )
 }
 
-// ── Start Screen ──────────────────────────────────────────────────────────────
-function StartScreen({ section, title, onStart, dark, resuming, audioDuration }) {
-  const D = dark
-  const bg = D ? 'bg-gray-950' : 'bg-white'
-  const surface = D ? 'bg-gray-800 border-gray-700' : 'bg-white border-sky-100'
-  const textSub = D ? 'text-gray-400' : 'text-gray-500'
-  const audioFmt = audioDuration > 0
-    ? `${Math.floor(audioDuration / 60)}:${String(Math.round(audioDuration) % 60).padStart(2, '0')}`
-    : null
-  return (
-    <div className={`flex items-center justify-center h-full ${bg} p-6`}>
-      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-        className={`w-full max-w-md rounded-3xl border shadow-xl p-8 text-center ${surface}`}>
-        <div className="w-20 h-20 rounded-full gradient-primary flex items-center justify-center mx-auto mb-5 shadow-glow">
-          <Headphones size={36} className="text-white" />
-        </div>
-        <h1 className={`text-2xl font-black mb-1 ${D ? 'text-gray-100' : 'text-gray-800'}`}>{title}</h1>
-        <p className={`text-sm mb-6 ${textSub}`}>CEFR Listening Test</p>
-        <div className="grid grid-cols-3 gap-3 mb-6">
-          <div className={`rounded-2xl p-3 ${D ? 'bg-gray-700' : 'bg-gray-50'}`}>
-            <HelpCircle size={16} className="text-sky-500 mx-auto mb-1" />
-            <p className={`text-lg font-black ${D ? 'text-gray-100' : 'text-gray-800'}`}>{section?.questions?.length ?? '—'}</p>
-            <p className={`text-xs ${textSub}`}>Questions</p>
-          </div>
-          <div className={`rounded-2xl p-3 ${D ? 'bg-gray-700' : 'bg-gray-50'}`}>
-            <Clock size={16} className="text-sky-400 mx-auto mb-1" />
-            <p className={`text-lg font-black ${D ? 'text-gray-100' : 'text-gray-800'}`}>{section?.time_limit ?? 25}</p>
-            <p className={`text-xs ${textSub}`}>Minutes</p>
-          </div>
-          <div className={`rounded-2xl p-3 ${D ? 'bg-gray-700' : 'bg-gray-50'}`}>
-            <Headphones size={16} className="text-emerald-500 mx-auto mb-1" />
-            <p className={`text-lg font-black tabular-nums ${D ? 'text-gray-100' : 'text-gray-800'}`}>{audioFmt || '—'}</p>
-            <p className={`text-xs ${textSub}`}>Audio</p>
-          </div>
-        </div>
-        <motion.button whileTap={{ scale: 0.97 }} onClick={onStart}
-          className="w-full py-4 gradient-primary text-white rounded-2xl text-base font-black flex items-center justify-center gap-3 shadow-glow hover:opacity-95 transition">
-          <Play size={18} className="fill-white" /> {resuming ? 'Resume test' : 'Start test'}
-        </motion.button>
-      </motion.div>
-    </div>
-  )
-}
-
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function CEFRListeningAttempt() {
   const { attemptId } = useParams()
@@ -1391,11 +1287,15 @@ export default function CEFRListeningAttempt() {
   const questionRefs = useRef({})
   const [audioStarted, setAudioStarted] = useState(false)
   const pendingSeekRef = useRef(loadExam(audioStorageKey)?.currentTime || 0)
-  const hasResumeRef = useRef((loadExam(audioStorageKey)?.currentTime || 0) > 0 || (loadExam(audioStorageKey)?.part || 0) > 0)
   // Which part's audio is playing — it moves on by itself when a part's audio ends
   const [audioPart, setAudioPart] = useState(() => loadExam(audioStorageKey)?.part || 0)
   const lastAudioSaveRef = useRef(0)
-  const [audioTotalSec, setAudioTotalSec] = useState(0)
+  // Length of each part's recording (or of the one mock recording), in seconds
+  const [audioDurations, setAudioDurations] = useState([])
+  // Seconds played in the current recording - drives the clock in the top bar
+  const [audioNow, setAudioNow] = useState(0)
+  const [audioBlocked, setAudioBlocked] = useState(false)
+  const [audioRetry, setAudioRetry] = useState(0)
   const [darkMode, setDarkMode] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
@@ -1418,10 +1318,10 @@ export default function CEFRListeningAttempt() {
   // A mock may carry one recording for every part — then it replaces the parts' own audio
   const mockAudio = allSections[0]?.mock_audio_url || null
 
-  const timerStorageKey = `cefr-listening-timer-${attemptId}-${partsParam || sectionId || 'x'}`
-  // Every part of a mock carries the mock's total time; frozen until the test starts
-  const timer = useTimer((allSections[0]?.time_limit || 25) * 60, reviewMode ? null : timerStorageKey,
-    reviewMode || !allSections[0] || !audioStarted)
+  // No time limit of its own: the listening lasts as long as its audio and ends with it
+  useEffect(() => {
+    if (!reviewMode && !isLoading && allSections[0]) setAudioStarted(true)
+  }, [reviewMode, isLoading, allSections])
 
   // Persist answers across refresh
   useEffect(() => {
@@ -1431,7 +1331,9 @@ export default function CEFRListeningAttempt() {
 
   // Persist audio progress (throttled) so a refresh resumes from here
   const handleAudioProgress = useCallback((t) => {
-    if (!audioStorageKey || !audioStarted) return
+    if (!audioStarted) return
+    setAudioNow(Math.floor(t))
+    if (!audioStorageKey) return
     const now = Date.now()
     if (now - lastAudioSaveRef.current < 1500) return
     lastAudioSaveRef.current = now
@@ -1455,6 +1357,7 @@ export default function CEFRListeningAttempt() {
       return
     }
     setAudioPart(next)
+    setAudioNow(0)
     if (follow) { setActivePart(next); setActiveQ(0) }   // like the real exam
     if (audioStorageKey) saveExam(audioStorageKey, { part: next, currentTime: 0 })
   }, [audioPart, nextAudioPart, allSections.length, audioStorageKey])
@@ -1491,22 +1394,23 @@ export default function CEFRListeningAttempt() {
   const preloaderRef = useRef(null)
   const audioUrlsKey = mockAudio || allSections.map(s => s?.audio_url || '').join('|')
   useEffect(() => {
-    const urls = audioUrlsKey.split('|').filter(Boolean)
-    if (!urls.length) { setAudioTotalSec(0); return }
+    const urls = audioUrlsKey.split('|')
+    setAudioDurations([])
+    if (!urls.some(Boolean)) return
     let cancelled = false
-    const durations = {}
     // First part loads fully (plays at once); the rest only read their length
+    const firstWithAudio = urls.findIndex(Boolean)
     const players = urls.map((url, i) => {
+      if (!url) return null
       const a = new Audio()
-      a.preload = i === 0 ? 'auto' : 'metadata'
+      a.preload = i === firstWithAudio ? 'auto' : 'metadata'
       a.src = url
       a.addEventListener('loadedmetadata', () => {
         if (cancelled) return
-        durations[i] = a.duration || 0
-        setAudioTotalSec(Math.round(Object.values(durations).reduce((x, y) => x + y, 0)))
+        setAudioDurations(prev => { const next = [...prev]; next[i] = a.duration || 0; return next })
       }, { once: true })
       return a
-    })
+    }).filter(Boolean)
     // Havolani saqlaymiz — brauzer obyektni tozalab, yuklashni to'xtatmasin
     preloaderRef.current = players
     return () => {
@@ -1600,8 +1504,6 @@ export default function CEFRListeningAttempt() {
 
   const handleSubmit = async () => {
     if (reviewMode) return
-    timer.stop()
-    timer.clearPersist()
     clearExam(answersStorageKey)
     clearExam(audioStorageKey)
     setShowConfirm(false)
@@ -1637,7 +1539,6 @@ export default function CEFRListeningAttempt() {
 
   const handleBackToList = () => {
     allowLeaveRef.current = true
-    timer.clearPersist()
     clearExam(answersStorageKey)
     clearExam(audioStorageKey)
     setAudioStarted(false)   // stop exam audio before leaving
@@ -1689,9 +1590,27 @@ export default function CEFRListeningAttempt() {
     )
   }
 
-  if (!reviewMode && !audioStarted) {
-    return <StartScreen section={{ questions: allQuestions, time_limit: allSections[0]?.time_limit }} title={sectionTitle} dark={D} onStart={() => setAudioStarted(true)} resuming={hasResumeRef.current} audioDuration={audioTotalSec} />
+  // Clock = audio still to play: the rest of this recording + the later parts' recordings
+  const knownLength = (i) => (Number.isFinite(audioDurations[i]) ? audioDurations[i] : null)
+  let audioLeft = null
+  if (mockAudio) {
+    if (knownLength(0) != null) audioLeft = knownLength(0) - audioNow
+  } else if (audioPart < allSections.length) {
+    let left = 0
+    for (let i = audioPart; i < allSections.length; i++) {
+      if (!allSections[i]?.audio_url) continue
+      const len = knownLength(i)
+      if (len == null) { left = null; break }
+      left += len
+    }
+    if (left != null) audioLeft = left - audioNow
+  } else {
+    audioLeft = 0
   }
+  audioLeft = audioLeft == null ? null : Math.max(0, Math.round(audioLeft))
+  const audioClock = audioLeft == null
+    ? '--:--'
+    : `${String(Math.floor(audioLeft / 60)).padStart(2, '0')}:${String(audioLeft % 60).padStart(2, '0')}`
 
   return (
     <div className={`flex flex-col h-full ${bg} ${textMain}`}>
@@ -1722,18 +1641,12 @@ export default function CEFRListeningAttempt() {
         {!reviewMode && (
           <div
             className={`absolute left-1/2 -translate-x-1/2 top-2 z-10 flex items-center gap-2 px-3 py-2 rounded-2xl font-mono text-sm font-extrabold ${
-              timer.urgent ? 'bg-red-100 text-red-600 animate-pulse' : D ? 'bg-gray-700 text-sky-400' : 'bg-sky-50 text-sky-600'
+              audioLeft != null && audioLeft > 0 && audioLeft < 60 ? 'bg-red-100 text-red-600' : D ? 'bg-gray-700 text-sky-400' : 'bg-sky-50 text-sky-600'
             }`}
+            title="Audio time left - the test ends when the recording ends"
           >
-            <Clock size={14} />
-            {timer.fmt}
-            <button
-              type="button"
-              onClick={timer.paused ? timer.start : timer.pause}
-              className={`px-2 py-1 rounded-lg text-xs font-bold border ${timer.paused ? 'bg-sky-500 text-white border-sky-500' : D ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'}`}
-            >
-              {timer.paused ? 'Start' : 'Pause'}
-            </button>
+            <Headphones size={14} />
+            {audioClock}
           </div>
         )}
         {reviewMode ? (
@@ -1837,7 +1750,22 @@ export default function CEFRListeningAttempt() {
         seekTo={pendingSeekRef.current}
         onProgress={handleAudioProgress}
         onEnded={handleAudioEnded}
+        onBlocked={() => setAudioBlocked(true)}
+        retry={audioRetry}
       />
+
+      {/* After a refresh the browser may refuse to play sound until the page is clicked */}
+      {audioBlocked && !reviewMode && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+          <button
+            type="button"
+            onClick={() => { setAudioBlocked(false); setAudioRetry(n => n + 1) }}
+            className="inline-flex items-center gap-2 px-6 h-12 rounded-2xl bg-sky-500 hover:bg-sky-600 text-white font-bold shadow-xl"
+          >
+            <Headphones size={18} /> Continue listening
+          </button>
+        </div>
+      )}
 
       {/* Body */}
       {/* Review: audioscript on the left, questions on the right (wide screens) */}

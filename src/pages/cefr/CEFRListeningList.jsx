@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Search, Clock3, HelpCircle, Loader2, Headphones, ChevronUp, ChevronDown, Layers } from 'lucide-react'
+import { Search, HelpCircle, Loader2, Headphones, ChevronUp, ChevronDown, Layers } from 'lucide-react'
 import api from '../../api/client'
 import KindChips from '../../components/exam/KindChips'
 import { kindChips, countKinds, cefrKind } from '../../utils/examKinds'
@@ -155,9 +155,7 @@ export default function CEFRListeningList({ accentBtn = 'bg-sky-500 hover:bg-sky
                       <div className="flex items-center gap-4 text-sm text-gray-500 mt-2 flex-wrap">
                         <LevelBadge level={section.level || 'B1'} />
                         <span className="text-gray-500">{kindOf(section) === 'FULL' ? `${section.part_count} parts` : '1 part'}</span>
-                        <span className="inline-flex items-center gap-1">
-                          <Clock3 size={14} /> {section.time_limit ?? 25} min
-                        </span>
+                        {/* no minutes: a listening lasts as long as its audio */}
                         <span className="inline-flex items-center gap-1">
                           <HelpCircle size={14} /> {section.question_count ?? '—'} questions
                         </span>
