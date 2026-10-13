@@ -24,3 +24,31 @@ export function countKinds(items, kindOf) {
   items.forEach((item) => { const k = kindOf(item); counts[k] = (counts[k] || 0) + 1 })
   return counts
 }
+
+// Writing / Speaking: a test lists the parts it holds (e.g. ['1.1', '1.2', '2']).
+// FULL = the complete paper; a part chip shows every other test that holds that part.
+export function partChips(keys) {
+  return [
+    { key: 'ALL', label: 'All' },
+    { key: 'FULL', label: 'Full Mock' },
+    ...keys.map((k) => ({ key: k, label: `Part ${k}` })),
+  ]
+}
+
+export function matchesPart(item, chip, partsOf, isFull) {
+  if (chip === 'ALL') return true
+  if (chip === 'FULL') return isFull(item)
+  return !isFull(item) && partsOf(item).includes(chip)
+}
+
+export function partCounts(items, keys, partsOf, isFull) {
+  const counts = { ALL: items.length, FULL: items.filter(isFull).length }
+  keys.forEach((k) => { counts[k] = items.filter((i) => matchesPart(i, k, partsOf, isFull)).length })
+  return counts
+}
+
+// "Part 1.2", "Part 1" (both letters), "Part 1.1 + 2" …
+export function partLabel(parts) {
+  if (parts.length === 2 && parts[0] === '1.1' && parts[1] === '1.2') return 'Part 1'
+  return `Part ${parts.join(' + ')}`
+}

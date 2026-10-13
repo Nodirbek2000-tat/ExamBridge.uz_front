@@ -1,5 +1,5 @@
 /* CEFR multilevel Speaking tests in the CEFR hub. */
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Clock3, Crown, Layers, Loader2, Mic } from 'lucide-react'
@@ -7,21 +7,30 @@ import api from '../../api/client'
 import { cefrLevelLabel, cefrTheme } from '../../components/feedback/feedbackUtils'
 import { speakingLimit } from '../../utils/speakingLimit'
 import { SpeakingLimitDialog } from '../../components/exam/SpeakingLimitNotice'
+import KindChips from '../../components/exam/KindChips'
+import { partChips, matchesPart, partCounts, partLabel } from '../../utils/examKinds'
 
 const PART_LABEL = { '1.1': 'Part 1.1 · about you', '1.2': 'Part 1.2 · two pictures', '2': 'Part 2 · long turn', '3': 'Part 3 · for & against' }
+const PART_KEYS = ['1.1', '1.2', '2', '3']
+const CHIPS = partChips(PART_KEYS)
+const isFull = (t) => PART_KEYS.every(k => t.parts.includes(k))
+const partsOf = (t) => t.parts || []
 
 export default function CEFRSpeakingTests({ accentBtn = 'bg-rose-500 hover:bg-rose-600' } = {}) {
   const navigate = useNavigate()
   const [starting, setStarting] = useState(null)
   const [message, setMessage] = useState('')
   const [limitMsg, setLimitMsg] = useState(null)
+  const [kind, setKind] = useState('ALL')
 
   const { data = [], isLoading } = useQuery({
     queryKey: ['cefr-speaking-tests'],
     queryFn: () => api.get('/cefr/speaking/').then(r => r.data),
   })
-  const tests = [...data].sort((a, b) => b.parts.length - a.parts.length)
-  const full = tests.filter(t => t.parts.length === 4).length
+  const all = useMemo(() => [...data].sort((a, b) => b.parts.length - a.parts.length), [data])
+  const counts = useMemo(() => partCounts(all, PART_KEYS, partsOf, isFull), [all])
+  const tests = all.filter(t => matchesPart(t, kind, partsOf, isFull))
+  const full = tests.filter(isFull).length
 
   const start = async (test) => {
     setStarting(test.id)
@@ -48,6 +57,9 @@ export default function CEFRSpeakingTests({ accentBtn = 'bg-rose-500 hover:bg-ro
           <span className="ml-2 text-gray-400">· real exam timing, scored out of 75</span>
         </p>
       </div>
+      <div className="px-4 pt-4">
+        <KindChips kinds={CHIPS} value={kind} onChange={setKind} counts={counts} loading={isLoading} tone="rose" />
+      </div>
       {message && <p className="mx-4 mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">{message}</p>}
 
       <div className="grid grid-cols-1 gap-3 p-4 md:grid-cols-2">
@@ -61,7 +73,9 @@ export default function CEFRSpeakingTests({ accentBtn = 'bg-rose-500 hover:bg-ro
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <h4 className="font-bold text-gray-900">{t.title}</h4>
-                  {t.parts.length === 4 && <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700"><Layers size={10} /> Full test</span>}
+                  {isFull(t)
+                    ? <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700"><Layers size={10} /> Full test</span>
+                    : <span className="rounded-full bg-rose-50 px-2 py-0.5 text-xs font-semibold text-rose-700">{partLabel(partsOf(t))}</span>}
                   {t.is_premium && <span className="flex items-center gap-1 rounded-full bg-yellow-50 px-2 py-0.5 text-xs font-semibold text-yellow-700"><Crown size={10} /> Premium</span>}
                 </div>
                 <p className="mt-1.5 text-sm text-gray-500">{t.parts.map(k => PART_LABEL[k]).join(' · ')}</p>
@@ -91,7 +105,7 @@ export default function CEFRSpeakingTests({ accentBtn = 'bg-rose-500 hover:bg-ro
         {!isLoading && !tests.length && (
           <div className="py-14 text-center text-gray-400 md:col-span-2">
             <Mic size={34} className="mx-auto mb-2 text-gray-300" />
-            No speaking tests yet
+            {all.length ? 'No tests for this part yet' : 'No speaking tests yet'}
           </div>
         )}
       </div>

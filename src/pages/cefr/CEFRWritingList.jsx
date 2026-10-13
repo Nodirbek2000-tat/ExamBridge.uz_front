@@ -1,16 +1,18 @@
 /* CEFR Writing tests in the CEFR hub: full tests first, then Part 1 / Part 2 practice. */
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Clock3, Crown, Layers, Loader2, PenLine } from 'lucide-react'
 import api from '../../api/client'
 import { cefrLevelLabel, cefrTheme } from '../../components/feedback/feedbackUtils'
+import KindChips from '../../components/exam/KindChips'
+import { partChips, matchesPart, partCounts, partLabel } from '../../utils/examKinds'
 
-const KIND = {
-  FULL: { label: 'Full test', cls: 'bg-amber-50 text-amber-700' },
-  PART1: { label: 'Part 1', cls: 'bg-sky-50 text-sky-700' },
-  PART2: { label: 'Part 2', cls: 'bg-violet-50 text-violet-700' },
-}
+const KIND_CLS = { FULL: 'bg-amber-50 text-amber-700', PART1: 'bg-sky-50 text-sky-700', PART2: 'bg-violet-50 text-violet-700' }
+const PART_KEYS = ['1.1', '1.2', '2']
+const CHIPS = partChips(PART_KEYS)
+const isFull = (t) => t.kind === 'FULL'
+const partsOf = (t) => t.tasks || []
 const TASK_LABEL = { '1.1': 'Task 1.1 · informal letter', '1.2': 'Task 1.2 · formal letter', '2': 'Part 2 · essay' }
 const ORDER = { FULL: 0, PART1: 1, PART2: 2 }
 
@@ -18,13 +20,16 @@ export default function CEFRWritingList({ accentBtn = 'bg-amber-500 hover:bg-amb
   const navigate = useNavigate()
   const [starting, setStarting] = useState(null)
   const [message, setMessage] = useState('')
+  const [kind, setKind] = useState('ALL')
 
   const { data = [], isLoading } = useQuery({
     queryKey: ['cefr-writing-list'],
     queryFn: () => api.get('/cefr/writing/').then(r => r.data),
   })
-  const tests = [...data].sort((a, b) => ORDER[a.kind] - ORDER[b.kind])
-  const full = tests.filter(t => t.kind === 'FULL').length
+  const all = useMemo(() => [...data].sort((a, b) => ORDER[a.kind] - ORDER[b.kind]), [data])
+  const counts = useMemo(() => partCounts(all, PART_KEYS, partsOf, isFull), [all])
+  const tests = all.filter(t => matchesPart(t, kind, partsOf, isFull))
+  const full = tests.filter(isFull).length
 
   const start = async (test) => {
     if (test.last?.status === 'IN_PROGRESS') return navigate(`/exam/cefr/writing/${test.last.response_id}`)
@@ -50,6 +55,9 @@ export default function CEFRWritingList({ accentBtn = 'bg-amber-500 hover:bg-amb
           <span className="ml-2 text-gray-400">· scored out of 75 by a strict AI examiner</span>
         </p>
       </div>
+      <div className="px-4 pt-4">
+        <KindChips kinds={CHIPS} value={kind} onChange={setKind} counts={counts} loading={isLoading} tone="amber" />
+      </div>
       {message && <p className="mx-4 mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">{message}</p>}
 
       <div className="grid grid-cols-1 gap-3 p-4 md:grid-cols-2">
@@ -65,8 +73,8 @@ export default function CEFRWritingList({ accentBtn = 'bg-amber-500 hover:bg-amb
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <h4 className="font-bold text-gray-900">{t.title}</h4>
-                  <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${KIND[t.kind]?.cls}`}>
-                    {t.kind === 'FULL' && <Layers size={10} />} {KIND[t.kind]?.label}
+                  <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${KIND_CLS[t.kind] || KIND_CLS.PART1}`}>
+                    {isFull(t) ? <><Layers size={10} /> Full test</> : partLabel(partsOf(t))}
                   </span>
                   {t.is_premium && <span className="flex items-center gap-1 rounded-full bg-yellow-50 px-2 py-0.5 text-xs font-semibold text-yellow-700"><Crown size={10} /> Premium</span>}
                 </div>
@@ -99,7 +107,7 @@ export default function CEFRWritingList({ accentBtn = 'bg-amber-500 hover:bg-amb
         {!isLoading && !tests.length && (
           <div className="py-16 text-center text-gray-400 md:col-span-2">
             <PenLine size={34} className="mx-auto mb-2 text-gray-300" />
-            No writing tests yet
+            {all.length ? 'No tests for this part yet' : 'No writing tests yet'}
           </div>
         )}
       </div>

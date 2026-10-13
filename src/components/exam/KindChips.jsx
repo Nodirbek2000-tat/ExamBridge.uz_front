@@ -1,8 +1,10 @@
-// "All · Full Mock · Part 1 … Part N" filter chips with counts (CEFR reading/listening lists).
+// "All · Full Mock · Part 1 … Part N" filter chips with counts (CEFR test lists).
 
 const TONES = {
   sky: 'bg-sky-500 border-sky-500 text-white shadow-sm shadow-sky-500/25',
   violet: 'bg-violet-500 border-violet-500 text-white shadow-sm shadow-violet-500/25',
+  amber: 'bg-amber-500 border-amber-500 text-white shadow-sm shadow-amber-500/25',
+  rose: 'bg-rose-500 border-rose-500 text-white shadow-sm shadow-rose-500/25',
 }
 
 export default function KindChips({ kinds, value, onChange, counts, loading, tone = 'sky' }) {

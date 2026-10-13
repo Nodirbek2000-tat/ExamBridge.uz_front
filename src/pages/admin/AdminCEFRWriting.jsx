@@ -28,6 +28,11 @@ const EXAMPLE_PARTS = `[
     "task_1_2": "Write to the library manager ... Write 120–150 words."
   },
   {
+    "title": "Part 1.2 — Trip proposals",
+    "situation": "Your club is planning a trip and has asked members for ideas...",
+    "task_1_2": "Write to the club leader ... Write 120–150 words."
+  },
+  {
     "title": "Part 2 — Online learning",
     "part_2": "Online lessons are better than lessons in a classroom. Do you agree? Write 180–200 words.",
     "time_limit": 35
@@ -37,9 +42,11 @@ const EXAMPLE_PARTS = `[
 const RULES = [
   ['"title"', 'majburiy — test nomi.'],
   ["To'liq test", '"situation" + "task_1_1" + "task_1_2" + "part_2".'],
-  ['Faqat Part 1', '"situation" + "task_1_1" + "task_1_2" — 1.1 va 1.2 doim birga, bitta vaziyat asosida.'],
+  ['Faqat Part 1', '"situation" + "task_1_1" + "task_1_2" — ikkala xat bitta vaziyat asosida.'],
+  ['Faqat 1.1 yoki 1.2', '"situation" + faqat "task_1_1" (yoki faqat "task_1_2") — alohida xat ham bo\'ladi. O\'quvchida "Part 1.1" / "Part 1.2" filtrida chiqadi.'],
+  ['Filtr', "O'quvchi ro'yxatida: Full Mock = 1.1 + 1.2 + Part 2 hammasi bor; qolganlari o'zidagi task bo'yicha Part 1.1 / 1.2 / 2 ga tushadi."],
   ['Faqat Part 2', '"part_2" (essay).'],
-  ['"time_limit"', "ixtiyoriy, daqiqada. Standart: to'liq 60, Part 1 25, Part 2 35."],
+  ['"time_limit"', "ixtiyoriy, daqiqada. Standart: to'liq 60, Part 1 25, faqat 1.1 — 10, faqat 1.2 — 20, Part 2 35."],
   ['"is_premium"', 'ixtiyoriy, true bo\'lsa faqat Premium ko\'radi.'],
   ['Bir nechta test', '[ {...}, {...} ] yoki {"tests": [ ... ]} ko\'rinishida.'],
   ['Xato bo\'lsa', "hech narsa yaratilmaydi va qaysi testda nima xato ekani aytiladi."],
@@ -48,7 +55,8 @@ const RULES = [
 
 function Row({ item, onDelete }) {
   const [open, setOpen] = useState(false)
-  const k = KIND[item.kind] || KIND.FULL
+  const base = KIND[item.kind] || KIND.FULL
+  const k = item.kind === 'PART1' && item.tasks?.length === 1 ? { ...base, label: `Part ${item.tasks[0]}` } : base
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
       <div className="flex flex-wrap items-center gap-3 px-4 py-3">
