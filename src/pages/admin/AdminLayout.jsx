@@ -37,17 +37,20 @@ import {
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Logo from '../../components/Logo.jsx'
+import { AREA, tierOf, canSee, canSeeDjangoAdmin, areaForAdminPath, TIER_LABELS } from './adminAccess'
+import { AdminWriteProvider } from './AdminWriteContext'
 
 // ── Nav config ─────────────────────────────────────────────────────────────────
 
 const NAV = [
   { to: '/admin-panel', icon: LayoutDashboard, label: 'Dashboard', exact: true },
-  { to: '/admin-panel/users', icon: Users, label: 'Users' },
-  { to: '/admin-panel/leaderboard', icon: Trophy, label: 'Leaderboard' },
+  { to: '/admin-panel/users', icon: Users, label: 'Users', area: AREA.USERS },
+  { to: '/admin-panel/leaderboard', icon: Trophy, label: 'Leaderboard', area: AREA.LEADERBOARD },
   {
     key: 'sat',
     icon: Calculator,
     label: 'SAT',
+    area: AREA.SAT,
     children: [
       { to: '/admin-panel/sat/practice', icon: BookOpen, label: 'Practice Questions' },
       { to: '/admin-panel/sat/tests', icon: FileText, label: 'Full-Length Tests' },
@@ -61,6 +64,7 @@ const NAV = [
     key: 'ielts',
     icon: Headphones,
     label: 'IELTS',
+    area: AREA.IELTS,
     children: [
       { to: '/admin-panel/ielts/reading',   icon: BookOpen,  label: 'Reading' },
       { to: '/admin-panel/ielts/listening', icon: ListMusic, label: 'Listening' },
@@ -73,6 +77,7 @@ const NAV = [
     key: 'cefr',
     icon: GraduationCap,
     label: 'CEFR',
+    area: AREA.CEFR,
     children: [
       { to: '/admin-panel/cefr/reading',   icon: BookOpen,      label: 'Reading' },
       { to: '/admin-panel/cefr/listening', icon: ListMusic,     label: 'Listening' },
@@ -85,6 +90,7 @@ const NAV = [
     key: 'study',
     icon: Newspaper,
     label: 'Study Tools',
+    area: AREA.STUDY,
     children: [
       { to: '/admin-panel/study/articles', icon: Newspaper, label: 'Articles' },
       { to: '/admin-panel/study/writing-samples', icon: PenLine, label: 'Writing Samples' },
@@ -96,6 +102,7 @@ const NAV = [
     key: 'games',
     icon: Gamepad2,
     label: 'Games',
+    area: AREA.GAMES,
     children: [
       { to: '/admin-panel/games', icon: BarChart3, label: 'Overview', exact: true },
       { to: '/admin-panel/games/speaking', icon: Mic, label: 'Speaking' },
@@ -104,11 +111,11 @@ const NAV = [
       { to: '/admin-panel/games/word-battle', icon: Swords, label: 'Word Battle' },
     ],
   },
-  { to: '/admin-panel/testmakon-users', icon: ExternalLink, label: 'TestMakon Users' },
-  { to: '/admin-panel/centers', icon: Building2, label: 'Learning Centers' },
-  { to: '/admin-panel/ai-structures', icon: Sparkles, label: 'AI Structures' },
-  { to: '/admin-panel/reports', icon: Flag, label: 'Reports' },
-  { to: '/admin-panel/system', icon: Settings, label: 'System' },
+  { to: '/admin-panel/testmakon-users', icon: ExternalLink, label: 'TestMakon Users', area: AREA.TESTMAKON },
+  { to: '/admin-panel/centers', icon: Building2, label: 'Learning Centers', area: AREA.CENTERS },
+  { to: '/admin-panel/ai-structures', icon: Sparkles, label: 'AI Structures', area: AREA.AI },
+  { to: '/admin-panel/reports', icon: Flag, label: 'Reports', area: AREA.REPORTS },
+  { to: '/admin-panel/system', icon: Settings, label: 'System', area: AREA.SYSTEM },
 ]
 
 // ── Accordion item ─────────────────────────────────────────────────────────────
@@ -180,12 +187,22 @@ function AccordionNav({ item }) {
 export default function AdminLayout() {
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
+  const location = useLocation()
 
   if (!user) return <Navigate to="/login" replace />
 
   // Not an admin → the panel simply does not exist for this account. A plain
   // 404 reveals nothing about what lives here.
   if (!user.is_staff) return <NotFoundPage />
+
+  // Admin tier decides which sections exist at all. Items this tier may not
+  // use are dropped from the menu rather than shown disabled.
+  const tier = tierOf(user)
+  const visibleNav = NAV.filter((item) => !item.area || canSee(tier, item.area))
+
+  // Typing a URL by hand must not reach a hidden section either.
+  const openArea = areaForAdminPath(location.pathname)
+  if (openArea && !canSee(tier, openArea)) return <NotFoundPage />
 
   return (
     <div className="flex h-screen bg-white overflow-hidden">
@@ -209,7 +226,7 @@ export default function AdminLayout() {
 
         {/* Nav */}
         <nav className="flex-1 py-4 px-3 space-y-0.5 overflow-y-auto">
-          {NAV.map((item) => {
+          {visibleNav.map((item) => {
             if (item.children) {
               return <AccordionNav key={item.key} item={item} />
             }
@@ -239,8 +256,10 @@ export default function AdminLayout() {
           })}
         </nav>
 
-        {/* Django admin — the raw database view, for anything the panel doesn't cover.
+        {/* Django admin — the raw database view, for anything the panel doesn't
+            cover. Owner only: level 1-3 admins work in this panel alone.
             It only exists on the admin subdomain, so link there explicitly. */}
+        {canSeeDjangoAdmin(tier) && (
         <div className="px-3 pb-1">
           <a
             href="https://nodir.exambridge.uz/admin/"
@@ -253,6 +272,7 @@ export default function AdminLayout() {
             <ExternalLink size={13} className="text-gray-300 group-hover:text-emerald-500" />
           </a>
         </div>
+        )}
 
         {/* Bottom user card */}
         <div className="p-3 border-t border-sky-100">
@@ -290,7 +310,7 @@ export default function AdminLayout() {
           <div className="ml-auto flex items-center gap-3">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-sky-50 text-sky-600 text-xs font-semibold rounded-full border border-sky-200">
               <span className="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse" />
-              Staff
+              {TIER_LABELS[tier] || 'Staff'}
             </span>
           </div>
         </header>
@@ -298,7 +318,10 @@ export default function AdminLayout() {
         {/* Page content */}
         <main className="flex-1 overflow-y-auto p-6">
           <LazyBoundary>
-            <Outlet />
+            {/* Tells every page whether this admin may change anything */}
+            <AdminWriteProvider>
+              <Outlet />
+            </AdminWriteProvider>
           </LazyBoundary>
         </main>
       </div>

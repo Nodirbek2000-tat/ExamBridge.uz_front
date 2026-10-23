@@ -8,6 +8,7 @@ import {
   Save, Eye, Zap, Search, ChevronDown, ChevronUp, Layers, Download,
 } from 'lucide-react'
 import CopyJsonButton from '../../components/admin/CopyJsonButton'
+import { useCanWriteAdmin } from './AdminWriteContext'
 
 // Yuklangan audioni admin kompyuteriga saqlash (download)
 async function downloadAudioFile(url, baseName = 'unified-audio') {
@@ -1329,6 +1330,7 @@ function CambridgeToggle({ active, loading, onClick, size = 'sm' }) {
 
 // ── Single section/passage row ────────────────────────────────────────────────
 function SectionRow({ item, index, section, config, colors, onEdit, onAudio, onImage, onDelete, onTogglePremium, onToggleCambridge, indent }) {
+  const canWrite = useCanWriteAdmin()
   const metas = config.renderMeta(item)
   const [premiumLoading, setPremiumLoading] = useState(false)
   const [cambridgeLoading, setCambridgeLoading] = useState(false)
@@ -1393,7 +1395,7 @@ function SectionRow({ item, index, section, config, colors, onEdit, onAudio, onI
         )}
       </div>
       <div className="flex items-center gap-1 flex-shrink-0">
-        {onTogglePremium && (config.premiumEndpoint || config.detailEndpoint) && !indent && (
+        {canWrite && onTogglePremium && (config.premiumEndpoint || config.detailEndpoint) && !indent && (
           <button onClick={handlePremium} disabled={premiumLoading}
             className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition ${
               item.is_premium
@@ -1406,33 +1408,35 @@ function SectionRow({ item, index, section, config, colors, onEdit, onAudio, onI
           </button>
         )}
         {/* Cambridge material — o'quvchi ro'yxatida "Cambridge" filtrida chiqadi */}
-        {onToggleCambridge && !indent && (section === 'reading' || section === 'listening') && (
+        {canWrite && onToggleCambridge && !indent && (section === 'reading' || section === 'listening') && (
           <CambridgeToggle active={item.is_cambridge} loading={cambridgeLoading} onClick={handleCambridge} />
         )}
         {/* Import formatidagi JSON nusxasi — reading va listening uchun */}
         {(section === 'reading' || section === 'listening') && (
           <CopyJsonButton url={`/admin/export/ielts/${section}/${item.id}/`} />
         )}
-        {section === 'listening' && (
+        {canWrite && section === 'listening' && (
           <button onClick={() => onAudio(item)}
             className={`p-2 rounded-lg transition ${item.audio_file ? 'text-green-500 hover:bg-green-50' : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50'}`}
             title="Audio yuklash"><Music2 size={15} /></button>
         )}
-        {section === 'writing' && item.task_type === 1 && (
+        {canWrite && section === 'writing' && item.task_type === 1 && (
           <button onClick={() => onImage(item)}
             className={`p-2 rounded-lg transition ${item.has_image ? 'text-blue-500 hover:bg-blue-50' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'}`}
             title="Rasm yuklash"><FileText size={15} /></button>
         )}
-        {config.hasEdit && (
+        {canWrite && config.hasEdit && (
           <button onClick={() => onEdit(item)}
             className="p-2 text-gray-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition" title="Edit">
             <Edit3 size={15} />
           </button>
         )}
-        <button onClick={() => onDelete(item.id)}
-          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Delete">
-          <Trash2 size={15} />
-        </button>
+        {canWrite && (
+          <button onClick={() => onDelete(item.id)}
+            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Delete">
+            <Trash2 size={15} />
+          </button>
+        )}
       </div>
     </div>
   )
@@ -2061,11 +2065,12 @@ function ImportTab({ config, onSuccess }) {
 }
 
 // ── Tabs config ───────────────────────────────────────────────────────────────
-function getTabsForSection(section) {
+function getTabsForSection(section, canWrite = true) {
   const hasQuestions = ['reading', 'listening', 'tests'].includes(section)
   const tabs = [{ key: 'content', label: "Ro'yxat", icon: FileText }]
   if (hasQuestions) tabs.push({ key: 'questions', label: 'Savollar tahlili', icon: BookOpen })
-  tabs.push({ key: 'import', label: 'Import JSON', icon: FileJson })
+  // Importing creates content — view-only admins (level 2/3) never see this tab
+  if (canWrite) tabs.push({ key: 'import', label: 'Import JSON', icon: FileJson })
   return tabs
 }
 
@@ -2112,10 +2117,11 @@ function DeleteAllConfirm({ section, count, onConfirm, onCancel, loading, error 
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function AdminIELTSSection({ section }) {
+  const canWrite = useCanWriteAdmin()
   const config = SECTION_CONFIG[section]
   const colors = COLOR_CLASSES[config.color]
   const Icon = config.icon
-  const TABS = getTabsForSection(section)
+  const TABS = getTabsForSection(section, canWrite)
 
   const [activeTab, setActiveTab] = useState('content')
   const [deleteId, setDeleteId] = useState(null)
@@ -2196,7 +2202,7 @@ export default function AdminIELTSSection({ section }) {
 
         <div className="flex items-center gap-2 flex-wrap">
           {/* Delete All button — only for reading & listening */}
-          {deleteAllEndpoint && items.length > 0 && (
+          {canWrite && deleteAllEndpoint && items.length > 0 && (
             <button
               onClick={() => setDeleteAllOpen(true)}
               className="flex items-center gap-2 px-3 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl text-xs font-semibold hover:bg-red-100 transition"

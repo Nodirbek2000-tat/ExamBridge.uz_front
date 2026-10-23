@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import api from '../../api/client'
 import CopyJsonButton from '../../components/admin/CopyJsonButton'
+import { useCanWriteAdmin } from './AdminWriteContext'
 
 // Yuklangan audioni admin kompyuteriga saqlash (download)
 async function downloadAudioFile(url, baseName = 'audio') {
@@ -1105,6 +1106,7 @@ function ImageButton({ item, compact = false }) {
 
 // ── Mock Group Row (IELTS uslubida) ──────────────────────────────────────────
 function MockGroupRow({ testId, testTitle, testIsPremium, parts, section, colors, onAudio, onDelete }) {
+  const canWrite = useCanWriteAdmin()
   // Collapsed by default — one row per mock, click to see its parts
   const [open, setOpen] = useState(false)
   const totalQ = parts.reduce((s, p) => s + (p.question_count ?? 0), 0)
@@ -1207,17 +1209,19 @@ function MockGroupRow({ testId, testTitle, testIsPremium, parts, section, colors
                     {(section === 'reading' || section === 'listening') && (
                       <CopyJsonButton url={`/admin/export/cefr/${section}/${item.id}/`} compact />
                     )}
-                    {section === 'listening' && (
+                    {canWrite && section === 'listening' && (
                       <button onClick={() => onAudio(item)}
                         className={`p-1.5 rounded-lg transition ${hasAudio ? 'text-green-500 hover:bg-green-50' : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50'}`}>
                         <Music2 size={14} />
                       </button>
                     )}
-                    {section === 'listening' && (partNum === 4 || item.image) && <ImageButton item={item} compact />}
-                    <button onClick={() => onDelete(item.id)}
-                      className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition">
-                      <Trash2 size={14} />
-                    </button>
+                    {canWrite && section === 'listening' && (partNum === 4 || item.image) && <ImageButton item={item} compact />}
+                    {canWrite && (
+                      <button onClick={() => onDelete(item.id)}
+                        className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition">
+                        <Trash2 size={14} />
+                      </button>
+                    )}
                   </div>
                 </div>
               )
@@ -1231,6 +1235,7 @@ function MockGroupRow({ testId, testTitle, testIsPremium, parts, section, colors
 
 // ── Standalone Row ────────────────────────────────────────────────────────────
 function StandaloneRow({ item, index, section, colors, onAudio, onDelete }) {
+  const canWrite = useCanWriteAdmin()
   const lvl = item.level || ''
   const qCount = item.question_count ?? 0
   const hasAudio = !!(item.has_audio || item.audio_file)
@@ -1273,17 +1278,19 @@ function StandaloneRow({ item, index, section, colors, onAudio, onDelete }) {
         {(section === 'reading' || section === 'listening') && (
           <CopyJsonButton url={`/admin/export/cefr/${section}/${item.id}/`} />
         )}
-        {section === 'listening' && (
+        {canWrite && section === 'listening' && (
           <button onClick={() => onAudio(item)}
             className={`p-2 rounded-lg transition ${hasAudio ? 'text-green-500 hover:bg-green-50' : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50'}`}>
             <Music2 size={15} />
           </button>
         )}
-        {section === 'listening' && (item.section_number === 4 || item.image) && <ImageButton item={item} />}
-        <button onClick={() => onDelete(item.id)}
-          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition">
-          <Trash2 size={15} />
-        </button>
+        {canWrite && section === 'listening' && (item.section_number === 4 || item.image) && <ImageButton item={item} />}
+        {canWrite && (
+          <button onClick={() => onDelete(item.id)}
+            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition">
+            <Trash2 size={15} />
+          </button>
+        )}
       </div>
     </motion.div>
   )
@@ -1663,14 +1670,17 @@ function ImportTab({ section, onSuccess }) {
 }
 
 // ── Tabs config ───────────────────────────────────────────────────────────────
-const TABS = [
+const TABS_BASE = [
   { key: 'content',   label: "Ro'yxat",        icon: FileText },
   { key: 'questions', label: 'Savollar tahlili', icon: BookOpen },
-  { key: 'import',    label: 'Import JSON',      icon: FileJson },
 ]
+// Import creates content, so view-only admins (level 2/3) never see that tab
+const IMPORT_TAB = { key: 'import', label: 'Import JSON', icon: FileJson }
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function AdminCEFRSection({ section }) {
+  const canWrite = useCanWriteAdmin()
+  const TABS = canWrite ? [...TABS_BASE, IMPORT_TAB] : TABS_BASE
   const config = SECTION_CONFIG[section]
   const colors = COLOR_CLASSES[config.color]
   const Icon = config.icon
@@ -1735,7 +1745,7 @@ export default function AdminCEFRSection({ section }) {
 
         <div className="flex items-center gap-2 flex-wrap">
           {/* Delete All — faqat reading va listening uchun */}
-          {deleteAllEndpoint && items.length > 0 && (
+          {canWrite && deleteAllEndpoint && items.length > 0 && (
             <button
               onClick={() => setDeleteAllOpen(true)}
               className="flex items-center gap-2 px-3 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl text-xs font-semibold hover:bg-red-100 transition"

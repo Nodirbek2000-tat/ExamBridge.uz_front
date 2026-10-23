@@ -8,6 +8,8 @@ import {
   RefreshCw, Unlock, Bot, Zap, Globe, Lock,
 } from 'lucide-react'
 import api from '../../api/client'
+import { useAuthStore } from '../../store/authStore'
+import { tierOf, canWrite } from './adminAccess'
 
 /* ─── Animation variants ─────────────────────────────────────── */
 const fadeUp = {
@@ -182,6 +184,26 @@ function UserDetailDrawer({ userId, onClose, onDeleted }) {
     const payload = adminIpInput.trim() ? { admin_ip: adminIpInput.trim() } : {}
     toggleStaff.mutate(payload)
   }
+
+  // Who is looking. Levels 2 and 3 are view-only, so every action below is
+  // hidden for them (the server refuses these calls too).
+  const me = useAuthStore((s) => s.user)
+  const myTier = tierOf(me)
+  const iCanWrite = canWrite(myTier)
+
+  // Admin tier of the account being viewed
+  const setLevel = useMutation({
+    mutationFn: (level) => api.post(`/admin/users/${userId}/admin-level/`, {
+      level,
+      ...(adminIpInput.trim() ? { admin_ip: adminIpInput.trim() } : {}),
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-user-detail', userId] })
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+      setShowAdminIpPrompt(false)
+      setAdminIpInput('')
+    },
+  })
 
   const handlePremiumClick = () => {
     if (user?.is_premium) {
@@ -360,6 +382,10 @@ function UserDetailDrawer({ userId, onClose, onDeleted }) {
                 </div>
               )}
 
+              {/* Levels 2 and 3 are view-only: no premium, no admin level,
+                  no delete. The server refuses these calls as well. */}
+              {iCanWrite && (
+                <>
               {/* Make Premium / Revoke Premium (manual) */}
               {user.is_premium && user.premium_source === 'stripe' ? (
                 <div className="bg-violet-50 border border-violet-100 rounded-xl px-4 py-2.5 text-[11px] text-violet-600">
@@ -385,48 +411,75 @@ function UserDetailDrawer({ userId, onClose, onDeleted }) {
                 </button>
               )}
 
-              {/* Make Admin / Revoke Admin */}
-              {user.is_staff ? (
-                <button
-                  onClick={() => toggleStaff.mutate({})}
-                  disabled={toggleStaff.isPending}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold border transition bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
-                >
-                  {toggleStaff.isPending ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
-                  Revoke Admin Access
-                </button>
-              ) : showAdminIpPrompt ? (
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-3">
-                  <p className="text-xs font-semibold text-blue-700 flex items-center gap-1.5">
-                    <ShieldCheck size={13} /> Admin IP Whitelist (ixtiyoriy)
-                  </p>
-                  <input
-                    type="text"
-                    value={adminIpInput}
-                    onChange={e => setAdminIpInput(e.target.value)}
-                    placeholder="Yangi adminning IP si (masalan: 95.130.20.5)"
-                    className="w-full px-3 py-2 text-sm border border-blue-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 bg-white"
-                  />
-                  <p className="text-[10px] text-blue-500">Bo'sh qoldirsangiz whitelist ga qo'shilmaydi</p>
-                  <div className="flex gap-2">
-                    <button onClick={() => { setShowAdminIpPrompt(false); setAdminIpInput('') }}
-                      className="flex-1 py-2 rounded-lg text-xs font-bold bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition">
-                      Bekor
-                    </button>
-                    <button onClick={handleMakeAdmin} disabled={toggleStaff.isPending}
-                      className="flex-1 py-2 rounded-lg text-xs font-bold bg-blue-600 text-white hover:bg-blue-700 transition flex items-center justify-center gap-1 disabled:opacity-60">
-                      {toggleStaff.isPending ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />}
-                      Tasdiqlash
-                    </button>
-                  </div>
+              {/* Admin level — 1 full access, 2 view only, 3 limited.
+                  The owner (superuser) cannot be changed from here. */}
+              {user.is_superuser ? (
+                <div className="bg-violet-50 border border-violet-200 rounded-xl px-4 py-2.5 text-[11px] text-violet-700 font-semibold text-center">
+                  Super Admin — bu akkauntni o'zgartirib bo'lmaydi
                 </div>
               ) : (
-                <button
-                  onClick={() => setShowAdminIpPrompt(true)}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold border transition bg-gray-50 text-gray-700 border-gray-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200"
-                >
-                  <ShieldCheck size={14} /> Make Admin
-                </button>
+                <div className="bg-blue-50/60 border border-blue-100 rounded-xl p-3 space-y-2">
+                  <p className="text-[11px] font-bold text-blue-700 flex items-center gap-1.5">
+                    <ShieldCheck size={12} /> Admin darajasi
+                  </p>
+
+                  {showAdminIpPrompt && (
+                    <>
+                      <input
+                        type="text"
+                        value={adminIpInput}
+                        onChange={e => setAdminIpInput(e.target.value)}
+                        placeholder="IP (ixtiyoriy, masalan: 95.130.20.5)"
+                        className="w-full px-3 py-2 text-xs border border-blue-200 rounded-lg focus:outline-none focus:border-blue-400 bg-white"
+                      />
+                      <p className="text-[10px] text-blue-500">
+                        Bo'sh qoldirsangiz IP whitelist ga qo'shilmaydi
+                      </p>
+                    </>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {[
+                      { lvl: 1, label: "1 — To'liq", hint: "Hammasi (Django adminsiz)" },
+                      { lvl: 2, label: "2 — Ko'rish", hint: "Faqat ko'radi" },
+                      { lvl: 3, label: "3 — Cheklangan", hint: "Users / Centers / Reports" },
+                      { lvl: 0, label: "Admin emas", hint: "Panelga kira olmaydi" },
+                    ].map(({ lvl, label, hint }) => {
+                      const active = (user.admin_level || (user.is_staff ? 1 : 0)) === lvl
+                      return (
+                        <button
+                          key={lvl}
+                          onClick={() => setLevel.mutate(lvl)}
+                          disabled={setLevel.isPending || active}
+                          title={hint}
+                          className={`py-2 px-2 rounded-lg text-[11px] font-bold border transition text-left disabled:opacity-100 ${
+                            active
+                              ? 'bg-blue-600 text-white border-blue-600'
+                              : lvl === 0
+                                ? 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                                : 'bg-white text-blue-700 border-blue-200 hover:bg-blue-100'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {!showAdminIpPrompt && (
+                    <button
+                      onClick={() => setShowAdminIpPrompt(true)}
+                      className="w-full text-[10px] text-blue-500 hover:text-blue-700 underline"
+                    >
+                      + IP whitelist qo'shish
+                    </button>
+                  )}
+                  {setLevel.isPending && (
+                    <p className="text-[10px] text-blue-500 flex items-center gap-1">
+                      <Loader2 size={10} className="animate-spin" /> Saqlanmoqda…
+                    </p>
+                  )}
+                </div>
               )}
 
               {!confirmDelete ? (
@@ -454,6 +507,8 @@ function UserDetailDrawer({ userId, onClose, onDeleted }) {
                     </button>
                   </div>
                 </div>
+              )}
+                </>
               )}
             </div>
           </div>
