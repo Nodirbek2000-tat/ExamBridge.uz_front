@@ -264,7 +264,7 @@ function SidebarContent({ onClose, isCenterStudent, pendingCount }) {
             }
           >
             <ClipboardList size={17} className="text-rose-500 flex-shrink-0" />
-            <span className="flex-1">My Tasks</span>
+            <span className="flex-1">My Lessons</span>
             {pendingCount > 0 && (
               <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center leading-tight flex-shrink-0">
                 {pendingCount > 9 ? '9+' : pendingCount}

@@ -1,256 +1,139 @@
+/**
+ * CenterGroups — the center's groups. The admin creates groups, picks their
+ * teacher and deletes them (students are added inside a group). Everyone
+ * else opens a group to see its journal; a teacher sees only their own.
+ */
 import { useState } from 'react'
-import { useOutletContext, useNavigate } from 'react-router-dom'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { motion, AnimatePresence } from 'framer-motion'
-import {
-  FolderOpen, Plus, X, Loader2, Trash2, UserPlus, ChevronRight,
-} from 'lucide-react'
+import { useNavigate, useOutletContext } from 'react-router-dom'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { AnimatePresence, motion } from 'framer-motion'
+import { ChevronRight, Loader2, Plus, Trash2, UsersRound, X } from 'lucide-react'
 import api from '../../api/client'
+import { useAuthStore } from '../../store/authStore'
+import { canWrite, tierOf } from '../admin/adminAccess'
+import { Avatar, Card, Empty, PageHeader, PrimaryButton } from './ui'
 
-const fadeUp = {
-  hidden: { opacity: 0, y: 14 },
-  visible: (i = 0) => ({ opacity: 1, y: 0, transition: { duration: 0.28, delay: i * 0.05 } }),
-}
+const INPUT = 'w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 bg-white focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100'
 
-/* ── Add Student to Group Sidebar ───────────────────────────── */
-function AddStudentPanel({ group, centerId, onClose }) {
-  const qc = useQueryClient()
-  const [selected, setSelected] = useState(null)
-
-  const { data: students = [] } = useQuery({
-    queryKey: ['center-members', centerId, 'student'],
-    queryFn: () => api.get(`/centers/${centerId}/members/?role=student`).then(r => r.data),
-  })
-
-  // Filter out already in group
-  const groupStudentIds = new Set(group.students.map(s => s.id))
-  const available = students.filter(s => !groupStudentIds.has(s.id))
-
-  const addMut = useMutation({
-    mutationFn: (sid) => api.post(`/centers/${centerId}/groups/${group.id}/students/`, { student_id: sid }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['center-groups', centerId] })
-      onClose()
-    },
-  })
-
-  return (
-    <>
-      <div className="fixed inset-0 bg-black/30 z-40" onClick={onClose} />
-      <motion.div
-        initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
-        transition={{ type: 'spring', damping: 26, stiffness: 260 }}
-        className="fixed right-0 top-0 h-full w-80 bg-white shadow-2xl z-50 flex flex-col border-l border-gray-100"
-      >
-        <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-          <div>
-            <h3 className="font-bold text-gray-900">Add to {group.name}</h3>
-            <p className="text-xs text-gray-400">Select a student to add</p>
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
-        </div>
-        <div className="flex-1 overflow-y-auto p-4 space-y-2">
-          {available.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-6">All students are already in this group</p>
-          ) : available.map(s => (
-            <button
-              key={s.id}
-              onClick={() => addMut.mutate(s.id)}
-              disabled={addMut.isPending}
-              className="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-sky-300 hover:bg-sky-50 text-left transition-colors"
-            >
-              <div className="w-9 h-9 rounded-xl bg-green-100 text-green-700 flex items-center justify-center font-bold text-sm flex-shrink-0">
-                {s.full_name?.[0]?.toUpperCase() || '?'}
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-800">{s.full_name}</p>
-                <p className="text-xs text-gray-400">{s.email}</p>
-              </div>
-            </button>
-          ))}
-        </div>
-      </motion.div>
-    </>
-  )
-}
-
-/* ── Create Group Modal ─────────────────────────────────────── */
-function CreateGroupModal({ centerId, onClose }) {
+function CreateGroupModal({ centerId, teachers, onClose }) {
   const qc = useQueryClient()
   const [name, setName] = useState('')
   const [teacherId, setTeacherId] = useState('')
-
-  const { data: teachers = [] } = useQuery({
-    queryKey: ['center-members', centerId, 'teacher'],
-    queryFn: () => api.get(`/centers/${centerId}/members/?role=teacher`).then(r => r.data),
+  const [err, setErr] = useState('')
+  const create = useMutation({
+    mutationFn: () => api.post(`/centers/${centerId}/groups/`, { name: name.trim(), teacher_id: teacherId || undefined }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['center-groups', centerId] }); onClose() },
+    onError: (e) => setErr(e.response?.data?.error || 'Could not create the group'),
   })
-
-  const mut = useMutation({
-    mutationFn: () => api.post(`/centers/${centerId}/groups/`, {
-      name, teacher_id: teacherId || undefined
-    }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['center-groups', centerId] })
-      onClose()
-    },
-  })
-
   return (
     <>
-      <div className="fixed inset-0 bg-black/40 z-50" onClick={onClose} />
-      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.92 }}
-          className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-gray-900">New Group</h3>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
-          </div>
-          <div className="space-y-3">
-            <div>
-              <label className="text-xs font-medium text-gray-600 mb-1 block">Group Name *</label>
-              <input
-                value={name} onChange={e => setName(e.target.value)}
-                placeholder="Group A, 10-B, Morning class..."
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-sky-400"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-gray-600 mb-1 block">Teacher (optional)</label>
-              <select
-                value={teacherId} onChange={e => setTeacherId(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-sky-400 bg-white"
-              >
-                <option value="">— Select teacher —</option>
-                {teachers.map(t => (
-                  <option key={t.id} value={t.id}>{t.full_name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="flex gap-3 mt-5">
-            <button onClick={onClose} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-600">Cancel</button>
-            <button
-              onClick={() => mut.mutate()}
-              disabled={!name.trim() || mut.isPending}
-              className="flex-1 py-2.5 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
-            >
-              {mut.isPending ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-              Create
-            </button>
-          </div>
-        </motion.div>
-      </div>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/30 z-40" onClick={onClose} />
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }}
+        className="fixed z-50 inset-x-4 top-[15vh] mx-auto max-w-sm bg-white rounded-2xl shadow-2xl p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="font-semibold text-slate-900">New group</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={18} /></button>
+        </div>
+        {err && <p className="mb-3 p-2.5 rounded-lg bg-rose-50 text-sm text-rose-700">{err}</p>}
+        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Name</label>
+        <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. IELTS Evening B2" className={`${INPUT} mb-4`} />
+        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Teacher</label>
+        <select value={teacherId} onChange={(e) => setTeacherId(e.target.value)} className={`${INPUT} mb-6`}>
+          <option value="">Choose later</option>
+          {teachers.map((t) => <option key={t.id} value={t.id}>{t.full_name}</option>)}
+        </select>
+        <PrimaryButton className="w-full" icon={create.isPending ? Loader2 : Plus} disabled={!name.trim() || create.isPending} onClick={() => create.mutate()}>
+          Create group
+        </PrimaryButton>
+      </motion.div>
     </>
   )
 }
 
-/* ── Main ───────────────────────────────────────────────────── */
 export default function CenterGroups() {
   const { centerId, myRole } = useOutletContext()
+  const user = useAuthStore((s) => s.user)
   const navigate = useNavigate()
   const qc = useQueryClient()
-  const [showCreate, setShowCreate] = useState(false)
-  const [addStudentGroup, setAddStudentGroup] = useState(null)
+  const [creating, setCreating] = useState(false)
+  const canManage = myRole === 'admin' || (myRole === 'staff' && canWrite(tierOf(user)))
 
   const { data: groups = [], isLoading } = useQuery({
     queryKey: ['center-groups', centerId],
-    queryFn: () => api.get(`/centers/${centerId}/groups/`).then(r => r.data),
+    queryFn: () => api.get(`/centers/${centerId}/groups/`).then((r) => r.data),
   })
-
-  const deleteGroup = useMutation({
+  const { data: teachers = [] } = useQuery({
+    queryKey: ['center-members', centerId, 'teacher'],
+    queryFn: () => api.get(`/centers/${centerId}/members/?role=teacher`).then((r) => r.data),
+    enabled: canManage,
+  })
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ['center-groups', centerId] })
+    qc.invalidateQueries({ queryKey: ['center-monitoring', centerId] })
+  }
+  const setTeacher = useMutation({
+    mutationFn: ({ gid, teacherId }) => api.patch(`/centers/${centerId}/groups/${gid}/delete/`, { teacher_id: teacherId || null }),
+    onSuccess: refresh,
+  })
+  const remove = useMutation({
     mutationFn: (gid) => api.delete(`/centers/${centerId}/groups/${gid}/delete/`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['center-groups', centerId] }),
+    onSuccess: refresh,
   })
 
   return (
-    <div>
-      <motion.div variants={fadeUp} initial="hidden" animate="visible" className="flex items-center justify-between mb-5">
-        <div>
-          <h2 className="text-lg font-bold text-gray-900">Groups</h2>
-          <p className="text-sm text-gray-400">{groups.length} groups</p>
-        </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-sm font-semibold transition-colors"
-        >
-          <Plus size={15} />
-          New Group
-        </button>
-      </motion.div>
+    <div className="max-w-5xl mx-auto">
+      <PageHeader
+        eyebrow={myRole === 'teacher' ? 'My groups' : 'Groups'}
+        title="Groups"
+        subtitle={canManage ? 'Create groups, give each a teacher, then add students inside the group.' : 'Open a group to see its journal.'}
+        action={canManage && <PrimaryButton icon={Plus} onClick={() => setCreating(true)}>New group</PrimaryButton>}
+      />
 
       {isLoading ? (
-        <div className="flex justify-center py-16"><Loader2 className="animate-spin text-sky-400" size={24} /></div>
+        <div className="py-20 flex justify-center"><Loader2 size={22} className="animate-spin text-slate-300" /></div>
       ) : groups.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
-          <FolderOpen size={36} className="mx-auto mb-3 text-gray-200" />
-          <p className="font-medium">No groups yet</p>
-          <p className="text-sm mt-1">Create groups to organize your students</p>
-        </div>
+        <Card><Empty icon={UsersRound} title="No groups yet"
+          text={canManage ? 'Create the first group.' : 'The admin creates groups.'}
+          action={canManage && <PrimaryButton icon={Plus} onClick={() => setCreating(true)}>New group</PrimaryButton>} /></Card>
       ) : (
-        <div className="space-y-3">
-          {groups.map((g, i) => (
-            <motion.div
-              key={g.id} custom={i} variants={fadeUp} initial="hidden" animate="visible"
-              onClick={() => navigate(`/center/${centerId}/groups/${g.id}`)}
-              className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-4 cursor-pointer hover:border-sky-200 hover:shadow-md transition-all group"
-            >
-              {/* Icon */}
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-sky-100 to-indigo-100 flex items-center justify-center flex-shrink-0 group-hover:from-sky-200 group-hover:to-indigo-200 transition-colors">
-                <FolderOpen size={20} className="text-sky-600" />
-              </div>
-
-              {/* Info */}
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-gray-900">{g.name}</p>
-                <div className="flex items-center gap-3 mt-0.5">
-                  <span className="text-xs text-gray-400">
-                    <span className="font-semibold text-gray-600">{g.student_count}</span> students
-                  </span>
-                  {g.teacher && (
-                    <span className="text-xs text-gray-400">
-                      · {g.teacher.full_name}
-                    </span>
-                  )}
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {groups.map((g) => (
+            <Card key={g.id} className="p-5 flex flex-col hover:border-slate-300 transition-colors">
+              <button onClick={() => navigate(`/center/${centerId}/groups/${g.id}`)} className="text-left flex-1">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="font-semibold text-slate-900">{g.name}</p>
+                  <ChevronRight size={16} className="text-slate-300 mt-0.5" />
                 </div>
-              </div>
-
-              {/* Action buttons */}
-              <div className="flex items-center gap-1.5 flex-shrink-0" onClick={e => e.stopPropagation()}>
-                <button
-                  onClick={() => setAddStudentGroup(g)}
-                  className="p-2 rounded-xl bg-sky-50 text-sky-600 hover:bg-sky-100 transition-colors"
-                  title="Add student"
-                >
-                  <UserPlus size={15} />
-                </button>
-                {(myRole === 'director' || myRole === 'admin') && (
-                  <button
-                    onClick={() => { if (confirm('Delete this group?')) deleteGroup.mutate(g.id) }}
-                    className="p-2 rounded-xl text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
-                  >
-                    <Trash2 size={15} />
-                  </button>
+                <p className="mt-0.5 text-xs text-slate-400">{g.student_count} students</p>
+                <div className="mt-4 flex -space-x-2">
+                  {(g.students || []).slice(0, 6).map((s) => (
+                    <span key={s.id} className="ring-2 ring-white rounded-full"><Avatar name={s.full_name} size="w-7 h-7 text-[10px]" /></span>
+                  ))}
+                  {g.student_count > 6 && <span className="w-7 h-7 rounded-full bg-slate-100 ring-2 ring-white text-[10px] font-bold text-slate-500 flex items-center justify-center">+{g.student_count - 6}</span>}
+                </div>
+              </button>
+              <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-2">
+                {canManage ? (
+                  <select value={g.teacher?.id || ''} onChange={(e) => setTeacher.mutate({ gid: g.id, teacherId: e.target.value })}
+                    className={`flex-1 min-w-0 text-xs font-medium rounded-lg border px-2 py-1.5 bg-white ${g.teacher ? 'border-slate-200 text-slate-700' : 'border-amber-200 text-amber-700'}`}>
+                    <option value="">No teacher</option>
+                    {teachers.map((t) => <option key={t.id} value={t.id}>{t.full_name}</option>)}
+                  </select>
+                ) : (
+                  <span className={`flex-1 text-xs ${g.teacher ? 'text-slate-500' : 'text-amber-600'}`}>{g.teacher?.full_name || 'No teacher'}</span>
+                )}
+                {canManage && (
+                  <button title="Delete group" onClick={() => window.confirm(`Delete group "${g.name}"? Its lessons go too.`) && remove.mutate(g.id)}
+                    className="p-1.5 rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50"><Trash2 size={14} /></button>
                 )}
               </div>
-
-              <ChevronRight size={16} className="text-gray-300 group-hover:text-sky-400 transition-colors flex-shrink-0" />
-            </motion.div>
+            </Card>
           ))}
         </div>
       )}
 
       <AnimatePresence>
-        {showCreate && <CreateGroupModal centerId={centerId} onClose={() => setShowCreate(false)} />}
-        {addStudentGroup && (
-          <AddStudentPanel
-            group={addStudentGroup}
-            centerId={centerId}
-            onClose={() => setAddStudentGroup(null)}
-          />
-        )}
+        {creating && <CreateGroupModal centerId={centerId} teachers={teachers} onClose={() => setCreating(false)} />}
       </AnimatePresence>
     </div>
   )

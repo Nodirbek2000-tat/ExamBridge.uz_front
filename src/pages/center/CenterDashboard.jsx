@@ -1,88 +1,33 @@
 /**
- * CenterDashboard — the monitoring screen every center manager lands on.
+ * CenterDashboard — the overview every center role lands on.
  *
- * Director, admin and platform staff see the whole center (with a Teachers
- * tab); a teacher sees only the students in their own groups. Data comes
- * from GET /centers/:id/monitoring/, which also completes tasks whose test
- * the student has finished, so results appear here without anyone pressing
- * a button.
+ *   director — trends (tasks finished per week, students studying per day),
+ *              teachers compared, groups compared, every student
+ *   admin    — what needs fixing (students without a group, groups without
+ *              a teacher…), who studies, groups, every student
+ *   teacher  — my latest lessons, who is behind, my groups, my students
+ *
+ * ExamBridge staff see the director's view. Data: GET /centers/:id/monitoring/.
  */
 import { useMemo, useState } from 'react'
 import { useNavigate, useOutletContext } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { motion, AnimatePresence } from 'framer-motion'
+import { AnimatePresence } from 'framer-motion'
 import {
-  AlertCircle, ChevronDown, ChevronRight, Clock, Loader2, Plus, Search,
+  AlertCircle, BookOpen, ChevronDown, ChevronRight, Loader2, Plus, Search, Trophy, UserPlus, Wrench,
 } from 'lucide-react'
 import api from '../../api/client'
+import CreateLessonPanel from './CreateLessonPanel'
 import { examTint, taskMeta } from './taskTypes'
+import {
+  Avatar, Bar, Card, CardTitle, Columns, PageHeader, PrimaryButton, Progress, ResultChip, StateBadge,
+  Stat, Tabs, ago, dayLabel, weekLabel,
+} from './ui'
 
-/* ── small helpers ─────────────────────────────────────────── */
-function ago(iso) {
-  if (!iso) return 'never'
-  const mins = Math.round((Date.now() - new Date(iso)) / 60_000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  const h = Math.round(mins / 60)
-  if (h < 24) return `${h}h ago`
-  const d = Math.round(h / 24)
-  if (d < 30) return `${d}d ago`
-  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-}
-
-const initials = (name = '') => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?'
-
-function Avatar({ name }) {
-  return (
-    <span className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 text-[11px] font-bold flex items-center justify-center flex-shrink-0">
-      {initials(name)}
-    </span>
-  )
-}
-
-function Progress({ done, total, rate }) {
-  if (!total) return <span className="text-xs text-slate-300">No tasks</span>
-  const tone = rate >= 80 ? 'bg-emerald-500' : rate >= 50 ? 'bg-sky-500' : 'bg-amber-400'
-  return (
-    <div className="flex items-center gap-2.5 min-w-[120px]">
-      <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-        <div className={`h-full rounded-full ${tone}`} style={{ width: `${rate}%` }} />
-      </div>
-      <span className="text-xs font-semibold text-slate-600 tabular-nums w-9 text-right">{done}/{total}</span>
-    </div>
-  )
-}
-
-function ResultChip({ type, detail }) {
-  if (!detail) return null
-  const scoring = detail === 'Being scored'
-  return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold ring-1 ${
-      scoring ? 'text-slate-500 bg-slate-50 ring-slate-100' : examTint(type).chip
-    }`}>
-      {scoring && <Clock size={10} />}{detail}
-    </span>
-  )
-}
-
-function Kpi({ label, value, sub, tone = 'text-slate-900', children, index }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }}
-      className="bg-white rounded-2xl border border-slate-200/70 p-5"
-    >
-      <p className="text-xs font-medium text-slate-500">{label}</p>
-      <p className={`mt-2 text-3xl font-semibold tabular-nums ${tone}`}>{value}</p>
-      {children}
-      {sub && <p className="mt-1.5 text-xs text-slate-400">{sub}</p>}
-    </motion.div>
-  )
-}
-
-/* ── tables ────────────────────────────────────────────────── */
 const TH = 'px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400'
 const TD = 'px-4 py-3 align-middle'
 
+/* ── students table (all roles) ────────────────────────────── */
 function StudentRow({ s }) {
   const [open, setOpen] = useState(false)
   return (
@@ -98,42 +43,32 @@ function StudentRow({ s }) {
           </div>
         </td>
         <td className={TD}><Progress done={s.done} total={s.total} rate={s.rate ?? 0} /></td>
-        <td className={`${TD} text-center`}>
-          {s.overdue > 0
-            ? <span className="text-xs font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md">{s.overdue}</span>
-            : <span className="text-xs text-slate-300">—</span>}
-        </td>
+        <td className={`${TD} text-center text-sm tabular-nums ${s.missed ? 'text-rose-600 font-semibold' : 'text-slate-300'}`}>{s.missed || '—'}</td>
+        <td className={`${TD} text-center text-sm tabular-nums hidden sm:table-cell ${s.late ? 'text-amber-600 font-semibold' : 'text-slate-300'}`}>{s.late || '—'}</td>
+        <td className={`${TD} text-center text-sm tabular-nums text-slate-600 hidden sm:table-cell`}>{s.study_days}</td>
         <td className={`${TD} hidden md:table-cell`}>
-          {s.last_result
-            ? <ResultChip type={s.last_result.type} detail={s.last_result.detail || 'Done'} />
-            : <span className="text-xs text-slate-300">—</span>}
+          {s.last_result ? <ResultChip type={s.last_result.type} detail={s.last_result.detail || 'Done'} /> : <span className="text-xs text-slate-300">—</span>}
         </td>
-        <td className={`${TD} hidden lg:table-cell text-xs ${s.inactive ? 'text-amber-600' : 'text-slate-500'}`}>
-          {ago(s.last_seen)}
-        </td>
-        <td className={`${TD} w-8 text-slate-300`}>
-          <ChevronDown size={15} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
-        </td>
+        <td className={`${TD} hidden lg:table-cell text-xs whitespace-nowrap ${s.inactive ? 'text-amber-600' : 'text-slate-500'}`}>{ago(s.last_seen)}</td>
+        <td className={`${TD} w-8 text-slate-300`}><ChevronDown size={15} className={`transition-transform ${open ? 'rotate-180' : ''}`} /></td>
       </tr>
       {open && (
         <tr>
-          <td colSpan={6} className="bg-slate-50/60 px-4 py-3">
-            {s.tasks.length === 0 ? (
-              <p className="text-xs text-slate-400 px-11">No tasks assigned yet.</p>
-            ) : (
+          <td colSpan={8} className="bg-slate-50/60 px-4 py-3">
+            {s.tasks.length === 0 ? <p className="pl-11 text-xs text-slate-400">No tasks yet.</p> : (
               <ul className="pl-11 space-y-1.5">
                 {s.tasks.map((t, i) => (
                   <li key={i} className="flex items-center gap-3 text-xs">
                     <span className={`w-1.5 h-1.5 rounded-full ${examTint(t.type).dot}`} />
                     <span className="flex-1 min-w-0 truncate text-slate-700">
+                      {t.lesson && <span className="text-slate-400">{t.lesson} · </span>}
                       <span className="font-semibold">{t.title}</span>
                       <span className="text-slate-400"> · {taskMeta(t.type).label}</span>
                     </span>
-                    {t.status === 'completed'
-                      ? <ResultChip type={t.type} detail={t.detail || 'Done'} />
-                      : <span className={`font-semibold ${t.status === 'overdue' ? 'text-rose-600' : 'text-amber-600'}`}>
-                          {t.status === 'overdue' ? 'Overdue' : 'To do'}
-                        </span>}
+                    {t.state === 'done' || t.state === 'late'
+                      ? <span className="flex items-center gap-1.5"><ResultChip type={t.type} detail={t.detail || 'Done'} />
+                          {t.state === 'late' && <span className="font-semibold text-amber-600">late</span>}</span>
+                      : <StateBadge state={t.state} />}
                   </li>
                 ))}
               </ul>
@@ -151,7 +86,6 @@ function StudentsTable({ students }) {
     const term = q.trim().toLowerCase()
     return term ? students.filter((s) => `${s.name} ${s.email} ${s.groups.join(' ')}`.toLowerCase().includes(term)) : students
   }, [students, q])
-
   return (
     <>
       <div className="px-4 pt-3 pb-2">
@@ -161,20 +95,18 @@ function StudentsTable({ students }) {
             className="flex-1 bg-transparent text-sm text-slate-800 placeholder-slate-400 outline-none" />
         </label>
       </div>
-      {rows.length === 0 ? (
-        <p className="px-4 py-10 text-center text-sm text-slate-400">No students{q ? ' match' : ' yet'}.</p>
-      ) : (
+      {rows.length === 0 ? <p className="px-4 py-10 text-center text-sm text-slate-400">No students{q ? ' match' : ' yet'}.</p> : (
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead><tr className="border-b border-slate-100">
               <th className={TH}>Student</th><th className={TH}>Tasks</th>
-              <th className={`${TH} text-center`}>Overdue</th>
+              <th className={`${TH} text-center`}>Missed</th>
+              <th className={`${TH} text-center hidden sm:table-cell`}>Late</th>
+              <th className={`${TH} text-center hidden sm:table-cell`} title="Days studied in the last 30">Days</th>
               <th className={`${TH} hidden md:table-cell`}>Last result</th>
               <th className={`${TH} hidden lg:table-cell`}>Last seen</th><th />
             </tr></thead>
-            <tbody className="divide-y divide-slate-100">
-              {rows.map((s) => <StudentRow key={s.id} s={s} />)}
-            </tbody>
+            <tbody className="divide-y divide-slate-100">{rows.map((s) => <StudentRow key={s.id} s={s} />)}</tbody>
           </table>
         </div>
       )}
@@ -194,13 +126,145 @@ function SimpleTable({ head, rows, empty }) {
   )
 }
 
+function GroupsTable({ groups, onOpen }) {
+  return (
+    <SimpleTable head={['Group', 'Teacher', 'Students', 'Tasks finished', 'Missed', 'Study days', '']} empty="No groups yet."
+      rows={groups.map((g) => (
+        <tr key={g.id} onClick={() => onOpen(g.id)} className="cursor-pointer hover:bg-slate-50/70 transition-colors">
+          <td className={`${TD} text-sm font-semibold text-slate-900`}>{g.name}</td>
+          <td className={`${TD} text-sm ${g.teacher ? 'text-slate-500' : 'text-amber-600'}`}>{g.teacher || 'No teacher'}</td>
+          <td className={`${TD} text-sm text-slate-600 tabular-nums`}>{g.students}</td>
+          <td className={TD}><Progress done={g.done} total={g.total} rate={g.rate ?? 0} /></td>
+          <td className={`${TD} text-sm tabular-nums ${g.missed ? 'text-rose-600 font-semibold' : 'text-slate-300'}`}>{g.missed || '—'}</td>
+          <td className={`${TD} text-sm text-slate-600 tabular-nums`}>{g.study_days}</td>
+          <td className={`${TD} w-8 text-slate-300`}><ChevronRight size={15} /></td>
+        </tr>
+      ))} />
+  )
+}
+
+/* ── side cards ────────────────────────────────────────────── */
+function NeedsAttention({ students }) {
+  const list = students.filter((s) => s.missed > 0 || (s.inactive && s.total > 0)).slice(0, 6)
+  return (
+    <Card className="p-4">
+      <CardTitle icon={AlertCircle} tone="text-amber-500">Needs attention</CardTitle>
+      {list.length === 0 ? <p className="text-xs text-slate-400 py-2">Nobody is behind. 👌</p> : (
+        <ul className="space-y-2.5">
+          {list.map((s) => (
+            <li key={s.id} className="flex items-center gap-3">
+              <Avatar name={s.name} />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-slate-800 truncate">{s.name}</p>
+                <p className="text-xs text-slate-400 truncate">
+                  {s.missed > 0 && <span className="text-rose-600 font-medium">{s.missed} missed</span>}
+                  {s.missed > 0 && s.inactive && ' · '}
+                  {s.inactive && <span className="text-amber-600">{s.last_seen ? `last seen ${ago(s.last_seen)}` : 'never signed in'}</span>}
+                </p>
+              </div>
+              <span className="text-xs text-slate-400 tabular-nums" title="Days studied, last 30">{s.study_days}d</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  )
+}
+
+function LatestResults({ recent }) {
+  return (
+    <Card className="p-4">
+      <CardTitle icon={Trophy} tone="text-emerald-500">Latest results</CardTitle>
+      {recent.length === 0 ? <p className="text-xs text-slate-400 py-2">Results appear as soon as students finish a test.</p> : (
+        <ul className="space-y-3">
+          {recent.slice(0, 8).map((r, i) => (
+            <li key={i} className="flex items-start gap-3">
+              <Avatar name={r.student} />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-slate-800 truncate">{r.student}</p>
+                <p className="text-xs text-slate-400 truncate">{r.lesson ? `${r.lesson} · ` : ''}{taskMeta(r.type).label}</p>
+                <div className="mt-1 flex items-center gap-2">
+                  <ResultChip type={r.type} detail={r.detail || 'Done'} />
+                  <span className="text-[11px] text-slate-400">{ago(r.at)}</span>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  )
+}
+
+function ToFix({ data, centerId, navigate }) {
+  const items = [
+    { key: 'students_without_group', title: 'Students without a group', to: 'groups' },
+    { key: 'groups_without_teacher', title: 'Groups without a teacher', to: 'groups' },
+    { key: 'teachers_without_group', title: 'Teachers without a group', to: 'groups' },
+  ]
+  const total = items.reduce((n, i) => n + data[i.key].length, 0)
+  return (
+    <Card className="p-4">
+      <CardTitle icon={Wrench} tone="text-indigo-500" right={<span className="text-xs text-slate-400">{total ? `${total} to fix` : 'All set'}</span>}>To fix</CardTitle>
+      {total === 0 ? <p className="text-xs text-slate-400 py-2">Every student has a group and every group a teacher. ✅</p> : (
+        <div className="space-y-3">
+          {items.filter((i) => data[i.key].length).map((i) => (
+            <button key={i.key} onClick={() => navigate(`/center/${centerId}/${i.to}`)} className="w-full text-left group">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-slate-700">{i.title}</span>
+                <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md">{data[i.key].length}</span>
+              </div>
+              <p className="mt-0.5 text-xs text-slate-400 truncate group-hover:text-slate-600">
+                {data[i.key].slice(0, 4).map((x) => x.name).join(', ')}{data[i.key].length > 4 ? '…' : ''}
+              </p>
+            </button>
+          ))}
+        </div>
+      )}
+    </Card>
+  )
+}
+
+function LessonsStrip({ lessons, centerId, navigate, onNew }) {
+  return (
+    <Card className="p-4">
+      <CardTitle icon={BookOpen} tone="text-indigo-500"
+        right={<button onClick={() => navigate(`/center/${centerId}/lessons`)} className="text-xs font-semibold text-slate-500 hover:text-slate-900">All lessons →</button>}>
+        Latest lessons
+      </CardTitle>
+      {lessons.length === 0 ? (
+        <div className="py-6 text-center">
+          <p className="text-sm text-slate-500">No lessons yet.</p>
+          {onNew && <button onClick={onNew} className="mt-2 text-sm font-semibold text-indigo-600 hover:underline">Give the first one</button>}
+        </div>
+      ) : (
+        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
+          {lessons.map((l) => {
+            const pct = l.students ? Math.round((l.done / l.students) * 100) : 0
+            return (
+              <button key={l.id} onClick={() => navigate(`/center/${centerId}/lessons`)}
+                className="text-left p-4 rounded-xl border border-slate-200/70 hover:border-slate-300 hover:bg-slate-50/50 transition-colors">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{dayLabel(l.date)} · {l.group || 'Personal'}</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900 truncate">{l.topic}</p>
+                <div className="mt-3 flex items-center gap-2.5">
+                  <div className="flex-1"><Bar value={pct} /></div>
+                  <span className="text-xs font-semibold text-slate-600 tabular-nums">{l.done}/{l.students}</span>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </Card>
+  )
+}
+
 /* ── page ──────────────────────────────────────────────────── */
 export default function CenterDashboard() {
   const { centerId, myRole } = useOutletContext()
   const navigate = useNavigate()
-  const isTeacher = myRole === 'teacher'
-  const canOpenTeachers = myRole === 'director' || myRole === 'admin' || myRole === 'staff'
   const [tab, setTab] = useState('students')
+  const [lessonOpen, setLessonOpen] = useState(false)
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['center-monitoring', centerId],
@@ -208,169 +272,137 @@ export default function CenterDashboard() {
     refetchInterval: 60_000,
   })
 
-  if (isLoading) {
-    return <div className="flex justify-center py-24"><Loader2 size={24} className="animate-spin text-slate-300" /></div>
-  }
-  if (isError || !data) {
-    return <p className="py-24 text-center text-sm text-slate-400">Could not load the overview.</p>
-  }
+  if (isLoading) return <div className="flex justify-center py-24"><Loader2 size={24} className="animate-spin text-slate-300" /></div>
+  if (isError || !data) return <p className="py-24 text-center text-sm text-slate-400">Could not load the overview.</p>
 
-  const { kpis, students, groups, teachers, recent_results: recent } = data
-  const attention = students.filter((s) => s.overdue > 0 || (s.inactive && s.total > 0)).slice(0, 6)
+  const role = data.my_role
+  const isTeacher = role === 'teacher'
+  const isAdmin = role === 'admin'
+  const { kpis, students, groups, lessons, recent_results: recent } = data
+  const openGroup = (gid) => navigate(`/center/${centerId}/groups/${gid}`)
+
+  const header = {
+    director: ['Director overview', 'How the whole center is doing'],
+    staff: ['ExamBridge view', 'How the whole center is doing'],
+    admin: ['Admin desk', 'Students, groups and what needs fixing'],
+    teacher: ['My classes', 'Your lessons, groups and students'],
+  }[role] || ['Overview', '']
+
   const tabs = [
     { key: 'students', label: 'Students', count: students.length },
     { key: 'groups', label: 'Groups', count: groups.length },
-    ...(isTeacher ? [] : [{ key: 'teachers', label: 'Teachers', count: teachers.length }]),
+    ...(!isTeacher && !isAdmin ? [{ key: 'teachers', label: 'Teachers', count: data.teachers.length }] : []),
   ]
+
+  const weeklyChart = (
+    <Card className="p-5">
+      <CardTitle right={<span className="text-xs text-slate-400">last 6 weeks</span>}>Tasks finished by week</CardTitle>
+      <Columns data={data.weekly.map((w) => ({ label: weekLabel(w.week), value: w.rate, title: `${w.done}/${w.given} finished` }))} />
+    </Card>
+  )
+  const dailyChart = data.daily && (
+    <Card className="p-5">
+      <CardTitle right={<span className="text-xs text-slate-400">last 14 days</span>}>Students studying per day</CardTitle>
+      <Columns tone="bg-emerald-500" data={data.daily.map((d) => ({
+        label: new Date(`${d.date}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric' }),
+        value: kpis.students ? Math.round((d.students / kpis.students) * 100) : 0,
+        display: d.students || '',
+        title: `${d.students} students on ${d.date}`,
+      }))} />
+    </Card>
+  )
 
   return (
     <div className="max-w-6xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-            {isTeacher ? 'My students' : 'Center overview'}
-          </p>
-          <h1 className="mt-1 text-2xl font-bold text-slate-900">{data.center.name}</h1>
-        </div>
-        {myRole !== 'staff' && (
-          <button onClick={() => navigate(`/center/${centerId}/assignments`)}
-            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-700 transition-colors">
-            <Plus size={15} /> New task
-          </button>
-        )}
+      <PageHeader eyebrow={header[0]} title={data.center.name} subtitle={header[1]}
+        action={
+          isTeacher ? <PrimaryButton icon={Plus} onClick={() => setLessonOpen(true)}>New lesson</PrimaryButton>
+          : isAdmin ? <PrimaryButton icon={UserPlus} onClick={() => navigate(`/center/${centerId}/students`)}>Add student</PrimaryButton>
+          : null
+        } />
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <Stat index={0} label="Students" value={kpis.students} sub={`${kpis.active_7d} studied this week`} />
+        <Stat index={1} label="Tasks finished" value={kpis.rate == null ? '—' : `${kpis.rate}%`} sub={`${kpis.done} of ${kpis.tasks} · ${kpis.pending} to do`}>
+          <div className="mt-3"><Bar value={kpis.rate} tone="bg-emerald-500" /></div>
+        </Stat>
+        <Stat index={2} label="Missed" value={kpis.missed} tone={kpis.missed ? 'text-rose-600' : 'text-slate-900'} sub={`${kpis.late} finished late`} />
+        <Stat index={3} label="Study days" value={kpis.study_days_avg} sub={`avg per student · 30 days · ${kpis.lessons_7d} lessons this week`} />
       </div>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <Kpi index={0} label="Students" value={kpis.students} sub={`${kpis.active_7d} active this week`} />
-        <Kpi index={1} label="Tasks completed" value={kpis.rate == null ? '—' : `${kpis.rate}%`}
-          sub={`${kpis.done} of ${kpis.total} · ${kpis.pending} to do`}>
-          <div className="mt-3 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-            <div className="h-full rounded-full bg-emerald-500" style={{ width: `${kpis.rate || 0}%` }} />
-          </div>
-        </Kpi>
-        <Kpi index={2} label="Overdue" value={kpis.overdue} tone={kpis.overdue ? 'text-rose-600' : 'text-slate-900'}
-          sub={kpis.overdue ? 'Need a reminder' : 'Everyone on time'} />
-        <Kpi index={3} label="Results this week" value={kpis.results_7d} sub={`${kpis.tasks} tasks given`} />
-      </div>
+      {/* Role-specific top section */}
+      {isTeacher && (
+        <div className="grid lg:grid-cols-3 gap-4 mb-4">
+          <div className="lg:col-span-2"><LessonsStrip lessons={lessons} centerId={centerId} navigate={navigate} onNew={() => setLessonOpen(true)} /></div>
+          <NeedsAttention students={students} />
+        </div>
+      )}
+      {isAdmin && (
+        <div className="grid lg:grid-cols-3 gap-4 mb-4">
+          <ToFix data={data.to_fix} centerId={centerId} navigate={navigate} />
+          <div className="lg:col-span-2">{dailyChart}</div>
+        </div>
+      )}
+      {!isTeacher && !isAdmin && (
+        <div className="grid lg:grid-cols-2 gap-4 mb-4">{weeklyChart}{dailyChart}</div>
+      )}
+      {isTeacher && groups.length > 0 && (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+          {groups.map((g) => (
+            <button key={g.id} onClick={() => openGroup(g.id)}
+              className="text-left bg-white rounded-2xl border border-slate-200/70 p-5 hover:border-slate-300 transition-colors">
+              <div className="flex items-center justify-between">
+                <p className="font-semibold text-slate-900">{g.name}</p>
+                <ChevronRight size={15} className="text-slate-300" />
+              </div>
+              <p className="mt-0.5 text-xs text-slate-400">{g.students} students · {g.lessons} lessons · {g.study_days} study days avg</p>
+              <div className="mt-4 flex items-center gap-2.5">
+                <div className="flex-1"><Bar value={g.rate} /></div>
+                <span className="text-xs font-semibold text-slate-600 tabular-nums">{g.rate == null ? '—' : `${g.rate}%`}</span>
+              </div>
+              {g.missed > 0 && <p className="mt-2 text-xs font-medium text-rose-600">{g.missed} missed tasks</p>}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-3 gap-4">
-        {/* Tables */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200/70 overflow-hidden">
-          <div className="flex gap-1 px-3 pt-3 border-b border-slate-100">
-            {tabs.map((t) => (
-              <button key={t.key} onClick={() => setTab(t.key)}
-                className={`relative px-3 pb-2.5 pt-1 text-sm font-semibold transition-colors ${
-                  tab === t.key ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'
-                }`}>
-                {t.label} <span className="text-xs font-medium text-slate-300">{t.count}</span>
-                {tab === t.key && <motion.span layoutId="mon-tab" className="absolute left-2 right-2 -bottom-px h-0.5 rounded-full bg-slate-900" />}
-              </button>
-            ))}
-          </div>
-
+        <Card className="lg:col-span-2 overflow-hidden">
+          <Tabs id="overview-tabs" tabs={tabs} value={tab} onChange={setTab} />
           {tab === 'students' && <StudentsTable students={students} />}
-
-          {tab === 'groups' && (
-            <SimpleTable
-              head={['Group', 'Teacher', 'Students', 'Tasks', 'Overdue', '']}
-              empty="No groups yet."
-              rows={groups.map((g) => (
-                <tr key={g.id} onClick={() => navigate(`/center/${centerId}/groups/${g.id}`)}
-                  className="cursor-pointer hover:bg-slate-50/70 transition-colors">
-                  <td className={`${TD} text-sm font-semibold text-slate-900`}>{g.name}</td>
-                  <td className={`${TD} text-sm text-slate-500`}>{g.teacher || '—'}</td>
-                  <td className={`${TD} text-sm text-slate-600 tabular-nums`}>{g.students}</td>
-                  <td className={TD}><Progress done={g.done} total={g.total} rate={g.rate ?? 0} /></td>
-                  <td className={`${TD} text-sm tabular-nums ${g.overdue ? 'text-rose-600 font-semibold' : 'text-slate-300'}`}>{g.overdue || '—'}</td>
-                  <td className={`${TD} w-8 text-slate-300`}><ChevronRight size={15} /></td>
-                </tr>
-              ))}
-            />
-          )}
-
+          {tab === 'groups' && <GroupsTable groups={groups} onOpen={openGroup} />}
           {tab === 'teachers' && (
-            <SimpleTable
-              head={['Teacher', 'Groups', 'Students', 'Tasks given', 'Completion', 'Last seen']}
-              empty="No teachers yet."
-              rows={teachers.map((t) => (
-                <tr key={t.id}
-                  onClick={canOpenTeachers ? () => navigate(`/center/${centerId}/teachers/${t.id}`) : undefined}
-                  className={canOpenTeachers ? 'cursor-pointer hover:bg-slate-50/70 transition-colors' : ''}>
+            <SimpleTable head={['Teacher', 'Groups', 'Students', 'Lessons', 'Tasks finished', 'Last lesson']} empty="No teachers yet."
+              rows={data.teachers.map((t, i) => (
+                <tr key={t.id} onClick={() => navigate(`/center/${centerId}/teachers/${t.id}`)} className="cursor-pointer hover:bg-slate-50/70 transition-colors">
                   <td className={TD}>
-                    <div className="flex items-center gap-3"><Avatar name={t.name} />
-                      <span className="text-sm font-semibold text-slate-900">{t.name}</span></div>
+                    <div className="flex items-center gap-3">
+                      <span className="w-5 text-xs font-semibold text-slate-300 tabular-nums">{i + 1}</span>
+                      <Avatar name={t.name} />
+                      <span className="text-sm font-semibold text-slate-900 whitespace-nowrap">{t.name}</span>
+                    </div>
                   </td>
                   <td className={`${TD} text-sm text-slate-600 tabular-nums`}>{t.groups}</td>
                   <td className={`${TD} text-sm text-slate-600 tabular-nums`}>{t.students}</td>
                   <td className={`${TD} text-sm text-slate-600 tabular-nums`}>
-                    {t.tasks}{t.overdue > 0 && <span className="ml-2 text-xs font-semibold text-rose-600">{t.overdue} overdue</span>}
+                    {t.lessons}{t.lessons_7d > 0 && <span className="ml-1.5 text-xs text-emerald-600 whitespace-nowrap">+{t.lessons_7d} this week</span>}
                   </td>
                   <td className={TD}><Progress done={t.done} total={t.total} rate={t.rate ?? 0} /></td>
-                  <td className={`${TD} text-xs text-slate-500`}>{ago(t.last_seen)}</td>
+                  <td className={`${TD} text-xs ${t.last_lesson ? 'text-slate-500' : 'text-amber-600'}`}>{t.last_lesson ? ago(t.last_lesson) : 'never'}</td>
                 </tr>
-              ))}
-            />
+              ))} />
           )}
-        </div>
-
-        {/* Side column */}
+        </Card>
         <div className="space-y-4">
-          <section className="bg-white rounded-2xl border border-slate-200/70 p-4">
-            <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900 mb-3">
-              <AlertCircle size={15} className="text-amber-500" /> Needs attention
-            </h2>
-            {attention.length === 0 ? (
-              <p className="text-xs text-slate-400 py-2">Nobody is behind. 👌</p>
-            ) : (
-              <ul className="space-y-2.5">
-                {attention.map((s) => (
-                  <li key={s.id} className="flex items-center gap-3">
-                    <Avatar name={s.name} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-800 truncate">{s.name}</p>
-                      <p className="text-xs text-slate-400 truncate">
-                        {s.overdue > 0 && <span className="text-rose-600 font-medium">{s.overdue} overdue</span>}
-                        {s.overdue > 0 && s.inactive && ' · '}
-                        {s.inactive && <span className="text-amber-600">{s.last_seen ? `last seen ${ago(s.last_seen)}` : 'never signed in'}</span>}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
-          <section className="bg-white rounded-2xl border border-slate-200/70 p-4">
-            <h2 className="text-sm font-semibold text-slate-900 mb-3">Latest results</h2>
-            {recent.length === 0 ? (
-              <p className="text-xs text-slate-400 py-2">Results appear here as soon as students finish their tests.</p>
-            ) : (
-              <AnimatePresence initial={false}>
-                <ul className="space-y-3">
-                  {recent.map((r, i) => (
-                    <motion.li key={`${r.student_id}-${r.at}-${i}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                      className="flex items-start gap-3">
-                      <Avatar name={r.student} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-slate-800 truncate">
-                          <span className="font-semibold">{r.student}</span>
-                        </p>
-                        <p className="text-xs text-slate-400 truncate">{r.title} · {taskMeta(r.type).label}</p>
-                        <div className="mt-1 flex items-center gap-2">
-                          <ResultChip type={r.type} detail={r.detail || 'Done'} />
-                          <span className="text-[11px] text-slate-400">{ago(r.at)}</span>
-                        </div>
-                      </div>
-                    </motion.li>
-                  ))}
-                </ul>
-              </AnimatePresence>
-            )}
-          </section>
+          {!isTeacher && <NeedsAttention students={students} />}
+          {isTeacher && weeklyChart}
+          <LatestResults recent={recent} />
         </div>
       </div>
+
+      <AnimatePresence>
+        {lessonOpen && <CreateLessonPanel centerId={centerId} onClose={() => setLessonOpen(false)} />}
+      </AnimatePresence>
     </div>
   )
 }
