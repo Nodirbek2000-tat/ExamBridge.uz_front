@@ -163,10 +163,11 @@ function SidebarContent({ onClose, isCenterStudent, pendingCount }) {
   // Keep active exam in sync with the current route
   useEffect(() => {
     const ex = examFromPath(location.pathname)
-    if (ex && ex !== activeKey) {
-      setActiveKey(ex)
-      localStorage.setItem('activeExam', ex)
-    }
+    if (!ex) return
+    // Remember it even when the page opened on that exam directly, so shared
+    // pages (My Tasks, Profile) keep showing the exam the student was in.
+    localStorage.setItem('activeExam', ex)
+    if (ex !== activeKey) setActiveKey(ex)
   }, [location.pathname]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const active = EXAMS[activeKey]

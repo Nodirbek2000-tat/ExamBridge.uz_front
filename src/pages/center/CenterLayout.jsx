@@ -11,21 +11,23 @@ import { useQuery } from '@tanstack/react-query'
 import api from '../../api/client'
 import Logo from '../../components/Logo.jsx'
 import LazyBoundary from '../../components/LazyBoundary'
+import { canWrite, tierOf } from '../admin/adminAccess'
 
 function getNavForRole(role, centerId) {
   const base = `/center/${centerId}`
   const all = [
-    { to: `${base}/dashboard`, icon: LayoutDashboard, label: 'Dashboard', roles: ['director', 'admin', 'teacher'] },
-    { to: `${base}/students`,  icon: Users,          label: 'Students',  roles: ['director', 'admin'] },
-    { to: `${base}/teachers`,  icon: GraduationCap,  label: 'Teachers',  roles: ['director', 'admin'] },
+    { to: `${base}/dashboard`, icon: LayoutDashboard, label: 'Overview',  roles: ['director', 'admin', 'teacher', 'staff'] },
+    { to: `${base}/students`,  icon: Users,          label: 'Students',  roles: ['director', 'admin', 'staff'] },
+    { to: `${base}/teachers`,  icon: GraduationCap,  label: 'Teachers',  roles: ['director', 'admin', 'staff'] },
     { to: `${base}/admins`,    icon: ShieldCheck,    label: 'Admins',    roles: ['director'] },
-    { to: `${base}/groups`,    icon: Crown,          label: 'Groups',    roles: ['director', 'admin', 'teacher'] },
-    { to: `${base}/assignments`,icon: ClipboardList,  label: 'Tasks',     roles: ['director', 'admin', 'teacher'] },
+    { to: `${base}/groups`,    icon: Crown,          label: 'Groups',    roles: ['director', 'admin', 'teacher', 'staff'] },
+    { to: `${base}/assignments`,icon: ClipboardList,  label: 'Tasks',     roles: ['director', 'admin', 'teacher', 'staff'] },
   ]
   return all.filter(n => n.roles.includes(role))
 }
 
-const MANAGER_ROLES = ['director', 'admin', 'teacher']
+// 'staff' = ExamBridge admin watching a center they are not a member of.
+const MANAGER_ROLES = ['director', 'admin', 'teacher', 'staff']
 
 export default function CenterLayout() {
   const { centerId } = useParams()
@@ -40,7 +42,7 @@ export default function CenterLayout() {
     retry: false,
   })
 
-  const myRole = dashData?.my_role || null
+  const myRole = dashData?.my_role || (dashData && user?.is_staff ? 'staff' : null)
 
   /* ── Access guard ──────────────────────────────────────────────
      Only director / admin / teacher may enter the center portal.
@@ -60,7 +62,9 @@ export default function CenterLayout() {
   })
 
   const center = dashData?.center
+  // View-only ExamBridge admins (levels 2 and 3) get the overview only.
   const NAV = getNavForRole(myRole || 'student', centerId)
+    .filter(n => myRole !== 'staff' || canWrite(tierOf(user)) || n.label === 'Overview')
 
   /* While loading, or if access is denied (about to redirect), render nothing */
   if (isLoading) {

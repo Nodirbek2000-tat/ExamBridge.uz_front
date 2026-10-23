@@ -243,6 +243,12 @@ export default function AdminCenterDetail() {
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <button
+            onClick={() => navigate(`/center/${centerId}/dashboard`)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900 text-white text-xs font-semibold hover:bg-slate-700 transition-colors"
+          >
+            <Activity size={13} /> Monitoring
+          </button>
+          <button
             onClick={() => toggleActive.mutate()}
             disabled={toggleActive.isPending}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors"

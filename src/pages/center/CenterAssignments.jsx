@@ -7,36 +7,14 @@ import {
   Users, User, Calendar, Search, ChevronRight, ChevronLeft, ChevronDown,
 } from 'lucide-react'
 import api from '../../api/client'
+import { EXAMS, KIND_LABEL, TASK_TYPES, examTint, taskColor, taskLabel, taskMeta } from './taskTypes'
 
 const fadeUp = {
   hidden: { opacity: 0, y: 14 },
   visible: (i = 0) => ({ opacity: 1, y: 0, transition: { duration: 0.28, delay: i * 0.05 } }),
 }
 
-export const TASK_TYPES = [
-  { value: 'sat_mock',        label: 'SAT Mock',      short: 'SAT',   color: 'bg-sky-500'    },
-  { value: 'sat_english',     label: 'SAT English',   short: 'ENG',   color: 'bg-sky-400'    },
-  { value: 'sat_math',        label: 'SAT Math',      short: 'MATH',  color: 'bg-sky-400'    },
-  { value: 'ielts_reading',   label: 'IELTS Reading', short: 'READ',  color: 'bg-purple-500' },
-  { value: 'ielts_listening', label: 'IELTS Listen',  short: 'LIST',  color: 'bg-purple-500' },
-  { value: 'ielts_writing',   label: 'IELTS Writing', short: 'WRIT',  color: 'bg-purple-400' },
-  { value: 'ielts_speaking',  label: 'IELTS Speak',   short: 'SPEK',  color: 'bg-purple-400' },
-  { value: 'cefr_test',       label: 'CEFR Test',     short: 'CEFR',  color: 'bg-indigo-500' },
-  { value: 'cefr_reading',    label: 'CEFR Reading',  short: 'CREAD', color: 'bg-indigo-400' },
-  { value: 'cefr_listening',  label: 'CEFR Listen',   short: 'CLIST', color: 'bg-indigo-400' },
-]
-
-export function taskLabel(type) { return TASK_TYPES.find(t => t.value === type)?.label || type }
-export function taskColor(type) {
-  const colorMap = {
-    sat_mock: 'text-sky-600 bg-sky-50', sat_english: 'text-sky-600 bg-sky-50', sat_math: 'text-sky-600 bg-sky-50',
-    ielts_reading: 'text-purple-600 bg-purple-50', ielts_listening: 'text-purple-600 bg-purple-50',
-    ielts_writing: 'text-purple-600 bg-purple-50', ielts_speaking: 'text-purple-600 bg-purple-50',
-    cefr_test: 'text-indigo-600 bg-indigo-50', cefr_reading: 'text-indigo-600 bg-indigo-50',
-    cefr_listening: 'text-indigo-600 bg-indigo-50',
-  }
-  return colorMap[type] || 'text-gray-600 bg-gray-50'
-}
+export { TASK_TYPES, taskLabel, taskColor }
 
 /* ── Custom Deadline Date-Time Picker ───────────────────────── */
 const MONTHS_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -349,6 +327,8 @@ export function CreateAssignmentPanel({ centerId, myRole, preGroupId, preStudent
   )
 
   const changeType = (t) => { setTaskType(t); setSelectedTest(null); setFreeTitle(''); setSearchQ('') }
+  const exam = taskMeta(taskType).exam
+  const changeExam = (e) => changeType(TASK_TYPES.find(t => t.exam === e).value)
 
   /* submit */
   const handleSubmit = async () => {
@@ -381,7 +361,7 @@ export function CreateAssignmentPanel({ centerId, myRole, preGroupId, preStudent
     }
   }
 
-  const typeCfg = TASK_TYPES.find(t => t.value === taskType)
+  const tint = examTint(taskType)
   const canSubmit = !submitting && (selectedTest || freeTitle.trim())
 
   return (
@@ -450,18 +430,28 @@ export function CreateAssignmentPanel({ centerId, myRole, preGroupId, preStudent
               )}
             </div>
 
-            {/* ── Task Type pills */}
+            {/* ── Exam, then skill */}
             <div>
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Task Type</p>
-              <div className="flex flex-wrap gap-1.5">
-                {TASK_TYPES.map(t => (
-                  <button key={t.value} onClick={() => changeType(t.value)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${
-                      taskType === t.value
-                        ? `${t.color} text-white border-transparent shadow-sm`
-                        : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-100'
+              <div className="grid grid-cols-3 gap-1 p-1 bg-slate-100 rounded-xl mb-2">
+                {EXAMS.map(e => (
+                  <button key={e.key} type="button" onClick={() => changeExam(e.key)}
+                    className={`py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      exam === e.key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
                     }`}>
-                    {t.label}
+                    {e.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {TASK_TYPES.filter(t => t.exam === exam).map(t => (
+                  <button key={t.value} type="button" onClick={() => changeType(t.value)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
+                      taskType === t.value
+                        ? `${tint.solid} text-white border-transparent`
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                    }`}>
+                    {t.skill}
                   </button>
                 ))}
               </div>
@@ -504,18 +494,14 @@ export function CreateAssignmentPanel({ centerId, myRole, preGroupId, preStudent
                           isSelected ? 'bg-sky-500 text-white' : 'bg-white hover:bg-sky-50'
                         }`}
                       >
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-[10px] font-black ${
-                          isSelected ? 'bg-sky-400 text-white' : `${typeCfg?.color || 'bg-gray-400'} text-white`
-                        }`}>
-                          {typeCfg?.short || '?'}
-                        </div>
+                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isSelected ? 'bg-white' : tint.dot}`} />
                         <div className="flex-1 min-w-0">
                           <p className={`text-sm font-semibold truncate ${isSelected ? 'text-white' : 'text-gray-800'}`}>
                             {t.title}
                           </p>
-                          {t.kind && (
-                            <p className={`text-[10px] font-medium mt-0.5 ${isSelected ? 'text-sky-100' : 'text-gray-400'}`}>
-                              {t.kind === 'mock' ? 'Full Mock Test' : t.kind === 'passage' ? 'Practice Passage' : t.kind}
+                          {(t.meta || t.kind) && (
+                            <p className={`text-[11px] font-medium mt-0.5 ${isSelected ? 'text-sky-100' : 'text-gray-400'}`}>
+                              {t.meta || KIND_LABEL[t.kind] || t.kind}
                             </p>
                           )}
                         </div>
