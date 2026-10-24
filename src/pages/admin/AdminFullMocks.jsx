@@ -16,7 +16,7 @@ import {
   Plus, Search, Trash2, Upload, X,
 } from 'lucide-react'
 import api from '../../api/client'
-import { useCanWriteAdmin } from './AdminWriteContext'
+import { OwnerOnly, useCanWriteAdmin } from './AdminWriteContext'
 
 const SLOTS = {
   ielts: [
@@ -385,8 +385,8 @@ export default function AdminFullMocks({ exam = 'ielts' }) {
                     className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100">
                     {m.is_published ? <><EyeOff size={12} />Unpublish</> : <><Eye size={12} />Publish</>}
                   </button>
-                  <button onClick={() => window.confirm(`Delete "${m.title}"? The section tests stay.`) && remove.mutate(m.id)}
-                    className="ml-auto p-1.5 rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50"><Trash2 size={14} /></button>
+                  <OwnerOnly><button onClick={() => window.confirm(`Delete "${m.title}"? The section tests stay.`) && remove.mutate(m.id)}
+                    className="ml-auto p-1.5 rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50"><Trash2 size={14} /></button></OwnerOnly>
                 </div>
               )}
             </article>

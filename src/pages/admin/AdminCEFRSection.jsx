@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import api from '../../api/client'
 import CopyJsonButton from '../../components/admin/CopyJsonButton'
-import { useCanWriteAdmin } from './AdminWriteContext'
+import { useCanWriteAdmin, useIsOwnerAdmin } from './AdminWriteContext'
 
 // Yuklangan audioni admin kompyuteriga saqlash (download)
 async function downloadAudioFile(url, baseName = 'audio') {
@@ -1107,6 +1107,7 @@ function ImageButton({ item, compact = false }) {
 // ── Mock Group Row (IELTS uslubida) ──────────────────────────────────────────
 function MockGroupRow({ testId, testTitle, testIsPremium, parts, section, colors, onAudio, onDelete }) {
   const canWrite = useCanWriteAdmin()
+  const isOwner = useIsOwnerAdmin()   // only the owner deletes tests
   // Collapsed by default — one row per mock, click to see its parts
   const [open, setOpen] = useState(false)
   const totalQ = parts.reduce((s, p) => s + (p.question_count ?? 0), 0)
@@ -1216,7 +1217,7 @@ function MockGroupRow({ testId, testTitle, testIsPremium, parts, section, colors
                       </button>
                     )}
                     {canWrite && section === 'listening' && (partNum === 4 || item.image) && <ImageButton item={item} compact />}
-                    {canWrite && (
+                    {isOwner && (
                       <button onClick={() => onDelete(item.id)}
                         className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition">
                         <Trash2 size={14} />
@@ -1236,6 +1237,7 @@ function MockGroupRow({ testId, testTitle, testIsPremium, parts, section, colors
 // ── Standalone Row ────────────────────────────────────────────────────────────
 function StandaloneRow({ item, index, section, colors, onAudio, onDelete }) {
   const canWrite = useCanWriteAdmin()
+  const isOwner = useIsOwnerAdmin()
   const lvl = item.level || ''
   const qCount = item.question_count ?? 0
   const hasAudio = !!(item.has_audio || item.audio_file)
@@ -1285,7 +1287,7 @@ function StandaloneRow({ item, index, section, colors, onAudio, onDelete }) {
           </button>
         )}
         {canWrite && section === 'listening' && (item.section_number === 4 || item.image) && <ImageButton item={item} />}
-        {canWrite && (
+        {isOwner && (
           <button onClick={() => onDelete(item.id)}
             className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition">
             <Trash2 size={15} />
@@ -1680,6 +1682,7 @@ const IMPORT_TAB = { key: 'import', label: 'Import JSON', icon: FileJson }
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function AdminCEFRSection({ section }) {
   const canWrite = useCanWriteAdmin()
+  const isOwner = useIsOwnerAdmin()   // Delete All is the owner's
   const TABS = canWrite ? [...TABS_BASE, IMPORT_TAB] : TABS_BASE
   const config = SECTION_CONFIG[section]
   const colors = COLOR_CLASSES[config.color]
@@ -1745,7 +1748,7 @@ export default function AdminCEFRSection({ section }) {
 
         <div className="flex items-center gap-2 flex-wrap">
           {/* Delete All — faqat reading va listening uchun */}
-          {canWrite && deleteAllEndpoint && items.length > 0 && (
+          {isOwner && deleteAllEndpoint && items.length > 0 && (
             <button
               onClick={() => setDeleteAllOpen(true)}
               className="flex items-center gap-2 px-3 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl text-xs font-semibold hover:bg-red-100 transition"

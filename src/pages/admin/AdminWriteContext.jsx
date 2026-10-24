@@ -28,6 +28,21 @@ export function useCanWriteAdmin() {
   return useContext(AdminWriteContext)
 }
 
+/**
+ * "May this admin delete tests or copy their JSON?" — only the owner.
+ * Level 1 can do everything else (sat/accounts/admin_access.py refuses the
+ * same DELETE / export calls on the server).
+ */
+export function useIsOwnerAdmin() {
+  const user = useAuthStore((s) => s.user)
+  return tierOf(user) === 'super'
+}
+
+/** Renders its children only for the owner (deleting tests). */
+export function OwnerOnly({ children }) {
+  return useIsOwnerAdmin() ? children : null
+}
+
 /** Renders its children only for admins who may change things. */
 export default function WriteOnly({ children }) {
   return useCanWriteAdmin() ? children : null

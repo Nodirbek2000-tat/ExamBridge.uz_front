@@ -5,6 +5,7 @@ import {
   GraduationCap, Trash2, Upload, X, AlertCircle, FileJson, Loader2,
   Check, Crown, Clock, FileText, BookOpen, Headphones, Eye,
 } from 'lucide-react'
+import { OwnerOnly } from './AdminWriteContext'
 import api from '../../api/client'
 
 // ── JSON Examples ─────────────────────────────────────────────────────────────
@@ -790,8 +791,8 @@ function GrammarTab() {
                         <div className="flex items-center gap-1">
                           <button onClick={() => setReviewItem(test)}
                             className="p-2 text-gray-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-colors"><Eye size={14}/></button>
-                          <button onClick={() => setDeleteId(test.id)}
-                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={14}/></button>
+                          <OwnerOnly><button onClick={() => setDeleteId(test.id)}
+                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={14}/></button></OwnerOnly>
                         </div>
                       </td>
                     </motion.tr>
@@ -891,10 +892,10 @@ function ReadingListeningTab({ contentType }) {
                     className="p-2 text-gray-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-colors" title="Savollarni ko'rish">
                     <Eye size={15}/>
                   </button>
-                  <button onClick={() => setDeleteId(item.id)}
+                  <OwnerOnly><button onClick={() => setDeleteId(item.id)}
                     className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="O'chirish">
                     <Trash2 size={15}/>
-                  </button>
+                  </button></OwnerOnly>
                 </div>
               </motion.div>
             ))}

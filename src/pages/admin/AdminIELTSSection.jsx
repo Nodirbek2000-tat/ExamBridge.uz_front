@@ -8,7 +8,7 @@ import {
   Save, Eye, Zap, Search, ChevronDown, ChevronUp, Layers, Download,
 } from 'lucide-react'
 import CopyJsonButton from '../../components/admin/CopyJsonButton'
-import { useCanWriteAdmin } from './AdminWriteContext'
+import { useCanWriteAdmin, useIsOwnerAdmin } from './AdminWriteContext'
 
 // Yuklangan audioni admin kompyuteriga saqlash (download)
 async function downloadAudioFile(url, baseName = 'unified-audio') {
@@ -1086,6 +1086,7 @@ function AudioUploadModal({ item, onClose, onSuccess }) {
 
 // ── Test-level (Unified) Audio Upload Modal ───────────────────────────────────
 function TestAudioUploadModal({ item, onClose, onSuccess }) {
+  const isOwner = useIsOwnerAdmin()   // removing audio is a delete — owner only
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState(null)
   const fileRef = useRef()
@@ -1139,10 +1140,12 @@ function TestAudioUploadModal({ item, onClose, onSuccess }) {
               className="mt-2 w-full py-1.5 text-xs text-purple-700 hover:bg-purple-100 rounded-lg transition font-medium flex items-center justify-center gap-1.5 border border-purple-200">
               <Download size={12} /> Save audio
             </button>
-            <button onClick={handleDelete} disabled={loading}
-              className="mt-1.5 w-full py-1.5 text-xs text-red-600 hover:bg-red-50 rounded-lg transition font-medium flex items-center justify-center gap-1">
-              <Trash2 size={11} /> Remove unified audio
-            </button>
+            {isOwner && (
+              <button onClick={handleDelete} disabled={loading}
+                className="mt-1.5 w-full py-1.5 text-xs text-red-600 hover:bg-red-50 rounded-lg transition font-medium flex items-center justify-center gap-1">
+                <Trash2 size={11} /> Remove unified audio
+              </button>
+            )}
           </div>
         ) : (
           <div className="flex items-center gap-2 p-2.5 bg-gray-50 rounded-xl mb-3 border border-gray-100">
@@ -1331,6 +1334,7 @@ function CambridgeToggle({ active, loading, onClick, size = 'sm' }) {
 // ── Single section/passage row ────────────────────────────────────────────────
 function SectionRow({ item, index, section, config, colors, onEdit, onAudio, onImage, onDelete, onTogglePremium, onToggleCambridge, indent }) {
   const canWrite = useCanWriteAdmin()
+  const isOwner = useIsOwnerAdmin()   // only the owner deletes tests
   const metas = config.renderMeta(item)
   const [premiumLoading, setPremiumLoading] = useState(false)
   const [cambridgeLoading, setCambridgeLoading] = useState(false)
@@ -1431,7 +1435,7 @@ function SectionRow({ item, index, section, config, colors, onEdit, onAudio, onI
             <Edit3 size={15} />
           </button>
         )}
-        {canWrite && (
+        {isOwner && (
           <button onClick={() => onDelete(item.id)}
             className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Delete">
             <Trash2 size={15} />
@@ -2118,6 +2122,7 @@ function DeleteAllConfirm({ section, count, onConfirm, onCancel, loading, error 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function AdminIELTSSection({ section }) {
   const canWrite = useCanWriteAdmin()
+  const isOwner = useIsOwnerAdmin()   // Delete All is the owner's
   const config = SECTION_CONFIG[section]
   const colors = COLOR_CLASSES[config.color]
   const Icon = config.icon
@@ -2202,7 +2207,7 @@ export default function AdminIELTSSection({ section }) {
 
         <div className="flex items-center gap-2 flex-wrap">
           {/* Delete All button — only for reading & listening */}
-          {canWrite && deleteAllEndpoint && items.length > 0 && (
+          {isOwner && deleteAllEndpoint && items.length > 0 && (
             <button
               onClick={() => setDeleteAllOpen(true)}
               className="flex items-center gap-2 px-3 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl text-xs font-semibold hover:bg-red-100 transition"

@@ -3,6 +3,7 @@ import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'framer-motion'
 import { AlertCircle, Check, ChevronDown, Copy, Crown, FileJson, FileText, ImagePlus, Loader2, Mic, Trash2, Upload, X } from 'lucide-react'
+import { OwnerOnly } from './AdminWriteContext'
 import api from '../../api/client'
 
 const PART_LABEL = { '1.1': '1.1', '1.2': '1.2', '2': 'Part 2', '3': 'Part 3' }
@@ -79,8 +80,8 @@ function ImageSlot({ item, slot, label, onDone }) {
         {src ? <img src={src} alt={label} className="h-full w-full object-cover" /> : <ImagePlus size={22} className="text-slate-300" />}
         {busy && <div className="absolute inset-0 flex items-center justify-center bg-white/70"><Loader2 size={18} className="animate-spin text-sky-600" /></div>}
         {src && !busy && (
-          <button type="button" onClick={remove} title="Rasmni o'chirish"
-            className="absolute right-1 top-1 rounded-md bg-black/55 p-1 text-white hover:bg-black/75"><X size={12} /></button>
+          <OwnerOnly><button type="button" onClick={remove} title="Rasmni o'chirish"
+            className="absolute right-1 top-1 rounded-md bg-black/55 p-1 text-white hover:bg-black/75"><X size={12} /></button></OwnerOnly>
         )}
       </div>
       <button type="button" onClick={() => ref.current?.click()} disabled={busy}
@@ -113,7 +114,7 @@ function Row({ item, onDelete, onChanged }) {
           ? <span className="rounded-lg bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700">Tayyor</span>
           : <span className="rounded-lg bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700">1.2 rasmlari kerak</span>}
         {item.is_premium && <span className="flex items-center gap-1 rounded-lg bg-yellow-50 px-2 py-0.5 text-xs font-bold text-yellow-700"><Crown size={11} /> Premium</span>}
-        <button type="button" onClick={() => onDelete(item)} title="O'chirish" className="rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-600"><Trash2 size={15} /></button>
+        <OwnerOnly><button type="button" onClick={() => onDelete(item)} title="O'chirish" className="rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-600"><Trash2 size={15} /></button></OwnerOnly>
       </div>
       <AnimatePresence initial={false}>
         {open && (

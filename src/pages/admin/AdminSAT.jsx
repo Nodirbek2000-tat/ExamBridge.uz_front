@@ -27,6 +27,7 @@ import {
   Layers,
 } from 'lucide-react'
 import api from '../../api/client'
+import { OwnerOnly } from './AdminWriteContext'
 import { sanitizeHtml } from '../../utils/sanitizeHtml';
 
 /* ─── Animation variants ─────────────────────────────────────── */
@@ -1387,7 +1388,7 @@ function BankQuestionsTab() {
                             >
                               <Code2 size={14} />
                             </button>
-                            <button
+                            <OwnerOnly><button
                               onClick={() => {
                                 if (confirm(`Delete question #${q.id}?`)) deleteMutation.mutate(q.id)
                               }}
@@ -1395,7 +1396,7 @@ function BankQuestionsTab() {
                               title="Delete"
                             >
                               <X size={14} />
-                            </button>
+                            </button></OwnerOnly>
                           </div>
                         </td>
                       </motion.tr>

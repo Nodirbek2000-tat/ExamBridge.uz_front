@@ -6,6 +6,7 @@ import {
   Upload, X, AlertCircle, FileJson, Loader2, Check, FileText,
   Eye, Clock, Crown,
 } from 'lucide-react'
+import { OwnerOnly } from './AdminWriteContext'
 import api from '../../api/client'
 
 // ── JSON Examples ─────────────────────────────────────────────────────────────
@@ -994,10 +995,10 @@ function ReadingListeningTab({ section }) {
                             className="p-2 text-gray-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-colors" title="Savollarni ko'rish">
                             <Eye size={14}/>
                           </button>
-                          <button onClick={() => setDeleteId(item.id)}
+                          <OwnerOnly><button onClick={() => setDeleteId(item.id)}
                             className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                             <Trash2 size={14}/>
-                          </button>
+                          </button></OwnerOnly>
                         </div>
                       </td>
                     </motion.tr>
@@ -1076,10 +1077,10 @@ function SimpleTab({ section }) {
                     {item.is_premium && <span className="flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-semibold"><Crown size={9}/>Premium</span>}
                   </div>
                 </div>
-                <button onClick={() => setDeleteId(item.id)}
+                <OwnerOnly><button onClick={() => setDeleteId(item.id)}
                   className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                   <Trash2 size={14}/>
-                </button>
+                </button></OwnerOnly>
               </motion.div>
             ))}
           </div>

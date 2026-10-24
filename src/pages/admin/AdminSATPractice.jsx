@@ -7,6 +7,7 @@ import {
   FileJson, ChevronRight, Image as ImageIcon, Table, AlignLeft,
 } from 'lucide-react'
 import api from '../../api/client'
+import { OwnerOnly } from './AdminWriteContext'
 import { sanitizeHtml } from '../../utils/sanitizeHtml';
 
 const fadeUp = {
@@ -199,7 +200,7 @@ function ChoiceImageUpload({ questionId, letter, currentUrl, onUploaded }) {
       {currentUrl && (
         <div className="relative flex-shrink-0 group/img">
           <img src={currentUrl} alt="" className="w-8 h-8 object-cover rounded border border-gray-200" />
-          <button
+          <OwnerOnly><button
             type="button"
             onClick={handleDelete}
             disabled={deleting}
@@ -207,7 +208,7 @@ function ChoiceImageUpload({ questionId, letter, currentUrl, onUploaded }) {
             title="Rasmni o'chirish"
           >
             {deleting ? <Loader2 size={8} className="animate-spin" /> : <X size={8} />}
-          </button>
+          </button></OwnerOnly>
         </div>
       )}
     </div>
@@ -801,10 +802,10 @@ function QuestionsTable() {
                               className="p-1.5 rounded-lg text-gray-400 hover:text-sky-500 hover:bg-sky-50 transition" title="Edit">
                               <Code2 size={14} />
                             </button>
-                            <button onClick={() => { if (confirm(`Delete #${q.id}?`)) deleteMutation.mutate(q.id) }}
+                            <OwnerOnly><button onClick={() => { if (confirm(`Delete #${q.id}?`)) deleteMutation.mutate(q.id) }}
                               className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition" title="Delete">
                               <X size={14} />
-                            </button>
+                            </button></OwnerOnly>
                           </div>
                         </td>
                       </motion.tr>

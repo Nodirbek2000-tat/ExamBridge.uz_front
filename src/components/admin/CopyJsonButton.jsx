@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Copy, Check, Loader2, AlertCircle } from 'lucide-react'
 import api from '../../api/client'
+import { useIsOwnerAdmin } from '../../pages/admin/AdminWriteContext'
 
 /**
  * Materialni import formatidagi JSON ko'rinishida nusxalash.
@@ -37,6 +38,8 @@ async function copyText(text) {
 
 export default function CopyJsonButton({ url, label = 'JSON', title = 'Import formatidagi JSON nusxasi', compact = false }) {
   const [state, setState] = useState('idle')   // idle | loading | done | error
+  // Test JSON (answers included) is for the owner only — the server refuses it too
+  const owner = useIsOwnerAdmin()
 
   const handleClick = async (e) => {
     e.stopPropagation()          // qatorni ochib/yopib yubormasin
@@ -68,6 +71,7 @@ export default function CopyJsonButton({ url, label = 'JSON', title = 'Import fo
       ? 'text-red-600 bg-red-50 border-red-200'
       : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 border-gray-200'
 
+  if (!owner) return null
   return (
     <button
       type="button"

@@ -31,6 +31,7 @@ import {
   BookOpen, Layers, LayoutGrid, Trash2, Image as ImageIcon,
 } from 'lucide-react'
 import api from '../../api/client'
+import { OwnerOnly } from './AdminWriteContext'
 import { sanitizeHtml } from '../../utils/sanitizeHtml';
 
 const fadeUp = {
@@ -296,7 +297,7 @@ function ChoiceImageUpload({ questionId, letter, currentUrl, onUploaded }) {
       {currentUrl && (
         <div className="relative flex-shrink-0 group/img">
           <img src={currentUrl} alt="" className="w-8 h-8 object-cover rounded border border-gray-200" />
-          <button
+          <OwnerOnly><button
             type="button"
             onClick={handleDelete}
             disabled={deleting}
@@ -304,7 +305,7 @@ function ChoiceImageUpload({ questionId, letter, currentUrl, onUploaded }) {
             title="Rasmni o'chirish"
           >
             {deleting ? <Loader2 size={8} className="animate-spin" /> : <X size={8} />}
-          </button>
+          </button></OwnerOnly>
         </div>
       )}
     </div>
@@ -577,7 +578,7 @@ function TestsTab() {
                       </button>
                     </td>
                     <td className="px-4 py-3.5">
-                      <button
+                      <OwnerOnly><button
                         type="button"
                         onClick={() => setDeletingTestId(t.id)}
                         disabled={deleteTest.isPending}
@@ -585,7 +586,7 @@ function TestsTab() {
                         title="Delete test"
                       >
                         <Trash2 size={15} />
-                      </button>
+                      </button></OwnerOnly>
                     </td>
                   </motion.tr>
                 ))}
@@ -913,11 +914,11 @@ function QuestionsTab() {
                             className="p-1.5 rounded-lg text-gray-400 hover:text-sky-500 hover:bg-sky-50 transition" title="Edit">
                             <Code2 size={13} />
                           </button>
-                          <button
+                          <OwnerOnly><button
                             onClick={(e) => { e.stopPropagation(); setDeletingId(q.id) }}
                             className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition" title="Delete question">
                             <Trash2 size={13} />
-                          </button>
+                          </button></OwnerOnly>
                         </div>
                       </td>
                     </motion.tr>

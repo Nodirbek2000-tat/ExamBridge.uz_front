@@ -3,6 +3,7 @@ import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'framer-motion'
 import { AlertCircle, Check, ChevronDown, Copy, Crown, FileJson, FileText, Loader2, PenLine, Trash2, Upload } from 'lucide-react'
+import { OwnerOnly } from './AdminWriteContext'
 import api from '../../api/client'
 
 const KIND = {
@@ -69,8 +70,8 @@ function Row({ item, onDelete }) {
         </button>
         <span className={`rounded-lg border px-2 py-0.5 text-xs font-bold ${k.cls}`}>{k.label}</span>
         {item.is_premium && <span className="flex items-center gap-1 rounded-lg bg-yellow-50 px-2 py-0.5 text-xs font-bold text-yellow-700"><Crown size={11} /> Premium</span>}
-        <button type="button" onClick={() => onDelete(item)} title="O'chirish"
-          className="rounded-lg p-2 text-gray-400 transition hover:bg-red-50 hover:text-red-600"><Trash2 size={15} /></button>
+        <OwnerOnly><button type="button" onClick={() => onDelete(item)} title="O'chirish"
+          className="rounded-lg p-2 text-gray-400 transition hover:bg-red-50 hover:text-red-600"><Trash2 size={15} /></button></OwnerOnly>
       </div>
       <AnimatePresence initial={false}>
         {open && (
