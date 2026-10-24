@@ -14,7 +14,7 @@ import { useOutletContext } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  AlertTriangle, BookOpen, Check, ChevronDown, FileJson, Globe2, Headphones, Image as ImageIcon, Loader2, Mic,
+  AlertTriangle, BookOpen, Check, ChevronDown, Copy, FileJson, Globe2, Headphones, Image as ImageIcon, Loader2, Mic,
   PenLine, Plus, Trash2, Upload, X,
 } from 'lucide-react'
 import api from '../../api/client'
@@ -144,28 +144,34 @@ function ContentList({ centerId, kind, data, canManage }) {
   )
 }
 
-/* ── import panel ───────────────────────────────────────────── */
+/* ── import panel — the admin panel's layout: format guide | your JSON ── */
 function ImportPanel({ centerId, exam, section, onClose }) {
   const qc = useQueryClient()
   const kind = `${exam}-${section}`
   const [json, setJson] = useState('')
-  const [showExample, setShowExample] = useState(false)
   const [msg, setMsg] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const copyExample = async () => {
+    try { await navigator.clipboard.writeText(EXAMPLE[kind]); setCopied(true); setTimeout(() => setCopied(false), 1500) } catch { /* select it by hand */ }
+  }
 
   const run = async () => {
     setMsg(null)
     let parsed
-    try { parsed = JSON.parse(json) } catch { return setMsg({ ok: false, text: 'This is not valid JSON.' }) }
+    // like the admin panel: whole-line // comments are allowed (the examples use them)
+    try { parsed = JSON.parse(json.replace(/^\s*\/\/.*$/gm, '')) } catch { return setMsg({ ok: false, text: 'Invalid JSON — check for syntax errors (a missing comma or quote).' }) }
     setBusy(true)
     try {
       const body = exam === 'cefr' && (section === 'reading' || section === 'listening') ? { ...parsed, type: section } : parsed
-      await api.post(`/centers/${centerId}/content/import/${kind}/`, body)
+      const { data } = await api.post(`/centers/${centerId}/content/import/${kind}/`, body)
       qc.invalidateQueries({ queryKey: ['center-content', centerId, kind] })
+      const parts = data?.part_count ? ` · ${data.part_count} parts` : data?.section_count ? ` · ${data.section_count} sections` : ''
       setJson('')
-      setMsg({ ok: true, text: section === 'listening' ? 'Imported. Now add the audio.' : 'Imported — students can see it now.' })
+      setMsg({ ok: true, text: `Imported successfully${parts}.${section === 'listening' ? ' Now add the audio.' : ' Students can see it now.'}` })
     } catch (e) {
-      setMsg({ ok: false, text: e.response?.data?.error || 'Import failed — check the format against the example.' })
+      setMsg({ ok: false, text: e.response?.data?.error || e.response?.data?.detail || 'Import failed — compare it with the format guide.' })
     } finally {
       setBusy(false)
     }
@@ -175,28 +181,41 @@ function ImportPanel({ centerId, exam, section, onClose }) {
     <>
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/30 z-40" onClick={onClose} />
       <motion.aside initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 28, stiffness: 260 }}
-        className="fixed right-0 top-0 h-full w-full max-w-2xl bg-slate-50 shadow-2xl z-50 flex flex-col">
+        className="fixed right-0 top-0 h-full w-full max-w-6xl bg-slate-50 shadow-2xl z-50 flex flex-col">
         <header className="px-6 py-5 bg-white border-b border-slate-200/70 flex items-start justify-between">
           <div>
             <h2 className="text-lg font-bold text-slate-900">Import {exam.toUpperCase()} {section}</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Full mocks and single parts — the same JSON format as ExamBridge uses.</p>
+            <p className="text-xs text-slate-500 mt-0.5">Full mocks and single parts — exactly the format ExamBridge uses. Lines starting with // are ignored.</p>
           </div>
           <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-700"><X size={20} /></button>
         </header>
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-          <textarea rows={14} value={json} onChange={(e) => setJson(e.target.value)} spellCheck={false} placeholder="Paste JSON here…"
-            className="w-full border border-slate-200 rounded-xl px-3.5 py-3 text-xs font-mono text-slate-900 bg-white focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100" />
-          <div className="flex flex-wrap items-center gap-2">
-            <UploadButton label="From file" tone="plain" accept=".json,application/json" onFile={async (f) => setJson(await f.text())} />
-            <button onClick={() => setShowExample((v) => !v)} className="text-xs font-semibold text-slate-500 hover:text-slate-900">
-              {showExample ? 'Hide example' : 'Show the format example'}
-            </button>
-            <PrimaryButton className="ml-auto" icon={busy ? Loader2 : FileJson} disabled={busy || !json.trim()} onClick={run}>Import</PrimaryButton>
+        <div className="flex-1 min-h-0 grid lg:grid-cols-2 gap-5 p-6 overflow-y-auto lg:overflow-hidden">
+          {/* Format guide */}
+          <div className="flex flex-col min-h-0">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Format guide</p>
+              <button onClick={copyExample} className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900">
+                {copied ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}{copied ? 'Copied' : 'Copy'}
+              </button>
+            </div>
+            <div className="flex-1 min-h-[300px] bg-slate-950 rounded-2xl p-4 overflow-auto">
+              <pre className="text-[11px] text-emerald-300 font-mono leading-relaxed whitespace-pre">{EXAMPLE[kind]}</pre>
+            </div>
           </div>
-          {msg && <p className={`p-3 rounded-xl text-sm ${msg.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>{msg.text}</p>}
-          {showExample && (
-            <pre className="p-4 rounded-xl bg-slate-900 text-emerald-300 text-[11px] leading-relaxed overflow-x-auto whitespace-pre">{EXAMPLE[kind]}</pre>
-          )}
+          {/* Your JSON */}
+          <div className="flex flex-col gap-3 min-h-0">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Paste or upload JSON</p>
+            <textarea value={json} onChange={(e) => setJson(e.target.value)} spellCheck={false}
+              placeholder="Paste your JSON here… (// comments are allowed)"
+              className="flex-1 min-h-[260px] w-full p-3.5 bg-white border border-slate-200 rounded-2xl text-xs font-mono text-slate-800 focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 resize-none" />
+            <label className="flex items-center justify-center gap-2 px-4 py-2.5 border border-dashed border-slate-300 rounded-xl text-sm text-slate-500 hover:border-slate-400 hover:text-slate-700 hover:bg-white cursor-pointer transition">
+              <Upload size={15} /> Upload .json file
+              <input type="file" accept=".json,application/json" className="hidden"
+                onChange={async (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) setJson(await f.text()) }} />
+            </label>
+            {msg && <p className={`p-3 rounded-xl text-sm ${msg.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>{msg.text}</p>}
+            <PrimaryButton className="w-full" icon={busy ? Loader2 : FileJson} disabled={busy || !json.trim()} onClick={run}>Import</PrimaryButton>
+          </div>
         </div>
       </motion.aside>
     </>
