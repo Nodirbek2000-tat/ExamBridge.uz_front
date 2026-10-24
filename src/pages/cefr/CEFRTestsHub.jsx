@@ -2,13 +2,14 @@ import { useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
-import { BookOpen, Headphones, Mic, PenLine, History } from 'lucide-react'
+import { BookOpen, Headphones, Mic, PenLine, History, Play, Layers } from 'lucide-react'
 import api from '../../api/client'
 import CEFRReadingList from './CEFRReadingList'
 import CEFRListeningList from './CEFRListeningList'
 import CEFRSpeakingList from './CEFRSpeakingList'
 import CEFRWritingList from './CEFRWritingList'
 import CEFRSpeakingTests from './CEFRSpeakingTests'
+import FullMockList from '../fullmock/FullMockList'
 
 const TABS = [
   { key: 'reading', label: 'Reading', icon: BookOpen, color: 'text-sky-500', activeBg: 'bg-sky-500', btn: 'bg-sky-500 hover:bg-sky-600' },
@@ -20,7 +21,7 @@ const TABS = [
 export default function CEFRTestsHub() {
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
-  const initial = TABS.some((t) => t.key === searchParams.get('tab')) ? searchParams.get('tab') : 'reading'
+  const initial = [...TABS.map((t) => t.key), 'mock'].includes(searchParams.get('tab')) ? searchParams.get('tab') : 'reading'
   const [tab, setTab] = useState(initial)
 
   const { data: readingData } = useQuery({ queryKey: ['cefr-reading-list'], queryFn: () => api.get('/cefr/reading/').then((r) => r.data) })
@@ -61,6 +62,28 @@ export default function CEFRTestsHub() {
               <History size={16} /> History
             </button>
           </div>
+
+          {/* Full exam — all four sections in exam order */}
+          <motion.button
+            type="button"
+            onClick={() => pick('mock')}
+            whileHover={{ scale: 1.004 }}
+            whileTap={{ scale: 0.996 }}
+            className={`w-full flex items-center gap-4 rounded-2xl p-4 sm:p-5 text-left transition-colors ${
+              tab === 'mock' ? 'bg-rose-100/70' : 'bg-rose-50/70 hover:bg-rose-100/60'
+            }`}
+          >
+            <div className="w-11 h-11 rounded-xl bg-rose-100 flex items-center justify-center flex-shrink-0">
+              <Play size={18} className="text-rose-500 fill-rose-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-black text-gray-900">Full Exam — dress rehearsal</p>
+              <p className="text-sm text-gray-500 mt-0.5">Listening, Reading, Writing and Speaking in exam order, one overall score.</p>
+            </div>
+            <span className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-500 text-white text-sm font-bold flex-shrink-0">
+              Start <Layers size={14} />
+            </span>
+          </motion.button>
 
           {/* Skill tabs — borderless pills; only the active one is filled */}
           <div className="flex gap-1.5 overflow-x-auto pb-3 -mx-1 px-1">
@@ -113,6 +136,7 @@ export default function CEFRTestsHub() {
               </div>
             )}
             {tab === 'writing' && <CEFRWritingList accentBtn={activeTab?.btn} />}
+            {tab === 'mock' && <FullMockList exam="cefr" />}
           </motion.div>
         </AnimatePresence>
       </div>

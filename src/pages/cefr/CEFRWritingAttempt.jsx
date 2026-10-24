@@ -11,6 +11,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { AlertTriangle, ArrowLeft, Check, Clock, Loader2, PenLine, Play, Send } from 'lucide-react'
 import api from '../../api/client'
 import { clearExam, examKey, loadExam, saveExam } from '../../utils/examPersist'
+import { fullMockReturn } from '../../utils/fullMockFlow'
 
 const HOME = '/app/cefr/skills?tab=writing'
 // upper limits are only a reminder — the examiner judges length together with the content
@@ -92,7 +93,9 @@ export default function CEFRWritingAttempt() {
 
   // already submitted (e.g. opened from history) → the result page
   useEffect(() => {
-    if (data && data.status !== 'IN_PROGRESS') navigate(`/exam/cefr/writing/result/${responseId}`, { replace: true })
+    if (data && data.status !== 'IN_PROGRESS') {
+      navigate(fullMockReturn('cefr_writing', responseId) || `/exam/cefr/writing/result/${responseId}`, { replace: true })
+    }
   }, [data, responseId, navigate])
 
   const limit = (data?.test?.time_limit || 60) * 60
@@ -120,7 +123,7 @@ export default function CEFRWritingAttempt() {
       const payload = Object.fromEntries(tasks.map(t => [t.key, answers[t.key] || '']))
       await api.post(`/cefr/writing/responses/${responseId}/submit/`, { answers: payload })
       clearExam(pKey)
-      navigate(`/exam/cefr/writing/result/${responseId}`, { replace: true })
+      navigate(fullMockReturn('cefr_writing', responseId) || `/exam/cefr/writing/result/${responseId}`, { replace: true })
     } catch (e) {
       setSubmitError(e.response?.data?.detail || 'Could not submit. Check your connection and try again — your text is saved.')
       setSubmitting(false)

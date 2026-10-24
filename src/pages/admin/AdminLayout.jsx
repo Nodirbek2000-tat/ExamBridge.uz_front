@@ -71,6 +71,7 @@ const NAV = [
       { to: '/admin-panel/ielts/speaking',  icon: Mic,       label: 'Speaking' },
       { to: '/admin-panel/ielts/writing',   icon: PenLine,   label: 'Writing' },
       { to: '/admin-panel/ielts/tests',     icon: Zap,       label: 'Full Tests' },
+      { to: '/admin-panel/ielts/full-mocks', icon: Trophy,   label: 'Full Mock Exam' },
     ],
   },
   {
@@ -84,6 +85,7 @@ const NAV = [
       { to: '/admin-panel/cefr/speaking',  icon: Mic,           label: 'Speaking' },
       { to: '/admin-panel/cefr/writing',   icon: PenLine,       label: 'Writing' },
       { to: '/admin-panel/cefr/grammar',   icon: GraduationCap, label: 'Grammar' },
+      { to: '/admin-panel/cefr/full-mocks', icon: Trophy,      label: 'Full Mock Exam' },
     ],
   },
   {

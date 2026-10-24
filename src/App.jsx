@@ -40,7 +40,6 @@ const SATLeaderboard = lazyWithPreload(() => import('./pages/sat/SATLeaderboard'
 
 // IELTS
 const IELTSDashboard = lazyWithPreload(() => import('./pages/ielts/IELTSDashboard'))
-const IELTSTestList = lazyWithPreload(() => import('./pages/ielts/IELTSTestList'))
 const IELTSAttempt = lazyWithPreload(() => import('./pages/ielts/IELTSAttempt'))
 const IELTSReadingAttempt = lazyWithPreload(() => import('./pages/ielts/IELTSReadingAttempt'))
 const IELTSReadingResult = lazyWithPreload(() => import('./pages/ielts/IELTSReadingResult'))
@@ -122,6 +121,8 @@ const AdminCEFR = lazyWithPreload(() => import('./pages/admin/AdminCEFR'))
 const AdminCEFRSection = lazyWithPreload(() => import('./pages/admin/AdminCEFRSection'))
 const AdminCEFRWriting = lazyWithPreload(() => import('./pages/admin/AdminCEFRWriting'))
 const AdminCEFRSpeaking = lazyWithPreload(() => import('./pages/admin/AdminCEFRSpeaking'))
+const AdminFullMocks = lazyWithPreload(() => import('./pages/admin/AdminFullMocks'))
+const FullMockPage = lazyWithPreload(() => import('./pages/fullmock/FullMockPage'))
 const AdminSystem = lazyWithPreload(() => import('./pages/admin/AdminSystem'))
 const AdminAIStructures = lazyWithPreload(() => import('./pages/admin/AdminAIStructures'))
 const AdminReports = lazyWithPreload(() => import('./pages/admin/AdminReports'))
@@ -261,7 +262,7 @@ export default function App() {
         {/* IELTS */}
         <Route path="ielts" element={<IELTSDashboard />} />
         <Route path="ielts/skills" element={<IELTSTestsHub />} />
-        <Route path="ielts/tests" element={<IELTSTestList />} />
+        <Route path="ielts/tests" element={<Navigate to="/app/ielts/skills?tab=mock" replace />} />
         {/* Old single-skill list pages → the hub tab (one place for every test list) */}
         <Route path="ielts/reading" element={<Navigate to="/app/ielts/skills?tab=reading" replace />} />
         <Route path="ielts/listening" element={<Navigate to="/app/ielts/skills?tab=listening" replace />} />
@@ -327,6 +328,7 @@ export default function App() {
       <Route path="/exam" element={<PrivateRoute><ExamLayout /></PrivateRoute>}>
         <Route path="sat/:attemptId" element={<SATTestAttempt />} />
         <Route path="ielts/:attemptId" element={<IELTSAttempt />} />
+        <Route path="full-mock/:attemptId" element={<FullMockPage />} />
         <Route path="ielts/writing/result/:responseId" element={<IELTSWritingResult />} />
         <Route path="ielts/writing/result" element={<IELTSWritingResult />} />
         <Route path="ielts/writing/:attemptId" element={<IELTSWritingAttempt />} />
@@ -374,12 +376,14 @@ export default function App() {
           <Route path="speaking"  element={<AdminIELTSSection section="speaking" />} />
           <Route path="writing"   element={<AdminIELTSSection section="writing" />} />
           <Route path="tests"     element={<AdminIELTSSection section="tests" />} />
+          <Route path="full-mocks" element={<AdminFullMocks exam="ielts" />} />
         </Route>
         {/* CEFR */}
         <Route path="cefr">
           <Route index element={<Navigate to="/admin-panel/cefr/reading" replace />} />
           <Route path="reading"   element={<AdminCEFRSection section="reading" />} />
           <Route path="listening" element={<AdminCEFRSection section="listening" />} />
+          <Route path="full-mocks" element={<AdminFullMocks exam="cefr" />} />
           <Route path="grammar"   element={<AdminCEFRSection section="grammar" />} />
           <Route path="writing"   element={<AdminCEFRWriting />} />
           <Route path="speaking"  element={<AdminCEFRSpeaking />} />

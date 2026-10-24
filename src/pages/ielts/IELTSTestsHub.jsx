@@ -8,7 +8,7 @@ import IELTSReadingList from './IELTSReadingList'
 import IELTSListeningList from './IELTSListeningList'
 import IELTSWritingList from './IELTSWritingList'
 import IELTSSpeakingList from './IELTSSpeakingList'
-import IELTSTestList from './IELTSTestList'
+import FullMockList from '../fullmock/FullMockList'
 
 const TABS = [
   { key: 'reading', label: 'Reading', icon: BookOpen, color: 'text-sky-500', activeBg: 'bg-sky-500', btn: 'bg-sky-500 hover:bg-sky-600' },
@@ -124,7 +124,7 @@ export default function IELTSTestsHub() {
             {tab === 'listening' && <IELTSListeningList accentBtn={activeTab?.btn} />}
             {tab === 'writing' && <IELTSWritingList embedded accentBtn={activeTab?.btn} />}
             {tab === 'speaking' && <IELTSSpeakingList embedded accentBtn={activeTab?.btn} />}
-            {tab === 'mock' && <IELTSTestList />}
+            {tab === 'mock' && <FullMockList exam="ielts" />}
           </motion.div>
         </AnimatePresence>
       </div>

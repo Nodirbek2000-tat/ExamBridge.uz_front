@@ -14,6 +14,7 @@ import { sanitizeHtml } from '../../utils/sanitizeHtml';
 import { loadExam, saveExam, clearExam } from '../../utils/examPersist'
 import { useAnswerReview } from '../../hooks/useAnswerReview'
 import AnswerReviewToggle from '../../components/exam/AnswerReviewToggle'
+import { fullMockReturn } from '../../utils/fullMockFlow'
 
 function Skeleton({ className = '' }) {
   return <div className={`animate-pulse rounded-lg bg-gray-200/70 ${className}`} />
@@ -2319,6 +2320,7 @@ export default function IELTSReadingAttempt() {
     setShowExitConfirm(false)
     setSubmitting(true)
     const isFull = partIds.length > 1
+    const fullMockBack = fullMockReturn('ielts_reading', attemptId)
     try {
       if (!isFull) {
         // Single part � oddiy X/Y format, band ko'rsatilmaydi
@@ -2326,6 +2328,7 @@ export default function IELTSReadingAttempt() {
           attempt_id: parseInt(attemptId),
           answers,
         })
+        if (fullMockBack) { navigate(fullMockBack, { replace: true }); return }
         navigate(`/exam/ielts/reading/${attemptId}/result?passage=${currentPassageId}${partsQuery}&title=${encodeURIComponent(cleanPassageTitle || 'Reading')}`, {
           state: { result: { ...res.data, is_full: false }, passageTitle: cleanPassageTitle || 'Reading' }, replace: true,
         })
@@ -2358,6 +2361,7 @@ export default function IELTSReadingAttempt() {
           is_full: true,
           difficulty,
         }
+        if (fullMockBack) { navigate(fullMockBack, { replace: true }); return }
         navigate(`/exam/ielts/reading/${attemptId}/result?passage=${currentPassageId}${partsQuery}&title=${encodeURIComponent(cleanPassageTitle || 'Reading')}`, {
           state: { result: aggregated, passageTitle: cleanPassageTitle || 'Reading' }, replace: true,
         })
@@ -2441,7 +2445,7 @@ export default function IELTSReadingAttempt() {
     allowLeaveRef.current = true
     timer.clearPersist()
     clearExam(answersStorageKey)
-    navigate('/app/ielts/reading')
+    navigate(fullMockReturn('ielts_reading', attemptId) || '/app/ielts/reading')
   }
   const handleRedoFromReview = async () => {
     if (!currentPassageId) return

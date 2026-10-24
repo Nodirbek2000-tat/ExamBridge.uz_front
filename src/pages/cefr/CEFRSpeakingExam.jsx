@@ -14,6 +14,7 @@ import api from '../../api/client'
 import { preloadTts } from '../../utils/ttsPreload'
 import { speakingLimit } from '../../utils/speakingLimit'
 import { SpeakingLimitCard } from '../../components/exam/SpeakingLimitNotice'
+import { fullMockReturn } from '../../utils/fullMockFlow'
 
 const HOME = '/app/cefr/skills?tab=speaking'
 const SR = typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null
@@ -107,7 +108,8 @@ function PartStage({ part, step, si }) {
 export default function CEFRSpeakingExam() {
   const { responseId } = useParams()
   const navigate = useNavigate()
-  const result = `/exam/cefr/speaking/test/${responseId}/result`
+  // In a full mock, finishing goes back to the rehearsal instead of this test's result
+  const result = fullMockReturn('cefr_speaking', responseId) || `/exam/cefr/speaking/test/${responseId}/result`
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['cefr-speaking-attempt', responseId],

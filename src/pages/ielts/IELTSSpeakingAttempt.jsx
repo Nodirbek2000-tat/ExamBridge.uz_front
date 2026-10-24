@@ -8,6 +8,7 @@ import { preloadTts } from '../../utils/ttsPreload'
 import { speakingLimit } from '../../utils/speakingLimit'
 import { useSpeakingAttempt } from '../../hooks/useSpeakingAttempt'
 import { SpeakingLimitCard, SpeakingLimitScreen } from '../../components/exam/SpeakingLimitNotice'
+import { fullMockReturn } from '../../utils/fullMockFlow'
 
 // ── AI personas mapped to OpenAI TTS voices ────────────────────────────────
 // alloy=neutral, echo=male-clear, fable=male-warm, onyx=male-deep,
@@ -684,7 +685,9 @@ export default function IELTSSpeakingAttempt() {
       const resp = await api.post(`/ielts/speaking/${attemptId}/submit/`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
-      navigate(`/exam/ielts/speaking/result/${resp.data.id}`, { replace: true })
+      // In a full mock the rehearsal page scores speaking with the other sections
+      navigate(fullMockReturn('ielts_speaking', attemptId) || fullMockReturn('ielts_speaking', urlAttemptId)
+        || `/exam/ielts/speaking/result/${resp.data.id}`, { replace: true })
     } catch (err) {
       const limit = speakingLimit(err)
       if (limit) {

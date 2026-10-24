@@ -12,6 +12,7 @@ import { loadExam, saveExam, clearExam } from '../../utils/examPersist'
 import CefrPartNav from '../../components/exam/CefrPartNav'
 import CefrQuestionPanel, { GapBox, boldify, fitsPanel, OptionMatchBlock } from '../../components/exam/CefrQuestionPanel'
 import { useAuthStore } from '../../store/authStore'
+import { fullMockReturn } from '../../utils/fullMockFlow'
 
 function useTimer(initialSeconds, storageKey, frozen = false) {
   const intervalRef = useRef()
@@ -1473,6 +1474,10 @@ export default function CEFRReadingAttempt() {
       }
 
       allowLeaveRef.current = true
+      if (fullMockReturn('cefr_reading', attemptId)) {
+        navigate(fullMockReturn('cefr_reading', attemptId), { replace: true })
+        return
+      }
       // Keep the part list so Review can reload every part of a mock
       const examQuery = partsParam ? `parts=${partsParam}` : `passage=${passageId}`
       navigate(`/exam/cefr/reading/${attemptId}/result?${examQuery}&title=${encodeURIComponent(passageTitle)}`, {
@@ -1488,7 +1493,7 @@ export default function CEFRReadingAttempt() {
     allowLeaveRef.current = true
     timer.clearPersist()
     clearExam(answersStorageKey)
-    navigate('/app/cefr/reading')
+    navigate(fullMockReturn('cefr_reading', attemptId) || '/app/cefr/reading')
   }
 
   const goToQ = (i) => {

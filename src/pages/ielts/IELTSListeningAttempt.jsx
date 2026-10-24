@@ -13,6 +13,7 @@ import { useAuthStore } from '../../store/authStore'
 import { loadExam, saveExam, clearExam } from '../../utils/examPersist'
 import { useAnswerReview } from '../../hooks/useAnswerReview'
 import AnswerReviewToggle from '../../components/exam/AnswerReviewToggle'
+import { fullMockReturn } from '../../utils/fullMockFlow'
 
 function Skeleton({ className = '' }) {
   return <div className={`animate-pulse rounded-lg bg-gray-200/70 ${className}`} />
@@ -871,6 +872,10 @@ export default function IELTSListeningAttempt() {
           answers,
         })
         allowLeaveRef.current = true
+        if (fullMockReturn('ielts_listening', attemptId)) {
+          navigate(fullMockReturn('ielts_listening', attemptId), { replace: true })
+          return
+        }
         navigate(
           `/exam/ielts/listening/${attemptId}/result?section=${currentSectionId}&title=${encodeURIComponent(sectionTitle)}`,
           { state: { result: { ...res.data, is_full: false } }, replace: true }
@@ -891,6 +896,10 @@ export default function IELTSListeningAttempt() {
         const band = calcListeningBand(totalCorrect)
         const scorePercent = totalQuestions ? Math.round((totalCorrect / totalQuestions) * 100) : 0
         allowLeaveRef.current = true
+        if (fullMockReturn('ielts_listening', attemptId)) {
+          navigate(fullMockReturn('ielts_listening', attemptId), { replace: true })
+          return
+        }
         navigate(
           `/exam/ielts/listening/${attemptId}/result?section=${partIds[0]}&title=${encodeURIComponent(sectionTitle)}`,
           {
@@ -916,7 +925,7 @@ export default function IELTSListeningAttempt() {
     setAudioStarted(false)   // stop exam audio before leaving
     clearExam(answersStorageKey)
     clearExam(audioStorageKey)
-    navigate('/app/ielts/listening')
+    navigate(fullMockReturn('ielts_listening', attemptId) || '/app/ielts/listening')
   }
 
   // Keep ref in sync so handleAudioEnded can call latest handleSubmit

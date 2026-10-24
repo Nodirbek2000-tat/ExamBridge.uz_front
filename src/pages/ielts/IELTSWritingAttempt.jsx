@@ -21,6 +21,7 @@ import {
 import api from '../../api/client'
 import { downloadWritingPdf } from '../../utils/downloadPdf'
 import { examKey, loadExam, saveExam, clearExam } from '../../utils/examPersist'
+import { fullMockReturn } from '../../utils/fullMockFlow'
 
 // ── Timer ─────────────────────────────────────────────────────────────────────
 function useTimer(limitSeconds) {
@@ -522,7 +523,7 @@ export default function IELTSWritingAttempt() {
         task_id: Number(taskId),
         text,
       })
-      navigate(`/exam/ielts/writing/result/${resp.data.id}`, { replace: true })
+      navigate(fullMockReturn('ielts_writing', attemptId) || `/exam/ielts/writing/result/${resp.data.id}`, { replace: true })
     } catch {
       // Fallback: pass via state if submit failed
       navigate('/exam/ielts/writing/result/0', {

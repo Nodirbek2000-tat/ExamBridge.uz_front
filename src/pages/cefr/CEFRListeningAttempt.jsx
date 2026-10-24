@@ -13,6 +13,7 @@ import { clearExam } from '../../utils/examPersist'
 import CefrPartNav from '../../components/exam/CefrPartNav'
 import CefrQuestionPanel, { fitsPanel, OptionMatchBlock } from '../../components/exam/CefrQuestionPanel'
 import { useAuthStore } from '../../store/authStore'
+import { fullMockReturn } from '../../utils/fullMockFlow'
 
 function Skeleton({ className = '' }) {
   return <div className={`animate-pulse rounded-lg bg-gray-200/70 ${className}`} />
@@ -1484,6 +1485,10 @@ export default function CEFRListeningAttempt() {
         if (i === parts.length - 1) last = res.data
       }
       allowLeaveRef.current = true
+      if (fullMockReturn('cefr_listening', attemptId)) {
+        navigate(fullMockReturn('cefr_listening', attemptId), { replace: true })
+        return
+      }
       const examQuery = partsParam ? `parts=${partsParam}` : `section=${sectionId}`
       navigate(`/exam/cefr/listening/${attemptId}/result?${examQuery}&title=${encodeURIComponent(sectionTitle)}`, {
         state: { result: { ...(last || {}), results } }, replace: true,
@@ -1501,7 +1506,7 @@ export default function CEFRListeningAttempt() {
     clearExam(answersStorageKey)
     clearExam(audioStorageKey)
     setAudioStarted(false)   // stop exam audio before leaving
-    navigate('/app/cefr/listening')
+    navigate(fullMockReturn('cefr_listening', attemptId) || '/app/cefr/listening')
   }
 
   const handleRedoFromReview = async () => {

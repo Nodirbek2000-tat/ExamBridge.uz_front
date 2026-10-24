@@ -68,78 +68,92 @@ function listUrl(type) {
 
 const q = (title) => `title=${encodeURIComponent(title || '')}`
 
-/** Resolve the URL that starts this task's test. Creates the attempt. */
-export async function startUrl(task) {
-  const { task_type: type, task_ref_id: id, task_ref_kind: kind, task_title: title } = task
-  if (!id) return listUrl(type)
-
+/**
+ * Create (or resume) the attempt for one test and say where its exam screen
+ * is. Returns { url, ref } — `ref` is the attempt / response id the exam
+ * screen runs on (full mocks remember it to know when the section is done).
+ */
+export async function startTest({ type, id, kind, title }) {
   switch (type) {
     case 'ielts_reading': {
       if (kind === 'mock') {
         const { data } = await api.post(`/ielts/reading/mock/${id}/start/`)
         const ids = (data.passages || []).map((p) => p.id)
         const parts = ids.length ? `&passage=${ids[0]}&parts=${ids.join(',')}` : ''
-        return `/exam/ielts/reading/${data.attempt_id}?${q(title)}${parts}`
+        return { ref: data.attempt_id, url: `/exam/ielts/reading/${data.attempt_id}?${q(title)}${parts}` }
       }
       const { data } = await api.post(`/ielts/reading/${id}/start/`)
-      return `/exam/ielts/reading/${data.attempt_id}?passage=${id}&${q(title)}`
+      return { ref: data.attempt_id, url: `/exam/ielts/reading/${data.attempt_id}?passage=${id}&${q(title)}` }
     }
     case 'ielts_listening': {
       if (kind === 'mock') {
         const { data } = await api.post(`/ielts/listening/mock/${id}/start/`)
-        const ids = (data.sections || []).map((s) => s.id)
+        let ids = (data.sections || []).map((s) => s.id)
+        if (!ids.length) {
+          // a resumed mock does not list its parts — read them from the test list
+          const list = await api.get('/ielts/listening/').then((r) => r.data).catch(() => null)
+          const mock = (list?.mocks || []).find((m) => m.id === id)
+          ids = (mock?.sections || mock?.parts || []).map((s) => s.id)
+        }
         const parts = ids.length ? `&section=${ids[0]}&parts=${ids.join(',')}` : ''
-        return `/exam/ielts/listening/${data.attempt_id}?${q(title)}${parts}`
+        return { ref: data.attempt_id, url: `/exam/ielts/listening/${data.attempt_id}?${q(title)}${parts}` }
       }
       const { data } = await api.post(`/ielts/listening/${id}/start/`)
-      return `/exam/ielts/listening/${data.attempt_id}?section=${id}&${q(title)}`
+      return { ref: data.attempt_id, url: `/exam/ielts/listening/${data.attempt_id}?section=${id}&${q(title)}` }
     }
     case 'ielts_writing': {
       const { data } = await api.post(`/ielts/writing/${id}/start/`)
-      return `/exam/ielts/writing/${data.attempt_id}?task=${id}`
+      return { ref: data.attempt_id, url: `/exam/ielts/writing/${data.attempt_id}?task=${id}` }
     }
     case 'ielts_speaking': {
       const { data } = await api.post('/ielts/attempt/start/', { task_type: 'speaking', task_id: id })
-      return `/exam/ielts/speaking/${id}?attempt=${data.attempt_id}`
+      return { ref: data.attempt_id, url: `/exam/ielts/speaking/${id}?attempt=${data.attempt_id}` }
     }
     case 'cefr_reading': {
       if (kind === 'mock') {
         const { data } = await api.post(`/cefr/reading/full-mock/${id}/start/`)
-        return `/exam/cefr/reading/${data.attempt_id}?parts=${data.passage_ids.join(',')}&${q(title)}`
+        return { ref: data.attempt_id, url: `/exam/cefr/reading/${data.attempt_id}?parts=${data.passage_ids.join(',')}&${q(title)}` }
       }
       const { data } = await api.post(`/cefr/reading/${id}/start/`)
-      return `/exam/cefr/reading/${data.attempt_id}?passage=${id}&${q(title)}`
+      return { ref: data.attempt_id, url: `/exam/cefr/reading/${data.attempt_id}?passage=${id}&${q(title)}` }
     }
     case 'cefr_listening': {
       if (kind === 'mock') {
         const { data } = await api.post(`/cefr/listening/full-mock/${id}/start/`)
-        return `/exam/cefr/listening/${data.attempt_id}?parts=${data.section_ids.join(',')}&${q(title)}`
+        return { ref: data.attempt_id, url: `/exam/cefr/listening/${data.attempt_id}?parts=${data.section_ids.join(',')}&${q(title)}` }
       }
       const { data } = await api.post(`/cefr/listening/${id}/start/`)
-      return `/exam/cefr/listening/${data.attempt_id}?section=${id}&${q(title)}`
+      return { ref: data.attempt_id, url: `/exam/cefr/listening/${data.attempt_id}?section=${id}&${q(title)}` }
     }
     case 'cefr_writing': {
       const { data } = await api.post(`/cefr/writing/${id}/start/`)
-      return `/exam/cefr/writing/${data.response_id}`
+      return { ref: data.response_id, url: `/exam/cefr/writing/${data.response_id}` }
     }
     case 'cefr_speaking': {
       if (kind === 'task') {
         const { data } = await api.post('/ielts/attempt/start/', { task_type: 'speaking', task_id: id })
-        return `/exam/cefr/speaking/${id}?attempt=${data.attempt_id}`
+        return { ref: data.attempt_id, url: `/exam/cefr/speaking/${id}?attempt=${data.attempt_id}` }
       }
       const { data } = await api.post(`/cefr/speaking/${id}/start/`)
-      return `/exam/cefr/speaking/test/${data.response_id}`
+      return { ref: data.response_id, url: `/exam/cefr/speaking/test/${data.response_id}` }
     }
     case 'sat_mock': {
       const { data } = await api.post(`/sat/tests/${id}/start/`, {})
-      return `/exam/sat/${data.attempt_id}`
+      return { ref: data.attempt_id, url: `/exam/sat/${data.attempt_id}` }
     }
     case 'sat_english':
     case 'sat_math':
-      return `/app/sat/modules/${id}`
+      return { ref: null, url: `/app/sat/modules/${id}` }
     default:
-      return listUrl(type)
+      return { ref: null, url: listUrl(type) }
   }
+}
+
+/** Resolve the URL that starts a center task's test. Creates the attempt. */
+export async function startUrl(task) {
+  const { task_type: type, task_ref_id: id, task_ref_kind: kind, task_title: title } = task
+  if (!id) return listUrl(type)
+  return (await startTest({ type, id, kind, title })).url
 }
 
 export { listUrl }
