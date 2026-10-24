@@ -139,6 +139,7 @@ const CenterTeacherDetail = lazyWithPreload(() => import('./pages/center/CenterT
 const CenterGroupDetail = lazyWithPreload(() => import('./pages/center/CenterGroupDetail'))
 const CenterMemberProfile = lazyWithPreload(() => import('./pages/center/CenterMemberProfile'))
 const CenterLessons = lazyWithPreload(() => import('./pages/center/CenterLessons'))
+const CenterTests = lazyWithPreload(() => import('./pages/center/CenterTests'))
 const CenterNotifications = lazyWithPreload(() => import('./pages/center/CenterNotifications'))
 const MyCenters = lazyWithPreload(() => import('./pages/center/MyCenters'))
 const MyTasks = lazyWithPreload(() => import('./pages/center/MyTasks'))
@@ -424,6 +425,7 @@ export default function App() {
         <Route path="groups" element={<CenterGroups />} />
         <Route path="groups/:groupId" element={<CenterGroupDetail />} />
         <Route path="lessons" element={<CenterLessons />} />
+        <Route path="tests" element={<CenterTests />} />
         <Route path="assignments" element={<Navigate to="../lessons" replace />} />
         <Route path="notifications" element={<CenterNotifications />} />
       </Route>

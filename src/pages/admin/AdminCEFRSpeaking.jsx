@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { AlertCircle, Check, ChevronDown, Copy, Crown, FileJson, FileText, ImagePlus, Loader2, Mic, Trash2, Upload, X } from 'lucide-react'
 import { OwnerOnly } from './AdminWriteContext'
 import api from '../../api/client'
+import { CEFR_EXAMPLES } from '../../data/importExamples'
 
 const PART_LABEL = { '1.1': '1.1', '1.2': '1.2', '2': 'Part 2', '3': 'Part 3' }
 const SLOTS = [
@@ -13,29 +14,7 @@ const SLOTS = [
   { slot: 'p2', label: 'Part 2 — rasm (ixtiyoriy)', part: '2' },
 ]
 
-const EXAMPLE = `{
-  "title": "CEFR Speaking Test 1",
-  "is_premium": false,
-  "part_1_1": [
-    "Where do you live and what do you like about it?",
-    "What do you usually do at the weekend?",
-    "How often do you use public transport?"
-  ],
-  "part_1_2": [
-    "Describe what you can see in the two pictures.",
-    "Which of these two places would you prefer to study in? Why?",
-    "Why do some people find it hard to study at home?"
-  ],
-  "part_2": {
-    "prompt": "Describe a person who has had an important influence on your life.",
-    "questions": ["Who is this person?", "How do you know them?", "Why have they influenced you so much?"]
-  },
-  "part_3": {
-    "topic": "Social media does more harm than good.",
-    "for": ["It wastes a lot of time", "It spreads false information", "It can make people feel lonely"],
-    "against": ["It keeps families and friends connected", "It helps small businesses", "It gives quick access to news"]
-  }
-}`
+const EXAMPLE = CEFR_EXAMPLES.speaking
 
 const RULES = [
   ['"title"', 'majburiy — test nomi.'],

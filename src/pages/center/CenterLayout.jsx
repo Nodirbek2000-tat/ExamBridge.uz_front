@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  Bell, BookOpen, GraduationCap, LayoutDashboard, LogOut, Menu, ShieldCheck, Users, UsersRound, X,
+  Bell, BookOpen, ExternalLink, FileJson, GraduationCap, LayoutDashboard, LogOut, Menu, ShieldCheck, Users, UsersRound, X,
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '../../store/authStore'
@@ -17,6 +17,7 @@ import { initials } from './ui'
 const NAV = [
   { to: 'dashboard', icon: LayoutDashboard, label: 'Overview', roles: ['director', 'admin', 'teacher', 'staff'] },
   { to: 'lessons',   icon: BookOpen,        label: 'Lessons',  roles: ['director', 'admin', 'teacher', 'staff'] },
+  { to: 'tests',     icon: FileJson,        label: 'Tests',    roles: ['director', 'admin', 'teacher', 'staff'] },
   { to: 'groups',    icon: UsersRound,      label: 'Groups',   roles: ['director', 'admin', 'teacher', 'staff'] },
   { to: 'students',  icon: Users,           label: 'Students', roles: ['director', 'admin', 'staff'] },
   { to: 'teachers',  icon: GraduationCap,   label: 'Teachers', roles: ['director', 'admin', 'staff'] },
@@ -136,6 +137,11 @@ export default function CenterLayout() {
           <button onClick={() => setDrawer(true)} className="lg:hidden p-2 -ml-2 text-slate-500"><Menu size={20} /></button>
           <p className="text-sm font-semibold text-slate-900 truncate lg:hidden">{center?.name}</p>
           <div className="ml-auto flex items-center gap-2">
+            {/* Staff use the site like a student too: take tests, try their own */}
+            <NavLink to="/app"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors">
+              <ExternalLink size={15} /><span className="hidden sm:inline">Open site</span>
+            </NavLink>
             <NavLink to={`/center/${centerId}/notifications`}
               className="relative p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors">
               <Bell size={18} />

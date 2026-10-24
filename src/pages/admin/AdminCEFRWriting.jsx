@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { AlertCircle, Check, ChevronDown, Copy, Crown, FileJson, FileText, Loader2, PenLine, Trash2, Upload } from 'lucide-react'
 import { OwnerOnly } from './AdminWriteContext'
 import api from '../../api/client'
+import { CEFR_EXAMPLES } from '../../data/importExamples'
 
 const KIND = {
   FULL: { label: "To'liq test", cls: 'bg-amber-50 text-amber-700 border-amber-200' },
@@ -12,33 +13,9 @@ const KIND = {
   PART2: { label: 'Part 2 (essay)', cls: 'bg-violet-50 text-violet-700 border-violet-200' },
 }
 
-const EXAMPLE = `{
-  "title": "CEFR Writing Test 1",
-  "is_premium": false,
-  "situation": "You recently joined a sports club in your town. The club has sent its members a message asking what they think about its activities and timetable.",
-  "task_1_1": "Write a letter to your friend who is also a member of the club. Tell your friend what you like about the club and what you would change. Write about 50 words.",
-  "task_1_2": "Write a letter to the manager of the club. Say what you think about the activities and the timetable, and suggest how they could be improved. Write 120–150 words.",
-  "part_2": "Some people believe that young people today spend too much time on their phones. To what extent do you agree or disagree? Give reasons and examples. Write 180–200 words."
-}`
+const EXAMPLE = CEFR_EXAMPLES.writing
 
-const EXAMPLE_PARTS = `[
-  {
-    "title": "Part 1 — New library",
-    "situation": "A new library is opening in your neighbourhood...",
-    "task_1_1": "Write to your friend ... Write about 50 words.",
-    "task_1_2": "Write to the library manager ... Write 120–150 words."
-  },
-  {
-    "title": "Part 1.2 — Trip proposals",
-    "situation": "Your club is planning a trip and has asked members for ideas...",
-    "task_1_2": "Write to the club leader ... Write 120–150 words."
-  },
-  {
-    "title": "Part 2 — Online learning",
-    "part_2": "Online lessons are better than lessons in a classroom. Do you agree? Write 180–200 words.",
-    "time_limit": 35
-  }
-]`
+const EXAMPLE_PARTS = CEFR_EXAMPLES.writing_parts
 
 const RULES = [
   ['"title"', 'majburiy — test nomi.'],
