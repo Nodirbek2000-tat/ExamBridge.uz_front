@@ -140,6 +140,8 @@ const CenterGroupDetail = lazyWithPreload(() => import('./pages/center/CenterGro
 const CenterMemberProfile = lazyWithPreload(() => import('./pages/center/CenterMemberProfile'))
 const CenterLessons = lazyWithPreload(() => import('./pages/center/CenterLessons'))
 const CenterTests = lazyWithPreload(() => import('./pages/center/CenterTests'))
+const CenterOlympiads = lazyWithPreload(() => import('./pages/center/CenterOlympiads'))
+const OlympiadPage = lazyWithPreload(() => import('./pages/olympiad/OlympiadPage'))
 const CenterNotifications = lazyWithPreload(() => import('./pages/center/CenterNotifications'))
 const MyCenters = lazyWithPreload(() => import('./pages/center/MyCenters'))
 const MyTasks = lazyWithPreload(() => import('./pages/center/MyTasks'))
@@ -330,6 +332,7 @@ export default function App() {
         <Route path="sat/:attemptId" element={<SATTestAttempt />} />
         <Route path="ielts/:attemptId" element={<IELTSAttempt />} />
         <Route path="full-mock/:attemptId" element={<FullMockPage />} />
+        <Route path="olympiad/:olympiadId" element={<OlympiadPage />} />
         <Route path="ielts/writing/result/:responseId" element={<IELTSWritingResult />} />
         <Route path="ielts/writing/result" element={<IELTSWritingResult />} />
         <Route path="ielts/writing/:attemptId" element={<IELTSWritingAttempt />} />
@@ -426,6 +429,7 @@ export default function App() {
         <Route path="groups/:groupId" element={<CenterGroupDetail />} />
         <Route path="lessons" element={<CenterLessons />} />
         <Route path="tests" element={<CenterTests />} />
+        <Route path="olympiads" element={<CenterOlympiads />} />
         <Route path="assignments" element={<Navigate to="../lessons" replace />} />
         <Route path="notifications" element={<CenterNotifications />} />
       </Route>

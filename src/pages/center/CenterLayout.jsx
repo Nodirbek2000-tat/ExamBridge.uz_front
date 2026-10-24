@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  Bell, BookOpen, ExternalLink, FileJson, GraduationCap, LayoutDashboard, LogOut, Menu, ShieldCheck, Users, UsersRound, X,
+  Bell, BookOpen, ExternalLink, FileJson, GraduationCap, LayoutDashboard, LogOut, Menu, ShieldCheck, Trophy, Users, UsersRound, X,
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '../../store/authStore'
@@ -18,6 +18,7 @@ const NAV = [
   { to: 'dashboard', icon: LayoutDashboard, label: 'Overview', roles: ['director', 'admin', 'teacher', 'staff'] },
   { to: 'lessons',   icon: BookOpen,        label: 'Lessons',  roles: ['director', 'admin', 'teacher', 'staff'] },
   { to: 'tests',     icon: FileJson,        label: 'Tests',    roles: ['director', 'admin', 'teacher', 'staff'] },
+  { to: 'olympiads', icon: Trophy,          label: 'Olympiads', roles: ['director', 'admin', 'teacher', 'staff'] },
   { to: 'groups',    icon: UsersRound,      label: 'Groups',   roles: ['director', 'admin', 'teacher', 'staff'] },
   { to: 'students',  icon: Users,           label: 'Students', roles: ['director', 'admin', 'staff'] },
   { to: 'teachers',  icon: GraduationCap,   label: 'Teachers', roles: ['director', 'admin', 'staff'] },

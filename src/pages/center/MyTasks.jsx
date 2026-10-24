@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import api from '../../api/client'
 import { examTint, listUrl, startUrl, taskMeta } from './taskTypes'
+import { shortUntil, syncServerClock, useNow, whenLabel } from '../olympiad/clock'
 
 const isToday = (iso) => iso && new Date(`${iso}T00:00:00`).toDateString() === new Date().toDateString()
 const localDay = (dt) => {
@@ -172,6 +173,43 @@ function LessonCard({ unit }) {
   )
 }
 
+function Olympiads() {
+  const navigate = useNavigate()
+  const now = useNow(1000)
+  const { data } = useQuery({
+    queryKey: ['my-olympiads'],
+    queryFn: () => api.get('/centers/my-olympiads/').then((r) => { syncServerClock(r.data.server_now); return r.data }),
+    refetchInterval: 30_000,
+  })
+  const items = (data?.olympiads || []).filter((o) => o.phase !== 'finished' || o.me.finished).slice(-4).reverse()
+  if (!items.length) return null
+  return (
+    <section className="mb-8">
+      <h2 className="mb-3 px-1 text-sm font-semibold text-slate-900">Olympiads</h2>
+      <div className="grid sm:grid-cols-2 gap-3">
+        {items.map((o) => {
+          const starts = new Date(o.starts_at).getTime()
+          const ends = new Date(o.ends_at).getTime()
+          const live = now >= starts && now < ends
+          const over = now >= ends
+          return (
+            <button key={o.id} onClick={() => navigate(`/exam/olympiad/${o.id}`)}
+              className={`text-left rounded-2xl p-5 text-white bg-gradient-to-br ${live ? 'from-rose-500 to-indigo-600' : 'from-slate-800 to-slate-900'} shadow-sm`}>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-white/60">{live ? 'Live now' : over ? 'Finished' : whenLabel(o.starts_at)}</p>
+              <p className="mt-1 text-lg font-bold truncate">{o.title}</p>
+              <p className="text-xs text-white/60 truncate">{o.task.title} · {o.duration_minutes} min</p>
+              <p className="mt-3 text-sm font-semibold">
+                {over ? (o.me.detail ? `Your result: ${o.me.detail}` : 'See the ranking →')
+                  : live ? (o.me.started ? 'Continue →' : 'Start now →') : `Starts in ${shortUntil(starts - now)}`}
+              </p>
+            </button>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
 function Section({ title, hint, units, children }) {
   if (!units.length) return null
   return (
@@ -242,6 +280,7 @@ export default function MyTasks() {
         </div>
       ) : (
         <>
+          <Olympiads />
           <ProgressCard p={progress} />
           <div className="space-y-8">
             <Section title="Today" hint={new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })} units={today} />

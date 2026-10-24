@@ -15,13 +15,49 @@ import { canWrite, tierOf } from '../admin/adminAccess'
 import { Avatar, Card, Empty, PageHeader, PrimaryButton } from './ui'
 
 const TITLES = { student: 'Students', teacher: 'Teachers', admin: 'Admins' }
+const GRADES = Array.from({ length: 11 }, (_, i) => i + 1)
+
+/** Class chip; the admin clicks it to change the class (e.g. 5A → 6A). */
+function ClassChip({ centerId, member, canEdit }) {
+  const qc = useQueryClient()
+  const [open, setOpen] = useState(false)
+  const [grade, setGrade] = useState(member.grade || '')
+  const [letter, setLetter] = useState(member.class_letter || '')
+  const save = useMutation({
+    mutationFn: () => api.patch(`/centers/${centerId}/members/${member.id}/class/`, { grade: grade || null, class_letter: letter }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['center-members', centerId] }); setOpen(false) },
+  })
+  const label = member.school_class
+  if (!open) {
+    return (
+      <button type="button" disabled={!canEdit} onClick={(e) => { e.stopPropagation(); setOpen(true) }}
+        className={`px-2 py-0.5 rounded-md text-xs font-bold flex-shrink-0 ${label ? 'bg-indigo-50 text-indigo-700' : 'text-slate-300'} ${canEdit ? 'hover:ring-1 hover:ring-indigo-200' : ''}`}>
+        {label || (canEdit ? '+ class' : '')}
+      </button>
+    )
+  }
+  return (
+    <span className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+      <select value={grade} onChange={(e) => setGrade(e.target.value)} className="h-7 rounded-md border border-slate-200 text-xs px-1">
+        <option value="">—</option>
+        {GRADES.map((g) => <option key={g} value={g}>{g}</option>)}
+      </select>
+      <input value={letter} onChange={(e) => setLetter(e.target.value.toUpperCase().slice(0, 2))} placeholder="A"
+        className="h-7 w-9 rounded-md border border-slate-200 text-xs text-center font-semibold" />
+      <button type="button" onClick={() => save.mutate()} className="h-7 px-2 rounded-md bg-slate-900 text-white text-xs font-semibold">
+        {save.isPending ? '…' : 'Save'}
+      </button>
+      <button type="button" onClick={() => setOpen(false)} className="h-7 px-1 text-slate-400"><X size={13} /></button>
+    </span>
+  )
+}
 const SINGULAR = { student: 'student', teacher: 'teacher', admin: 'admin' }
 const MANAGES = { director: ['admin', 'teacher'], admin: ['teacher', 'student'] }
 const INPUT = 'w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 bg-white focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100'
 
 function AddMemberPanel({ role, centerId, onClose }) {
   const qc = useQueryClient()
-  const [form, setForm] = useState({ first_name: '', last_name: '', email: '', phone: '', password: '', role })
+  const [form, setForm] = useState({ first_name: '', last_name: '', email: '', phone: '', password: '', role, grade: '', class_letter: '' })
   const [avatar, setAvatar] = useState(null)
   const [err, setErr] = useState('')
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }))
@@ -64,6 +100,19 @@ function AddMemberPanel({ role, centerId, onClose }) {
           <input value={form.phone} onChange={(e) => set('phone', e.target.value)} placeholder="Phone" className={INPUT} />
           <input type="password" autoComplete="new-password" value={form.password} onChange={(e) => set('password', e.target.value)}
             placeholder="Password *" className={INPUT} />
+          {role === 'student' && (
+            <div>
+              <p className="mb-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">School class <span className="normal-case font-normal text-slate-400">(optional)</span></p>
+              <div className="grid grid-cols-[1fr_88px] gap-3">
+                <select value={form.grade} onChange={(e) => set('grade', e.target.value)} className={INPUT}>
+                  <option value="">No class</option>
+                  {GRADES.map((g) => <option key={g} value={g}>{g}-grade</option>)}
+                </select>
+                <input value={form.class_letter} onChange={(e) => set('class_letter', e.target.value.toUpperCase().slice(0, 2))}
+                  placeholder="A" disabled={!form.grade} className={`${INPUT} text-center font-semibold uppercase`} />
+              </div>
+            </div>
+          )}
           <label className="flex items-center gap-3 p-3 rounded-xl border border-dashed border-slate-200 cursor-pointer hover:border-slate-300">
             <input type="file" accept="image/*" className="hidden" onChange={(e) => setAvatar(e.target.files[0] || null)} />
             {avatar
@@ -109,7 +158,7 @@ export default function CenterMembers({ targetRole }) {
   })
 
   const term = q.trim().toLowerCase()
-  const shown = term ? members.filter((m) => `${m.full_name} ${m.email} ${m.phone}`.toLowerCase().includes(term)) : members
+  const shown = term ? members.filter((m) => `${m.full_name} ${m.email} ${m.phone} ${m.school_class}`.toLowerCase().includes(term)) : members
   const open = (m) => canAnalyze ? navigate(`/center/${centerId}/teachers/${m.id}`)
     : canViewProfile ? navigate(`/center/${centerId}/members/${m.id}/profile`) : null
 
@@ -141,6 +190,9 @@ export default function CenterMembers({ targetRole }) {
                   {m.phone && <span className="inline-flex items-center gap-1"><Phone size={11} />{m.phone}</span>}
                 </p>
               </div>
+              {targetRole === 'student' && (
+                <ClassChip centerId={centerId} member={m} canEdit={myRole === 'admin' || (myRole === 'staff' && support)} />
+              )}
               {canAnalyze && <span className="hidden sm:inline-flex items-center gap-1 text-xs font-semibold text-slate-500"><BarChart3 size={13} />Analytics</span>}
               {canManage && (
                 <button title="Remove from center" onClick={(e) => { e.stopPropagation(); if (window.confirm(`Remove ${m.full_name} from the center?`)) remove.mutate(m.id) }}

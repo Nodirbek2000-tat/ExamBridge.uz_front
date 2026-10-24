@@ -15,7 +15,7 @@ import { motion } from 'framer-motion'
 import { ArrowRight, Check, Clock, ExternalLink, Loader2, Lock, LogOut, Trophy } from 'lucide-react'
 import api from '../../api/client'
 import { startTest } from '../center/taskTypes'
-import { rememberFullMockStep } from '../../utils/fullMockFlow'
+import { fullMockReturn, rememberFullMockStep } from '../../utils/fullMockFlow'
 import { SKILL_ICON, hours } from './FullMockList'
 
 const RULES = {
@@ -189,7 +189,9 @@ export default function FullMockPage() {
     })()
   }, [data, refetch])
 
-  const exit = () => navigate(`/app/${data?.mock?.exam || 'ielts'}/skills?tab=mock`)
+  // a full mock opened from an olympiad goes back there
+  const exit = () => navigate(fullMockReturn(`${data?.mock?.exam}_full_mock`, attemptId)
+    || `/app/${data?.mock?.exam || 'ielts'}/skills?tab=mock`)
 
   if (isLoading) {
     return <div className="flex-1 flex items-center justify-center bg-gray-950"><Loader2 size={26} className="animate-spin text-white/40" /></div>

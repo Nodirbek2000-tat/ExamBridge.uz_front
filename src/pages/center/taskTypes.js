@@ -19,10 +19,12 @@ export const TASK_TYPES = [
   { value: 'ielts_listening', exam: 'ielts', label: 'IELTS Listening', skill: 'Listening' },
   { value: 'ielts_writing',   exam: 'ielts', label: 'IELTS Writing',   skill: 'Writing' },
   { value: 'ielts_speaking',  exam: 'ielts', label: 'IELTS Speaking',  skill: 'Speaking' },
+  { value: 'ielts_full_mock', exam: 'ielts', label: 'IELTS Full Mock', skill: 'Full mock' },
   { value: 'cefr_reading',    exam: 'cefr',  label: 'CEFR Reading',    skill: 'Reading' },
   { value: 'cefr_listening',  exam: 'cefr',  label: 'CEFR Listening',  skill: 'Listening' },
   { value: 'cefr_writing',    exam: 'cefr',  label: 'CEFR Writing',    skill: 'Writing' },
   { value: 'cefr_speaking',   exam: 'cefr',  label: 'CEFR Speaking',   skill: 'Speaking' },
+  { value: 'cefr_full_mock',  exam: 'cefr',  label: 'CEFR Full Mock',  skill: 'Full mock' },
   { value: 'sat_mock',        exam: 'sat',   label: 'SAT Full Test',   skill: 'Full test' },
   { value: 'sat_english',     exam: 'sat',   label: 'SAT Reading & Writing', skill: 'R&W module' },
   { value: 'sat_math',        exam: 'sat',   label: 'SAT Math',        skill: 'Math module' },
@@ -47,7 +49,7 @@ export const examTint = (type) => EXAM_TINT[taskMeta(type).exam] || EXAM_TINT.ot
 export const taskColor = (type) => examTint(type).chip
 
 export const KIND_LABEL = {
-  mock: 'Full mock', passage: 'Passage', section: 'Part', task: 'Task', test: 'Test',
+  mock: 'Full mock', passage: 'Passage', section: 'Part', task: 'Task', test: 'Test', full: 'All four sections',
 }
 
 /* Where to send the student when there is no exact test to open. */
@@ -62,6 +64,8 @@ function listUrl(type) {
     case 'cefr_writing': return '/app/cefr/skills?tab=writing'
     case 'cefr_speaking': return '/app/cefr/skills?tab=speaking'
     case 'cefr_test': return '/app/cefr/skills'
+    case 'ielts_full_mock': return '/app/ielts/skills?tab=mock'
+    case 'cefr_full_mock': return '/app/cefr/skills?tab=mock'
     default: return '/app/sat/tests'
   }
 }
@@ -136,6 +140,11 @@ export async function startTest({ type, id, kind, title }) {
       }
       const { data } = await api.post(`/cefr/speaking/${id}/start/`)
       return { ref: data.response_id, url: `/exam/cefr/speaking/test/${data.response_id}` }
+    }
+    case 'ielts_full_mock':
+    case 'cefr_full_mock': {
+      const { data } = await api.post(`/${type.split('_')[0]}/full-mocks/${id}/start/`)
+      return { ref: data.attempt_id, url: `/exam/full-mock/${data.attempt_id}` }
     }
     case 'sat_mock': {
       const { data } = await api.post(`/sat/tests/${id}/start/`, {})
