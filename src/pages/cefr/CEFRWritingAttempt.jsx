@@ -147,7 +147,7 @@ export default function CEFRWritingAttempt() {
       <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
         <AlertTriangle size={36} className="text-gray-300" />
         <p className="text-lg font-semibold text-gray-600">This test could not be opened.</p>
-        <button type="button" onClick={() => navigate(HOME)} className="rounded-xl bg-sky-600 px-5 py-2.5 text-sm font-bold text-white">Back to Writing</button>
+        <button type="button" onClick={() => navigate(fullMockReturn('cefr_writing', responseId) || HOME)} className="rounded-xl bg-sky-600 px-5 py-2.5 text-sm font-bold text-white">Back to Writing</button>
       </div>
     )
   }
@@ -161,7 +161,7 @@ export default function CEFRWritingAttempt() {
     <div className="flex min-h-0 flex-1 flex-col bg-slate-50">
       {/* header */}
       <header className="flex h-16 flex-shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 sm:px-6">
-        <button type="button" onClick={() => navigate(HOME)}
+        <button type="button" onClick={() => navigate(fullMockReturn('cefr_writing', responseId) || HOME)}
           className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-slate-50">
           <ArrowLeft size={16} /> <span className="hidden sm:inline">Exit</span>
         </button>

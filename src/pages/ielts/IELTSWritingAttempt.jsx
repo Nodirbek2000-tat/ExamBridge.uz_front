@@ -612,7 +612,7 @@ export default function IELTSWritingAttempt() {
       <div className="flex items-center justify-between gap-2 px-4 md:px-5 h-14 border-b border-sky-100 bg-white flex-shrink-0">
         <button
           type="button"
-          onClick={() => navigate('/app/ielts/writing')}
+          onClick={() => navigate(fullMockReturn('ielts_writing', attemptId) || '/app/ielts/writing')}
           className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-50 transition flex-shrink-0"
         >
           <ChevronLeft size={14} /> Back

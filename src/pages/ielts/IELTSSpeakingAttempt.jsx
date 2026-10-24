@@ -710,7 +710,7 @@ export default function IELTSSpeakingAttempt() {
     : null
 
   if (gate === 'limit') {
-    return <SpeakingLimitScreen message={startLimit.message} onBack={() => navigate('/app/ielts/skills?tab=speaking')} />
+    return <SpeakingLimitScreen message={startLimit.message} onBack={() => navigate(fullMockReturn('ielts_speaking', urlAttemptId) || '/app/ielts/skills?tab=speaking')} />
   }
 
   // ── MIC GATE full-screen ──────────────────────────────────────────────────

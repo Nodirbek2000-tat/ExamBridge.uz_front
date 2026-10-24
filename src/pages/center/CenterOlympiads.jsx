@@ -132,14 +132,11 @@ function CreatePanel({ centerId, myRole, onClose }) {
               <input type="number" min={5} max={300} value={duration} onChange={(e) => setDuration(Number(e.target.value))} className={`${INPUT} sm:w-24`} />
             </div>
           </div>
-          <div className="flex flex-wrap gap-1.5 -mt-3">
-            {[30, 40, 60, 90, 120, 165].map((m) => (
-              <button key={m} type="button" onClick={() => setDuration(m)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${duration === m ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-white'}`}>
-                {m === 165 ? '2h 45m (full mock)' : m >= 60 ? `${m / 60}h` : `${m} min`}
-              </button>
-            ))}
-          </div>
+          <p className="-mt-3 text-xs text-slate-500">
+            {test?.minutes
+              ? <>Set from the test: <b>{test.minutes} min</b>{duration !== test.minutes && <> · <button type="button" onClick={() => setDuration(test.minutes)} className="font-semibold text-indigo-600 hover:underline">use it</button></>}</>
+              : 'Pick a test below — its time is filled in automatically.'}
+          </p>
 
           {/* Who */}
           <div>
@@ -210,12 +207,12 @@ function CreatePanel({ centerId, myRole, onClose }) {
                     const on = test && test.id === t.id && test.kind === t.kind
                     return (
                       <li key={`${t.kind}-${t.id}`}>
-                        <button type="button" onClick={() => setTest(on ? null : t)}
+                        <button type="button" onClick={() => { setTest(on ? null : t); if (!on && t.minutes) setDuration(t.minutes) }}
                           className={`w-full flex items-center gap-3 px-4 py-2.5 text-left ${on ? 'bg-slate-900 text-white' : 'hover:bg-slate-50'}`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${on ? 'bg-white' : tint.dot}`} />
                           <span className="flex-1 min-w-0">
                             <span className="block text-sm font-medium truncate">{t.title}</span>
-                            <span className={`block text-[11px] ${on ? 'text-white/60' : 'text-slate-400'}`}>{t.meta || KIND_LABEL[t.kind]}</span>
+                            <span className={`block text-[11px] ${on ? 'text-white/60' : 'text-slate-400'}`}>{t.meta || KIND_LABEL[t.kind]}{t.minutes ? ` · ${t.minutes} min` : ''}</span>
                           </span>
                           {on && <Check size={15} />}
                         </button>

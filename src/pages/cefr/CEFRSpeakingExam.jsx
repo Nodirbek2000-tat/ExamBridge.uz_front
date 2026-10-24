@@ -348,7 +348,7 @@ export default function CEFRSpeakingExam() {
       <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
         <AlertTriangle size={36} className="text-gray-300" />
         <p className="text-lg font-semibold text-gray-600">This test could not be opened.</p>
-        <button type="button" onClick={() => navigate(HOME)} className="rounded-xl bg-sky-600 px-5 py-2.5 text-sm font-bold text-white">Back to Speaking</button>
+        <button type="button" onClick={() => navigate(fullMockReturn('cefr_speaking', responseId) || HOME)} className="rounded-xl bg-sky-600 px-5 py-2.5 text-sm font-bold text-white">Back to Speaking</button>
       </div>
     )
   }
@@ -554,7 +554,7 @@ export default function CEFRSpeakingExam() {
               <p className="text-[15px] text-gray-600">Your recordings will be lost and the test will not be scored.</p>
               <div className="flex gap-3">
                 <button type="button" onClick={() => setLeaving(false)} className="flex-1 rounded-2xl border-2 border-slate-200 py-3 font-bold text-gray-700 hover:bg-slate-50">Stay</button>
-                <button type="button" onClick={() => navigate(HOME)} className="flex-1 rounded-2xl bg-red-600 py-3 font-bold text-white hover:bg-red-700">Leave</button>
+                <button type="button" onClick={() => navigate(fullMockReturn('cefr_speaking', responseId) || HOME)} className="flex-1 rounded-2xl bg-red-600 py-3 font-bold text-white hover:bg-red-700">Leave</button>
               </div>
             </div>
           </motion.div>

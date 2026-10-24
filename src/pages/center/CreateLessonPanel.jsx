@@ -60,7 +60,7 @@ export default function CreateLessonPanel({ centerId, preGroupId, preStudentId, 
   const toggle = (t) => {
     const key = keyOf(taskType, t)
     setBasket((b) => b.some((x) => x.key === key) ? b.filter((x) => x.key !== key) : [...b, {
-      key, task_type: taskType, task_ref_id: t.id, task_ref_kind: t.kind, task_title: t.title, meta: t.meta,
+      key, task_type: taskType, task_ref_id: t.id, task_ref_kind: t.kind, task_title: t.title, meta: t.meta, minutes: t.minutes,
     }])
   }
 
@@ -191,7 +191,7 @@ export default function CreateLessonPanel({ centerId, preGroupId, preStudentId, 
                         <span className={`w-1.5 h-1.5 rounded-full ${tint.dot}`} />
                         <span className="flex-1 min-w-0">
                           <span className="block text-sm font-medium text-slate-800 truncate">{t.title}</span>
-                          <span className="block text-[11px] text-slate-400">{t.meta || KIND_LABEL[t.kind]}</span>
+                          <span className="block text-[11px] text-slate-400">{t.meta || KIND_LABEL[t.kind]}{t.minutes ? ` · ${t.minutes} min` : ''}</span>
                         </span>
                         <span className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
                           added ? 'bg-slate-900 text-white' : 'border border-slate-200 text-slate-400'}`}>
@@ -207,7 +207,7 @@ export default function CreateLessonPanel({ centerId, preGroupId, preStudentId, 
 
           {/* Basket */}
           <div>
-            <label className={LABEL}>In this lesson · {basket.length}</label>
+            <label className={LABEL}>In this lesson · {basket.length}{basket.some((b) => b.minutes) && ` · ≈ ${basket.reduce((n, b) => n + (b.minutes || 0), 0)} min`}</label>
             {basket.length === 0 ? (
               <p className="text-sm text-slate-400 px-1">Pick tests above — you can mix sections and exams.</p>
             ) : (
