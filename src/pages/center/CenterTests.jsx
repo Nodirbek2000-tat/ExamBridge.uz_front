@@ -20,6 +20,7 @@ import {
 import api from '../../api/client'
 import { CEFR_EXAMPLES, IELTS_EXAMPLES } from '../../data/importExamples'
 import { Card, Empty, PageHeader, PrimaryButton } from './ui'
+import CenterQuizzes from './CenterQuizzes'
 
 const SECTIONS = [
   { key: 'reading', label: 'Reading', icon: BookOpen },
@@ -256,31 +257,33 @@ export default function CenterTests() {
   const [importing, setImporting] = useState(false)
   const kind = `${exam}-${section}`
 
+  const isQuiz = exam === 'quiz'
   const { data, isLoading } = useQuery({
     queryKey: ['center-content', centerId, kind],
     queryFn: () => api.get(`/centers/${centerId}/content/?kind=${kind}`).then((r) => r.data),
+    enabled: !isQuiz,
   })
   const canManage = !!data?.can_manage
 
   return (
     <div className="max-w-5xl mx-auto">
       <PageHeader eyebrow="Our tests" title="Tests"
-        subtitle="Add your own IELTS and CEFR tests. Your students find them in the normal test pages."
-        action={canManage && <PrimaryButton icon={Plus} onClick={() => setImporting(true)}>Import {section}</PrimaryButton>} />
+        subtitle="Your own IELTS, CEFR and simple A/B/C tests. Students find them in their test pages."
+        action={canManage && !isQuiz && <PrimaryButton icon={Plus} onClick={() => setImporting(true)}>Import {section}</PrimaryButton>} />
 
       {center && <SiteSwitch key={String(center.show_site_mocks)} centerId={centerId} value={center.show_site_mocks !== false}
         canChange={myRole === 'director' || myRole === 'staff'} />}
 
       <div className="flex flex-wrap items-center gap-3 mb-4">
-        <div className="grid grid-cols-2 gap-1 p-1 bg-slate-200/60 rounded-xl">
-          {['ielts', 'cefr'].map((e) => (
+        <div className="grid grid-cols-3 gap-1 p-1 bg-slate-200/60 rounded-xl">
+          {[['ielts', 'IELTS'], ['cefr', 'CEFR'], ['quiz', 'A/B/C tests']].map(([e, l]) => (
             <button key={e} onClick={() => setExam(e)}
-              className={`px-5 py-1.5 rounded-lg text-sm font-bold transition-all ${exam === e ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>
-              {e.toUpperCase()}
+              className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${exam === e ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>
+              {l}
             </button>
           ))}
         </div>
-        <div className="flex gap-1">
+        {!isQuiz && <div className="flex gap-1">
           {SECTIONS.map(({ key, label, icon: Icon }) => (
             <button key={key} onClick={() => setSection(key)}
               className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-colors ${
@@ -288,18 +291,20 @@ export default function CenterTests() {
               <Icon size={14} />{label}
             </button>
           ))}
-        </div>
+        </div>}
       </div>
 
-      <Card className="overflow-hidden">
-        {isLoading || !data
-          ? <div className="py-16 flex justify-center"><Loader2 size={20} className="animate-spin text-slate-300" /></div>
-          : <ContentList centerId={centerId} kind={kind} data={data} canManage={canManage} />}
-      </Card>
-      {section === 'listening' && (
+      {isQuiz ? <CenterQuizzes centerId={centerId} /> : (
+        <Card className="overflow-hidden">
+          {isLoading || !data
+            ? <div className="py-16 flex justify-center"><Loader2 size={20} className="animate-spin text-slate-300" /></div>
+            : <ContentList centerId={centerId} kind={kind} data={data} canManage={canManage} />}
+        </Card>
+      )}
+      {!isQuiz && section === 'listening' && (
         <p className="mt-3 inline-flex items-center gap-1.5 text-xs text-slate-400"><AlertTriangle size={12} />A listening test needs its audio before students can take it.</p>
       )}
-      {exam === 'cefr' && section === 'speaking' && (
+      {!isQuiz && exam === 'cefr' && section === 'speaking' && (
         <p className="mt-3 inline-flex items-center gap-1.5 text-xs text-slate-400"><ImageIcon size={12} />Part 1.2 needs both pictures before the test is shown to students.</p>
       )}
 

@@ -145,6 +145,8 @@ const OlympiadPage = lazyWithPreload(() => import('./pages/olympiad/OlympiadPage
 const CenterNotifications = lazyWithPreload(() => import('./pages/center/CenterNotifications'))
 const MyCenters = lazyWithPreload(() => import('./pages/center/MyCenters'))
 const MyTasks = lazyWithPreload(() => import('./pages/center/MyTasks'))
+const StudentQuizzes = lazyWithPreload(() => import('./pages/center/StudentQuizzes'))
+const QuizRunner = lazyWithPreload(() => import('./pages/center/QuizRunner'))
 
 function PrivateRoute({ children }) {
   const user = useAuthStore((s) => s.user)
@@ -299,6 +301,7 @@ export default function App() {
         <Route path="vocabulary" element={<VocabularyPage />} />
         <Route path="my-centers" element={<MyCenters />} />
         <Route path="my-tasks" element={<MyTasks />} />
+        <Route path="tests" element={<StudentQuizzes />} />
       </Route>
 
       {/* Games — its own full-screen world, no sidebar */}
@@ -333,6 +336,7 @@ export default function App() {
         <Route path="ielts/:attemptId" element={<IELTSAttempt />} />
         <Route path="full-mock/:attemptId" element={<FullMockPage />} />
         <Route path="olympiad/:olympiadId" element={<OlympiadPage />} />
+        <Route path="quiz/:attemptId" element={<QuizRunner />} />
         <Route path="ielts/writing/result/:responseId" element={<IELTSWritingResult />} />
         <Route path="ielts/writing/result" element={<IELTSWritingResult />} />
         <Route path="ielts/writing/:attemptId" element={<IELTSWritingAttempt />} />

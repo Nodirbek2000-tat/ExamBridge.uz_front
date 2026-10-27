@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   GraduationCap, BookOpen, Globe, Home,
   Library, X, ChevronRight, ChevronsUpDown, Calculator, Sparkles,
-  ClipboardList, Bell, Crown, FileText, Layers, History, Check, Gamepad2, BarChart3,
+  ClipboardList, Bell, Crown, FileText, Layers, History, Check, Gamepad2, BarChart3, ListChecks,
 } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { useAuthStore } from '../../store/authStore'
@@ -270,6 +270,22 @@ function SidebarContent({ onClose, isCenterStudent, pendingCount }) {
                 {pendingCount > 9 ? '9+' : pendingCount}
               </span>
             )}
+          </NavLink>
+        )}
+
+        {/* Tests — the center's A/B/C tests (center students only) */}
+        {isCenterStudent && (
+          <NavLink
+            to="/app/tests"
+            onClick={onClose}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[15px] font-medium transition-colors mt-1 ${
+                isActive ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-gray-600 dark:text-gray-400 hover:bg-emerald-50 hover:text-emerald-700'
+              }`
+            }
+          >
+            <ListChecks size={17} className="text-emerald-500 flex-shrink-0" />
+            <span className="flex-1">Tests</span>
           </NavLink>
         )}
 

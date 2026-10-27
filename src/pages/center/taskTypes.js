@@ -12,6 +12,7 @@ export const EXAMS = [
   { key: 'ielts', label: 'IELTS' },
   { key: 'cefr', label: 'CEFR' },
   { key: 'sat', label: 'SAT' },
+  { key: 'quiz', label: 'Our tests' },
 ]
 
 export const TASK_TYPES = [
@@ -28,6 +29,7 @@ export const TASK_TYPES = [
   { value: 'sat_mock',        exam: 'sat',   label: 'SAT Full Test',   skill: 'Full test' },
   { value: 'sat_english',     exam: 'sat',   label: 'SAT Reading & Writing', skill: 'R&W module' },
   { value: 'sat_math',        exam: 'sat',   label: 'SAT Math',        skill: 'Math module' },
+  { value: 'center_quiz',     exam: 'quiz',  label: 'A/B/C test',      skill: 'A/B/C tests' },
 ]
 
 // Older tasks may still carry this type; it is no longer offered.
@@ -43,13 +45,14 @@ export const EXAM_TINT = {
   ielts: { chip: 'text-violet-700 bg-violet-50 ring-violet-100', dot: 'bg-violet-500', solid: 'bg-violet-600' },
   cefr:  { chip: 'text-rose-700 bg-rose-50 ring-rose-100',       dot: 'bg-rose-500',   solid: 'bg-rose-600' },
   sat:   { chip: 'text-sky-700 bg-sky-50 ring-sky-100',          dot: 'bg-sky-500',    solid: 'bg-sky-600' },
+  quiz:  { chip: 'text-emerald-700 bg-emerald-50 ring-emerald-100', dot: 'bg-emerald-500', solid: 'bg-emerald-600' },
   other: { chip: 'text-slate-600 bg-slate-50 ring-slate-100',    dot: 'bg-slate-400',  solid: 'bg-slate-600' },
 }
 export const examTint = (type) => EXAM_TINT[taskMeta(type).exam] || EXAM_TINT.other
 export const taskColor = (type) => examTint(type).chip
 
 export const KIND_LABEL = {
-  mock: 'Full mock', passage: 'Passage', section: 'Part', task: 'Task', test: 'Test', full: 'All four sections',
+  mock: 'Full mock', passage: 'Passage', section: 'Part', task: 'Task', test: 'Test', full: 'All four sections', quiz: 'A/B/C test',
 }
 
 /* Where to send the student when there is no exact test to open. */
@@ -64,6 +67,7 @@ function listUrl(type) {
     case 'cefr_writing': return '/app/cefr/skills?tab=writing'
     case 'cefr_speaking': return '/app/cefr/skills?tab=speaking'
     case 'cefr_test': return '/app/cefr/skills'
+    case 'center_quiz': return '/app/tests'
     case 'ielts_full_mock': return '/app/ielts/skills?tab=mock'
     case 'cefr_full_mock': return '/app/cefr/skills?tab=mock'
     default: return '/app/sat/tests'
@@ -140,6 +144,10 @@ export async function startTest({ type, id, kind, title }) {
       }
       const { data } = await api.post(`/cefr/speaking/${id}/start/`)
       return { ref: data.response_id, url: `/exam/cefr/speaking/test/${data.response_id}` }
+    }
+    case 'center_quiz': {
+      const { data } = await api.post(`/centers/quizzes/${id}/start/`)
+      return { ref: data.attempt_id, url: `/exam/quiz/${data.attempt_id}` }
     }
     case 'ielts_full_mock':
     case 'cefr_full_mock': {

@@ -152,7 +152,7 @@ export default function CreateLessonPanel({ centerId, preGroupId, preStudentId, 
             <label className={LABEL}>Add tests</label>
             <div className="bg-white rounded-2xl border border-slate-200/70 overflow-hidden">
               <div className="p-3 space-y-2.5 border-b border-slate-100">
-                <div className="grid grid-cols-3 gap-1 p-1 bg-slate-100 rounded-xl">
+                <div className="grid grid-cols-4 gap-1 p-1 bg-slate-100 rounded-xl">
                   {EXAMS.map((e) => (
                     <button key={e.key} type="button"
                       onClick={() => { setTaskType(TASK_TYPES.find((t) => t.exam === e.key).value); setQ('') }}

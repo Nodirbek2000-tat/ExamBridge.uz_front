@@ -181,7 +181,7 @@ function CreatePanel({ centerId, myRole, onClose }) {
             <label className={LABEL}>Test {test && <span className="normal-case font-semibold text-slate-700">— {test.title}</span>}</label>
             <div className="bg-white rounded-2xl border border-slate-200/70 overflow-hidden">
               <div className="p-3 space-y-2.5 border-b border-slate-100">
-                <div className="grid grid-cols-3 gap-1 p-1 bg-slate-100 rounded-xl">
+                <div className="grid grid-cols-4 gap-1 p-1 bg-slate-100 rounded-xl">
                   {EXAMS_WITH_SAT.map((e) => (
                     <button key={e.key} type="button" onClick={() => { setTaskType(TASK_TYPES.find((t) => t.exam === e.key).value); setTest(null) }}
                       className={`py-1.5 rounded-lg text-xs font-bold ${exam === e.key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>{e.label}</button>
