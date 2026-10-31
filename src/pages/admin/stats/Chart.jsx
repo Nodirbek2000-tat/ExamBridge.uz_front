@@ -7,7 +7,7 @@ export const CHART_ORANGE = '#eb6834'
 const MARGIN = { top: 12, left: 30, bottom: 22 }
 const LABEL_GAP = 13
 
-function useWidth() {
+function useWidth(paused) {
   const ref = useRef(null)
   const [width, setWidth] = useState(0)
   useEffect(() => {
@@ -15,12 +15,13 @@ function useWidth() {
     const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width))
     observer.observe(ref.current)
     return () => observer.disconnect()
-  }, [])
+  }, [paused])                         // the plot unmounts while the table is showing
   return [ref, width]
 }
 
-function niceMax(value) {
-  if (value <= 4) return 4
+function niceMax(value, fractional) {
+  if (value <= 0) return fractional ? 1 : 4
+  if (!fractional && value <= 4) return 4
   const step = 10 ** Math.floor(Math.log10(value))
   const nice = [1, 2, 2.5, 5, 10].map((n) => n * step).find((n) => n >= value)
   return nice ?? value
@@ -42,17 +43,19 @@ function endLabels(series, last, y) {
  * data:   [{ [xKey]: ..., [series.key]: number }]
  * series: [{ key, label, color }]
  */
-export default function Chart({ data, series, xKey, formatX, kind = 'bar', height = 180, tickEvery }) {
-  const [ref, width] = useWidth()
+export default function Chart({
+  data, series, xKey, formatX, formatValue = (v) => v, fractional = false, kind = 'bar', height = 180, tickEvery,
+}) {
   const [hover, setHover] = useState(null)
   const [asTable, setAsTable] = useState(false)
+  const [ref, width] = useWidth(asTable)
 
   const isLine = kind === 'line'
   const multi = series.length > 1
   const marginRight = isLine ? 78 : 8
   const plotW = Math.max(0, width - MARGIN.left - marginRight)
   const plotH = height - MARGIN.top - MARGIN.bottom
-  const top = niceMax(Math.max(0, ...data.flatMap((d) => series.map((s) => d[s.key]))))
+  const top = niceMax(Math.max(0, ...data.flatMap((d) => series.map((s) => d[s.key]))), fractional)
   const slot = data.length ? plotW / data.length : 0
 
   const x = (i) => MARGIN.left + slot * i + slot / 2
@@ -96,7 +99,7 @@ export default function Chart({ data, series, xKey, formatX, kind = 'bar', heigh
               {data.map((d) => (
                 <tr key={d[xKey]}>
                   <td className="py-1 pr-3 text-gray-500">{formatX(d[xKey])}</td>
-                  {series.map((s) => <td key={s.key} className="py-1 pr-3 text-right font-semibold text-gray-700 tabular-nums">{d[s.key]}</td>)}
+                  {series.map((s) => <td key={s.key} className="py-1 pr-3 text-right font-semibold text-gray-700 tabular-nums">{formatValue(d[s.key])}</td>)}
                 </tr>
               ))}
             </tbody>
@@ -106,11 +109,11 @@ export default function Chart({ data, series, xKey, formatX, kind = 'bar', heigh
         <div ref={ref} className="relative" style={{ height }} onMouseLeave={() => setHover(null)}>
           {width > 0 && (
             <svg width={width} height={height} role="img" aria-label={series.map((s) => s.label).join(', ')}>
-              {[0, Math.round(top / 2), top].map((tick) => (
+              {[0, fractional ? top / 2 : Math.round(top / 2), top].map((tick) => (
                 <g key={tick}>
                   <line x1={MARGIN.left} x2={MARGIN.left + plotW} y1={y(tick)} y2={y(tick)} stroke="#f1f1ef" />
                   <text x={MARGIN.left - 6} y={y(tick) + 3} textAnchor="end" fontSize="10" fill="#9ca3af">
-                    {tick}
+                    {formatValue(tick)}
                   </text>
                 </g>
               ))}
@@ -189,7 +192,7 @@ export default function Chart({ data, series, xKey, formatX, kind = 'bar', heigh
                     <span className="w-2 h-2 rounded-full" style={{ background: s.color }} />
                     {s.label}
                   </span>
-                  <span className="font-bold text-gray-800 tabular-nums">{hovered[s.key]}</span>
+                  <span className="font-bold text-gray-800 tabular-nums">{formatValue(hovered[s.key])}</span>
                 </p>
               ))}
             </div>

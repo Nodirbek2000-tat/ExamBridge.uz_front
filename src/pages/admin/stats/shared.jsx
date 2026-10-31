@@ -50,6 +50,18 @@ export function Panel({ title, subtitle, action, children, className = '' }) {
   )
 }
 
+export function Tile({ label, value, sub }) {
+  return (
+    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 min-w-0">
+      <p className="text-xs text-gray-400 font-medium mb-1">{label}</p>
+      {value === undefined
+        ? <span className="inline-block w-14 h-6 bg-gray-100 rounded animate-pulse" />
+        : <p className="text-2xl font-black text-gray-900 leading-tight tabular-nums">{value.toLocaleString()}</p>}
+      {sub && <p className="text-[11px] text-gray-400 mt-0.5 truncate">{sub}</p>}
+    </div>
+  )
+}
+
 export function Segmented({ value, options, onChange }) {
   return (
     <div className="flex gap-1" role="group">

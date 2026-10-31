@@ -4,7 +4,7 @@ import { AlertCircle } from 'lucide-react'
 import api from '../../../api/client'
 import Chart, { CHART_BLUE, CHART_ORANGE } from './Chart'
 import { shortDate, timeAgo } from './format'
-import { Panel, Segmented, SectionBadge } from './shared'
+import { Panel, Segmented, SectionBadge, Tile } from './shared'
 
 const RANGES = [
   { value: 7, label: '7 days' },
@@ -21,18 +21,6 @@ const HOUR_SERIES = [{ key: 'started', label: 'Tests started', color: CHART_BLUE
 
 const pad = (hour) => `${String(hour).padStart(2, '0')}:00`
 const percent = (part, whole) => (whole ? Math.round((part / whole) * 100) : 0)
-
-function Tile({ label, value, sub }) {
-  return (
-    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 min-w-0">
-      <p className="text-xs text-gray-400 font-medium mb-1">{label}</p>
-      {value === undefined
-        ? <span className="inline-block w-14 h-6 bg-gray-100 rounded animate-pulse" />
-        : <p className="text-2xl font-black text-gray-900 leading-tight tabular-nums">{value.toLocaleString()}</p>}
-      {sub && <p className="text-[11px] text-gray-400 mt-0.5 truncate">{sub}</p>}
-    </div>
-  )
-}
 
 function SectionTable({ sections }) {
   return (

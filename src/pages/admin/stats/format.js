@@ -13,6 +13,11 @@ export function timeAgo(iso) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+export function usd(value) {
+  const digits = value > 0 && value < 0.01 ? 4 : 2
+  return `$${value.toFixed(digits)}`
+}
+
 export function shortDate(value) {
   const date = typeof value === 'string' && value.length === 10 ? new Date(`${value}T00:00:00`) : new Date(value)
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
