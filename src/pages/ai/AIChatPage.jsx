@@ -6,6 +6,7 @@ import {
   ChevronDown, Plus, MessageSquare, Sparkles, Mic, ArrowUp, PanelLeft,
 } from 'lucide-react'
 import api from '../../api/client'
+import LessonsTab from './LessonsTab'
 import ReactMarkdown from 'react-markdown'
 import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
@@ -165,7 +166,7 @@ export default function AIChatPage() {
   const [conversations, setConversations] = useState([])
   const [showHistory, setShowHistory] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [activeTab, setActiveTab] = useState('chat')
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') === 'lessons' ? 'video' : 'chat')
 
   const messagesEndRef = useRef(null)
   const fileInputRef = useRef(null)
@@ -415,19 +416,7 @@ export default function AIChatPage() {
 
         {/* Messages area */}
         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5 bg-white">
-          {activeTab === 'video' && (
-            <div className="h-full flex items-center justify-center">
-              <div className="text-center">
-                <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-4">
-                  <Sparkles size={26} className="text-gray-500" />
-                </div>
-                <h2 className="text-2xl font-black text-gray-900">Coming soon</h2>
-                <p className="text-gray-500 mt-2 text-sm">
-                  AI video explanation is being prepared.
-                </p>
-              </div>
-            </div>
-          )}
+          {activeTab === 'video' && <LessonsTab subject={subject} />}
           {activeTab === 'chat' && (
             <>
           {messages.length === 0 && !streaming && (

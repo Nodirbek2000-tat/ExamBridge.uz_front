@@ -80,6 +80,7 @@ const ROUTE_AREAS = [
   ['/admin-panel/games', AREA.GAMES],
   ['/admin-panel/centers', AREA.CENTERS],
   ['/admin-panel/ai-structures', AREA.AI],
+  ['/admin-panel/ai-lessons', AREA.AI],
   ['/admin-panel/reports', AREA.REPORTS],
   ['/admin-panel/system', AREA.SYSTEM],
 ]

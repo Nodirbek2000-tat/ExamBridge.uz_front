@@ -112,7 +112,7 @@ export default function MockExplorer() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search mocks"
-            className="w-full pl-8 pr-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:border-sky-400"
+            className="w-full pl-8 pr-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 rounded-lg border border-gray-200 focus:outline-none focus:border-sky-400"
           />
         </label>
       </div>

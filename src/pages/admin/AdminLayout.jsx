@@ -116,6 +116,7 @@ const NAV = [
   { to: '/admin-panel/testmakon-users', icon: ExternalLink, label: 'TestMakon Users', area: AREA.TESTMAKON },
   { to: '/admin-panel/centers', icon: Building2, label: 'Learning Centers', area: AREA.CENTERS },
   { to: '/admin-panel/ai-structures', icon: Sparkles, label: 'AI Structures', area: AREA.AI },
+  { to: '/admin-panel/ai-lessons', icon: GraduationCap, label: 'AI Lessons', area: AREA.AI },
   { to: '/admin-panel/reports', icon: Flag, label: 'Reports', area: AREA.REPORTS },
   { to: '/admin-panel/system', icon: Settings, label: 'System', area: AREA.SYSTEM },
 ]

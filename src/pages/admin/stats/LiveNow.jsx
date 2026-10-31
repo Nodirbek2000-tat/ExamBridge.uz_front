@@ -8,11 +8,11 @@ import { Panel, RowsSkeleton, SectionBadge, UserCell } from './shared'
 const REFRESH_MS = 15_000
 const COLLAPSED_ROWS = 6
 
-function Figure({ icon: Icon, value, label, live }) {
+function Figure({ icon, value, label, live }) {
   return (
     <div className="flex items-center gap-3 min-w-0">
-      <div className="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center flex-shrink-0 relative">
-        <Icon size={18} className="text-sky-600" />
+      <div className="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center flex-shrink-0 relative">
+        {icon}
         {live && (
           <span className="absolute -top-0.5 -right-0.5 flex w-2.5 h-2.5">
             <span className="absolute inline-flex w-full h-full rounded-full bg-green-400 opacity-75 animate-ping" />
@@ -50,9 +50,9 @@ export default function LiveNow() {
       ) : (
         <>
           <div className="px-5 py-4 grid grid-cols-1 sm:grid-cols-3 gap-4 border-b border-gray-50">
-            <Figure icon={Users} value={data?.online_now} label="Online now" live />
-            <Figure icon={FileText} value={data?.in_test_now} label="Taking a test now" />
-            <Figure icon={Activity} value={data?.visitors_today} label="Visitors today" />
+            <Figure icon={<Users size={18} />} value={data?.online_now} label="Online now" live />
+            <Figure icon={<FileText size={18} />} value={data?.in_test_now} label="Taking a test now" />
+            <Figure icon={<Activity size={18} />} value={data?.visitors_today} label="Visitors today" />
           </div>
 
           {isLoading ? <RowsSkeleton rows={3} /> : users.length === 0 ? (

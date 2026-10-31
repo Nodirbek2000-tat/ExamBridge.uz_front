@@ -95,6 +95,7 @@ const StudyShadowingPage = lazyWithPreload(() => import('./pages/study/StudyShad
 
 // AI
 const AIChatPage = lazyWithPreload(() => import('./pages/ai/AIChatPage'))
+const AILessonPage = lazyWithPreload(() => import('./pages/ai/AILessonPage'))
 
 // Other
 const ProfilePage = lazyWithPreload(() => import('./pages/profile/ProfilePage'))
@@ -126,6 +127,8 @@ const AdminFullMocks = lazyWithPreload(() => import('./pages/admin/AdminFullMock
 const FullMockPage = lazyWithPreload(() => import('./pages/fullmock/FullMockPage'))
 const AdminSystem = lazyWithPreload(() => import('./pages/admin/AdminSystem'))
 const AdminAIStructures = lazyWithPreload(() => import('./pages/admin/AdminAIStructures'))
+const AdminAILessons = lazyWithPreload(() => import('./pages/admin/AdminAILessons'))
+const AdminLessonPreview = lazyWithPreload(() => import('./pages/admin/AdminLessonPreview'))
 const AdminReports = lazyWithPreload(() => import('./pages/admin/AdminReports'))
 const AdminTestmakonUsers = lazyWithPreload(() => import('./pages/admin/AdminTestmakonUsers'))
 const AdminCenters = lazyWithPreload(() => import('./pages/admin/AdminCenters'))
@@ -300,6 +303,7 @@ export default function App() {
         <Route path="ai/sat" element={<AIChatPage />} />
         <Route path="ai/ielts" element={<AIChatPage />} />
         <Route path="ai/cefr" element={<AIChatPage />} />
+        <Route path="lessons/:id" element={<AILessonPage />} />
 
         {/* Other */}
         <Route path="profile" element={<ProfilePage />} />
@@ -425,6 +429,8 @@ export default function App() {
         <Route path="centers/:centerId" element={<AdminCenterDetail />} />
         <Route path="system" element={<AdminSystem />} />
         <Route path="ai-structures" element={<AdminAIStructures />} />
+        <Route path="ai-lessons" element={<AdminAILessons />} />
+        <Route path="ai-lessons/:id/preview" element={<AdminLessonPreview />} />
         <Route path="reports" element={<AdminReports />} />
       </Route>
 
