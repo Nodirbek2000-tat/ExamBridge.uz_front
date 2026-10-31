@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import {
@@ -6,6 +5,10 @@ import {
   Database, AlertCircle, TrendingUp, UserPlus, Calendar, BarChart3, DollarSign,
 } from 'lucide-react'
 import api from '../../api/client'
+import LiveNow from './stats/LiveNow'
+import AnalyticsOverview from './stats/AnalyticsOverview'
+import MockExplorer from './stats/MockExplorer'
+import VisitorsList from './stats/VisitorsList'
 
 // ─────────────────────────────────────────────────────────────────────────────
 const fade = (i = 0) => ({
@@ -40,58 +43,6 @@ function StatCard({ icon: Icon, label, value, color, bg, sub, index }) {
   )
 }
 
-// ─── Section Popularity Bar ───────────────────────────────────────────────────
-function SectionBar({ section, unique_users, attempts, maxUsers, index }) {
-  const c = SECTION_COLOR[section] || SECTION_COLOR.SAT
-  const pct = maxUsers > 0 ? Math.max(4, Math.round((unique_users / maxUsers) * 100)) : 4
-  return (
-    <motion.div {...fade(index)} className="space-y-1.5">
-      <div className="flex items-center justify-between text-sm">
-        <div className="flex items-center gap-2">
-          <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${c.badge}`}>{section}</span>
-          <span className="text-gray-700 font-semibold">{unique_users.toLocaleString()} unique users</span>
-        </div>
-        <span className="text-gray-400 text-xs">{attempts.toLocaleString()} attempts</span>
-      </div>
-      <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-        <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: `${pct}%` }}
-          transition={{ delay: 0.3 + index * 0.1, duration: 0.6, ease: 'easeOut' }}
-          className={`h-full rounded-full ${c.bar}`}
-        />
-      </div>
-    </motion.div>
-  )
-}
-
-// ─── Mock Leaderboard Tab ────────────────────────────────────────────────────
-function MockTable({ mocks, section }) {
-  const c = SECTION_COLOR[section] || SECTION_COLOR.SAT
-  if (!mocks?.length) return (
-    <div className="py-8 text-center text-sm text-gray-400">No data yet</div>
-  )
-  return (
-    <div className="divide-y divide-gray-50">
-      {mocks.map((m, i) => (
-        <div key={m.id} className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50/60 transition-colors">
-          <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${i < 3 ? c.bg + ' ' + c.text : 'bg-gray-100 text-gray-400'}`}>
-            {i + 1}
-          </span>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-gray-800 truncate">{m.label}</p>
-            {m.type && <p className="text-[11px] text-gray-400">{m.type}</p>}
-          </div>
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            <Users size={12} className={c.text} />
-            <span className={`text-sm font-bold ${c.text}`}>{m.unique_users.toLocaleString()}</span>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
 // ─── Status Dot ──────────────────────────────────────────────────────────────
 function StatusDot({ ok }) {
   return (
@@ -104,8 +55,6 @@ function StatusDot({ ok }) {
 
 // ─── Main ────────────────────────────────────────────────────────────────────
 export default function AdminDashboard() {
-  const [mockTab, setMockTab] = useState('SAT')
-
   const { data: stats, isLoading, error } = useQuery({
     queryKey: ['admin-stats'],
     queryFn: () => api.get('/system/stats/').then(r => r.data),
@@ -127,16 +76,6 @@ export default function AdminDashboard() {
     refetchInterval: 30_000,
     staleTime: 25_000,
   })
-
-  const maxSectionUsers = Math.max(
-    ...(stats?.section_popularity?.map(s => s.unique_users) ?? [1])
-  )
-
-  const mocksBySection = {
-    SAT:   stats?.sat_mocks   ?? [],
-    IELTS: stats?.ielts_mocks ?? [],
-    CEFR:  stats?.cefr_mocks  ?? [],
-  }
 
   const statCards = [
     { icon: Users,      label: 'Total Users',    value: stats?.total_users,    color: 'text-sky-600',    bg: 'bg-sky-50' },
@@ -164,6 +103,8 @@ export default function AdminDashboard() {
         <BarChart3 size={20} className="text-sky-500" />
         <h2 className="text-lg font-bold text-gray-900">Dashboard Overview</h2>
       </div>
+
+      <LiveNow />
 
       {/* Stat cards */}
       {error ? (
@@ -204,68 +145,11 @@ export default function AdminDashboard() {
         </motion.div>
       )}
 
-      {/* Section popularity + Mock leaderboard */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+      <AnalyticsOverview />
 
-        {/* Section popularity */}
-        <motion.div {...fade(4)} className="bg-white rounded-2xl shadow-sm border border-gray-100">
-          <div className="px-5 py-4 border-b border-gray-50">
-            <h3 className="font-bold text-gray-900 text-sm">Platform Popularity</h3>
-            <p className="text-xs text-gray-400 mt-0.5">Unique users by exam section</p>
-          </div>
-          <div className="px-5 py-5 space-y-4">
-            {isLoading ? (
-              [...Array(3)].map((_, i) => (
-                <div key={i} className="space-y-2">
-                  <div className="h-4 bg-gray-100 rounded animate-pulse w-40" />
-                  <div className="h-3 bg-gray-100 rounded-full animate-pulse" />
-                </div>
-              ))
-            ) : stats?.section_popularity?.length ? (
-              stats.section_popularity.map((s, i) => (
-                <SectionBar key={s.section} {...s} maxUsers={maxSectionUsers} index={i} />
-              ))
-            ) : (
-              <p className="text-sm text-gray-400 py-4 text-center">No data yet</p>
-            )}
-          </div>
-        </motion.div>
+      <MockExplorer />
 
-        {/* Mock leaderboard */}
-        <motion.div {...fade(5)} className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col">
-          <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between">
-            <div>
-              <h3 className="font-bold text-gray-900 text-sm">Top Mocks by Unique Users</h3>
-              <p className="text-xs text-gray-400 mt-0.5">1 user counted once per mock</p>
-            </div>
-            <div className="flex gap-1">
-              {['SAT', 'IELTS', 'CEFR'].map(tab => {
-                const c = SECTION_COLOR[tab]
-                return (
-                  <button
-                    key={tab}
-                    onClick={() => setMockTab(tab)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                      mockTab === tab ? `${c.bg} ${c.text}` : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    {tab}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-          <div className="flex-1 overflow-y-auto max-h-72">
-            {isLoading ? (
-              <div className="p-5 space-y-3">
-                {[...Array(5)].map((_, i) => <div key={i} className="h-9 bg-gray-50 rounded-lg animate-pulse" />)}
-              </div>
-            ) : (
-              <MockTable mocks={mocksBySection[mockTab]} section={mockTab} />
-            )}
-          </div>
-        </motion.div>
-      </div>
+      <VisitorsList />
 
       {/* Recent activity */}
       <motion.div {...fade(6)} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">

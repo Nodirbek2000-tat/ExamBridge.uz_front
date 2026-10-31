@@ -2,6 +2,7 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from './store/authStore'
+import { useHeartbeat } from './hooks/useHeartbeat'
 import { useThemeStore, applyTheme } from './store/themeStore'
 import { lazyWithPreload, preloadAll } from './utils/lazyWithPreload'
 import LazyBoundary from './components/LazyBoundary'
@@ -161,6 +162,11 @@ function AdminRoute({ children }) {
 }
 
 // ── Global top progress bar — fires on every route change ─────────────────
+function Heartbeat() {
+  useHeartbeat()
+  return null
+}
+
 function RouteProgressBar() {
   const location = useLocation()
   const [visible, setVisible] = useState(false)
@@ -238,6 +244,7 @@ export default function App() {
   return (
     <>
     <RouteProgressBar />
+    <Heartbeat />
     <LazyBoundary>
     <Routes>
       {/* Public */}
