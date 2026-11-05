@@ -159,7 +159,7 @@ export default function Chart({
 
               {isLine && data.length > 0 && endLabels(series, data[data.length - 1], y).map((l) => (
                 <text key={l.key} x={MARGIN.left + plotW + 6} y={l.y + 3} fontSize="10" fill="#6b7280">
-                  {l.label} {l.value}
+                  {l.label} {formatValue(l.value)}
                 </text>
               ))}
 

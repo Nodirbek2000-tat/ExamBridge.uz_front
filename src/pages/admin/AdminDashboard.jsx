@@ -8,6 +8,7 @@ import api from '../../api/client'
 import LiveNow from './stats/LiveNow'
 import AnalyticsOverview from './stats/AnalyticsOverview'
 import AICosts from './stats/AICosts'
+import Engagement from './stats/Engagement'
 import MockExplorer from './stats/MockExplorer'
 import VisitorsList from './stats/VisitorsList'
 
@@ -147,6 +148,8 @@ export default function AdminDashboard() {
       )}
 
       <AnalyticsOverview />
+
+      <Engagement />
 
       <AICosts />
 
