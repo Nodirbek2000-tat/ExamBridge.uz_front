@@ -186,7 +186,7 @@ function SidebarContent({ onClose, isCenterStudent, pendingCount }) {
     <div className="flex flex-col h-full bg-white dark:bg-gray-900 transition-colors">
       {/* Logo */}
       <div className="flex items-center justify-between px-4 py-4 border-b border-gray-100 dark:border-gray-800">
-        <Logo className="h-10 w-auto flex-shrink-0" />
+        <Logo className="h-10 w-auto flex-shrink-0" variant="auto" />
         {onClose && (
           <button onClick={onClose} className="lg:hidden text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1">
             <X size={18} />

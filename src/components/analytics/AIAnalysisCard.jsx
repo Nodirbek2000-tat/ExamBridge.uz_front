@@ -67,13 +67,13 @@ async function streamAnalysis(body, signal, onEvent) {
 }
 
 const md = {
-  h2: ({ children }) => <h3 className="mb-2 mt-5 text-base font-bold text-gray-900 first:mt-0">{children}</h3>,
-  h3: ({ children }) => <h4 className="mb-1 mt-4 font-bold text-gray-900">{children}</h4>,
-  p: ({ children }) => <p className="mb-2 leading-relaxed text-gray-700">{children}</p>,
-  ul: ({ children }) => <ul className="mb-2 space-y-1.5 pl-5 text-gray-700 [list-style:disc]">{children}</ul>,
-  ol: ({ children }) => <ol className="mb-2 space-y-2 pl-5 text-gray-700 [list-style:decimal] marker:font-bold marker:text-blue-600">{children}</ol>,
+  h2: ({ children }) => <h3 className="mb-2 mt-5 text-base font-bold text-gray-900 dark:text-gray-100 first:mt-0">{children}</h3>,
+  h3: ({ children }) => <h4 className="mb-1 mt-4 font-bold text-gray-900 dark:text-gray-100">{children}</h4>,
+  p: ({ children }) => <p className="mb-2 leading-relaxed text-gray-700 dark:text-gray-200">{children}</p>,
+  ul: ({ children }) => <ul className="mb-2 space-y-1.5 pl-5 text-gray-700 dark:text-gray-200 [list-style:disc]">{children}</ul>,
+  ol: ({ children }) => <ol className="mb-2 space-y-2 pl-5 text-gray-700 dark:text-gray-200 [list-style:decimal] marker:font-bold marker:text-blue-600">{children}</ol>,
   li: ({ children }) => <li className="pl-1 leading-relaxed">{children}</li>,
-  strong: ({ children }) => <strong className="font-bold text-gray-900">{children}</strong>,
+  strong: ({ children }) => <strong className="font-bold text-gray-900 dark:text-gray-100">{children}</strong>,
   // only links inside the app become links
   a: ({ href, children }) => (href && href.startsWith('/app/')
     ? <Link to={href} className="font-semibold text-blue-600 underline decoration-blue-200 underline-offset-2 hover:text-blue-800">{children}</Link>
@@ -141,7 +141,7 @@ export default function AIAnalysisCard({ exam, range, volume }) {
   const visible = target != null ? target.slice(0, shown) : text
 
   return (
-    <section className="relative overflow-hidden rounded-3xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-white p-5 sm:p-6">
+    <section className="relative overflow-hidden rounded-3xl border border-blue-100 dark:border-blue-900/40 bg-gradient-to-br from-blue-50 dark:from-blue-950/40 via-white dark:via-gray-800 to-white dark:to-gray-800 p-5 sm:p-6">
       <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-blue-200/30 blur-3xl" />
       <div className="relative flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -149,15 +149,15 @@ export default function AIAnalysisCard({ exam, range, volume }) {
             <Sparkles size={18} className={busy ? 'animate-pulse' : ''} />
           </span>
           <div>
-            <h2 className="text-xl font-bold text-gray-900">{t.title}</h2>
-            <p className="text-sm text-gray-500">{t.sub}</p>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">{t.title}</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">{t.sub}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex rounded-xl border border-slate-200 bg-white/80 p-0.5 text-xs font-bold backdrop-blur">
+          <div className="flex rounded-xl border border-slate-200 dark:border-gray-600 bg-white/80 dark:bg-gray-800/80 p-0.5 text-xs font-bold backdrop-blur">
             {['uz', 'en'].map(l => (
               <button key={l} type="button" onClick={() => pickLang(l)} disabled={busy}
-                className={`rounded-lg px-2.5 py-1 uppercase transition ${lang === l ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-slate-50'}`}>{l}</button>
+                className={`rounded-lg px-2.5 py-1 uppercase transition ${lang === l ? 'bg-blue-600 text-white' : 'text-gray-500 dark:text-gray-400 hover:bg-slate-50 dark:hover:bg-gray-700'}`}>{l}</button>
             ))}
           </div>
           {!tooFew && (
@@ -172,9 +172,9 @@ export default function AIAnalysisCard({ exam, range, volume }) {
 
       <div className="relative mt-4">
         {tooFew ? (
-          <p className="rounded-2xl bg-white/70 px-4 py-3 text-sm text-gray-600">{t.few(insufficient?.needed ?? MIN, insufficient?.have ?? volume)}</p>
+          <p className="rounded-2xl bg-white/70 dark:bg-gray-900/50 px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{t.few(insufficient?.needed ?? MIN, insufficient?.have ?? volume)}</p>
         ) : error ? (
-          <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
+          <p className="rounded-2xl bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-700 dark:text-red-300">{error}</p>
         ) : busy && !visible ? (
           <div className="space-y-2.5 py-1" aria-live="polite">
             {[92, 78, 85, 60].map((w, i) => <div key={i} className="h-3 animate-pulse rounded-full bg-blue-100/70" style={{ width: `${w}%` }} />)}
@@ -183,10 +183,10 @@ export default function AIAnalysisCard({ exam, range, volume }) {
           <div className="text-[15px]" aria-live="polite">
             <ReactMarkdown components={md}>{visible}</ReactMarkdown>
             {(busy || typing) && <span className="ml-0.5 inline-block h-4 w-[3px] translate-y-0.5 animate-pulse rounded-full bg-blue-600 align-baseline" />}
-            {!busy && !typing && <p className="mt-3 text-xs text-gray-400">{t.foot}</p>}
+            {!busy && !typing && <p className="mt-3 text-xs text-gray-400 dark:text-gray-500">{t.foot}</p>}
           </div>
         ) : (
-          <p className="text-sm text-gray-600">{t.idle}</p>
+          <p className="text-sm text-gray-600 dark:text-gray-300">{t.idle}</p>
         )}
       </div>
     </section>

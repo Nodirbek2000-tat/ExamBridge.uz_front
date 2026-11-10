@@ -105,7 +105,7 @@ export default function Navbar() {
         <div className="eb-nav-bg" aria-hidden="true" />
         <nav aria-label="Main" className="eb-container relative flex h-16 items-center justify-between gap-4">
           <Link to="/" className="flex h-11 shrink-0 items-center rounded-lg" onClick={() => close()}>
-            <Logo className="h-8 w-[126px]" alt="ExamBridge — home" />
+            <Logo className="h-9 w-auto" alt="ExamBridge — home" />
           </Link>
 
           <ul className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-7 lg:flex">

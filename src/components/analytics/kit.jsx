@@ -41,9 +41,9 @@ const isoOf = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, 
 
 export const band = (pct) => (pct == null ? null : pct >= 85 ? 'good' : pct >= 60 ? 'warn' : 'bad')
 export const BAND = {
-  good: { label: 'Strong', color: C.good, Icon: CheckCircle2, text: 'text-green-700' },
-  warn: { label: 'Okay', color: C.warn, Icon: TrendingUp, text: 'text-amber-700' },
-  bad: { label: 'Needs work', color: C.bad, Icon: AlertTriangle, text: 'text-red-700' },
+  good: { label: 'Strong', color: C.good, Icon: CheckCircle2, text: 'text-green-700 dark:text-green-300' },
+  warn: { label: 'Okay', color: C.warn, Icon: TrendingUp, text: 'text-amber-700 dark:text-amber-300' },
+  bad: { label: 'Needs work', color: C.bad, Icon: AlertTriangle, text: 'text-red-700 dark:text-red-300' },
 }
 
 // ── motion ────────────────────────────────────────────────────────────────────
@@ -67,12 +67,12 @@ export function Reveal({ children, delay = 0, className = '' }) {
 // ── containers ────────────────────────────────────────────────────────────────
 export function Card({ title, subtitle, right, children, className = '' }) {
   return (
-    <section className={`rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 ${className}`}>
+    <section className={`rounded-3xl border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 p-5 sm:p-6 ${className}`}>
       {(title || right) && (
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div>
-            {title && <h2 className="text-xl font-bold text-gray-900">{title}</h2>}
-            {subtitle && <p className="mt-0.5 text-sm text-gray-500">{subtitle}</p>}
+            {title && <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">{title}</h2>}
+            {subtitle && <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">{subtitle}</p>}
           </div>
           {right}
         </div>
@@ -83,15 +83,15 @@ export function Card({ title, subtitle, right, children, className = '' }) {
 }
 
 export function Empty({ children }) {
-  return <p className="rounded-2xl bg-slate-50 px-4 py-8 text-center text-sm text-gray-500">{children}</p>
+  return <p className="rounded-2xl bg-slate-50 dark:bg-gray-900/40 px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">{children}</p>
 }
 
 export function RangePicker({ value, onChange }) {
   return (
-    <div className="flex rounded-2xl border border-slate-200 bg-white/90 p-1 text-sm font-semibold backdrop-blur" role="group" aria-label="Date range">
+    <div className="flex rounded-2xl border border-slate-200 dark:border-gray-600 bg-white/90 dark:bg-gray-800/90 p-1 text-sm font-semibold backdrop-blur" role="group" aria-label="Date range">
       {RANGES.map(([k, l]) => (
         <button key={k} type="button" onClick={() => onChange(k)} aria-pressed={value === k}
-          className={`rounded-xl px-3.5 py-1.5 transition ${value === k ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-slate-50'}`}>{l}</button>
+          className={`rounded-xl px-3.5 py-1.5 transition ${value === k ? 'bg-gray-900 text-white dark:bg-sky-600' : 'text-gray-500 dark:text-gray-400 hover:bg-slate-50 dark:hover:bg-gray-700'}`}>{l}</button>
       ))}
     </div>
   )
@@ -138,14 +138,14 @@ export function Meter({ pct, height = 8 }) {
 
 export function BandTag({ pct }) {
   const b = band(pct)
-  if (!b) return <span className="text-xs text-gray-400">No data</span>
+  if (!b) return <span className="text-xs text-gray-400 dark:text-gray-500">No data</span>
   const { label, Icon, text } = BAND[b]
   return <span className={`inline-flex items-center gap-1 text-xs font-semibold ${text}`}><Icon size={12} /> {label}</span>
 }
 
 export function BandLegend() {
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
       {[['good', '≥ 85%'], ['warn', '60–84%'], ['bad', '< 60%']].map(([k, range]) => (
         <span key={k} className="inline-flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full" style={{ background: BAND[k].color }} /> {BAND[k].label} {range}
@@ -155,15 +155,15 @@ export function BandLegend() {
   )
 }
 
-export function Stat({ icon: Icon, label, value, hint, tone = 'text-gray-400' }) {
+export function Stat({ icon: Icon, label, value, hint, tone = 'text-gray-400 dark:text-gray-500' }) {
   return (
-    <div className="h-full rounded-2xl border border-slate-200 bg-white px-4 py-4 transition hover:-translate-y-0.5 hover:shadow-md">
+    <div className="h-full rounded-2xl border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-4 transition hover:-translate-y-0.5 hover:shadow-md">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-medium text-gray-500">{label}</p>
+        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{label}</p>
         <Icon size={16} className={tone} />
       </div>
-      <p className="mt-1.5 text-3xl font-bold text-gray-900">{value}</p>
-      {hint && <p className="mt-0.5 text-xs text-gray-400">{hint}</p>}
+      <p className="mt-1.5 text-3xl font-bold text-gray-900 dark:text-gray-100">{value}</p>
+      {hint && <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">{hint}</p>}
     </div>
   )
 }
@@ -175,20 +175,20 @@ export function Stat({ icon: Icon, label, value, hint, tone = 'text-gray-400' })
 export function WeakList({ items, emptyText }) {
   if (!items.length) return <Empty>{emptyText}</Empty>
   return (
-    <ol className="divide-y divide-slate-100">
+    <ol className="divide-y divide-slate-100 dark:divide-gray-700">
       {items.map((s, i) => (
         <li key={s.key} className="grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-3 py-3.5 sm:grid-cols-[3rem_minmax(0,1fr)_10rem_5.5rem_auto]">
           <span className="text-2xl font-bold tabular-nums text-gray-300">{String(i + 1).padStart(2, '0')}</span>
           <div className="min-w-0">
-            <p className="flex flex-wrap items-center gap-x-2 text-xs text-gray-500">
+            <p className="flex flex-wrap items-center gap-x-2 text-xs text-gray-500 dark:text-gray-400">
               <BandTag pct={s.accuracy} />
               {s.meta?.map(m => <span key={m}>· {m}</span>)}
               <span>· {s.correct}/{s.attempts} correct</span>
             </p>
-            <p className="mt-0.5 truncate font-semibold text-gray-900" title={s.title}>{s.title}</p>
+            <p className="mt-0.5 truncate font-semibold text-gray-900 dark:text-gray-100" title={s.title}>{s.title}</p>
           </div>
           <div className="hidden sm:block"><Meter pct={s.accuracy} /></div>
-          <p className="text-right text-2xl font-bold text-gray-900">{s.accuracy}<span className="ml-0.5 text-sm font-medium text-gray-400">%</span></p>
+          <p className="text-right text-2xl font-bold text-gray-900 dark:text-gray-100">{s.accuracy}<span className="ml-0.5 text-sm font-medium text-gray-400 dark:text-gray-500">%</span></p>
           <Link to={s.link} className="col-span-3 inline-flex items-center justify-end gap-1 text-sm font-semibold text-blue-600 hover:text-blue-800 sm:col-span-1">
             {s.linkLabel || 'Practice'} <ArrowRight size={14} />
           </Link>
@@ -234,23 +234,23 @@ export function StackedColumns({ rows, series, tip, fmt = (v) => `${Math.round(v
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-end gap-x-8 gap-y-2">
-        <p><span className="text-3xl font-bold text-gray-900">{fmt(sum)}</span> <span className="text-sm text-gray-500">in this period</span></p>
-        <p><span className="text-3xl font-bold text-gray-900">{fmt(avg)}</span> <span className="text-sm text-gray-500">per {unit}</span></p>
+        <p><span className="text-3xl font-bold text-gray-900 dark:text-gray-100">{fmt(sum)}</span> <span className="text-sm text-gray-500 dark:text-gray-400">in this period</span></p>
+        <p><span className="text-3xl font-bold text-gray-900 dark:text-gray-100">{fmt(avg)}</span> <span className="text-sm text-gray-500 dark:text-gray-400">per {unit}</span></p>
         {series.length > 1 && (
-          <div className="ml-auto flex flex-wrap items-center gap-4 text-xs text-gray-600">
+          <div className="ml-auto flex flex-wrap items-center gap-4 text-xs text-gray-600 dark:text-gray-300">
             {series.map(s => <span key={s.key} className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ background: s.color }} /> {s.label}</span>)}
           </div>
         )}
       </div>
       {sum === 0 ? <Empty>{emptyText}</Empty> : table ? (
-        <div className="max-h-64 overflow-y-auto rounded-2xl border border-slate-100">
+        <div className="max-h-64 overflow-y-auto rounded-2xl border border-slate-100 dark:border-gray-700">
           <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-slate-50 text-left text-xs text-gray-500">
+            <thead className="sticky top-0 bg-slate-50 dark:bg-gray-900 text-left text-xs text-gray-500 dark:text-gray-400">
               <tr><th className="px-3 py-2 font-medium">{weekly ? 'Week' : 'Day'}</th>{series.map(s => <th key={s.key} className="px-3 py-2 font-medium">{s.label}</th>)}</tr>
             </thead>
             <tbody className="tabular-nums">
               {data.map((d, i) => ({ d, t: totals[i] })).filter(x => x.t > 0).reverse().map(({ d }) => (
-                <tr key={d.date} className="border-t border-slate-100">
+                <tr key={d.date} className="border-t border-slate-100 dark:border-gray-700">
                   <td className="px-3 py-1.5">{label(d.date)}</td>
                   {series.map(s => <td key={s.key} className="px-3 py-1.5">{fmt(d[s.key] || 0)}</td>)}
                 </tr>
@@ -263,7 +263,7 @@ export function StackedColumns({ rows, series, tip, fmt = (v) => `${Math.round(v
           <div className="relative" style={{ height }}>
             {avg > 0 && (
               <div className="pointer-events-none absolute inset-x-0 z-10 border-t border-gray-400" style={{ bottom: (avg / max) * height }}>
-                <span className="absolute right-0 -top-4 bg-white pl-1 text-[10px] font-medium text-gray-500">avg {fmt(avg)}</span>
+                <span className="absolute right-0 -top-4 bg-white dark:bg-gray-800 pl-1 text-[10px] font-medium text-gray-500 dark:text-gray-400">avg {fmt(avg)}</span>
               </div>
             )}
             <div className="absolute inset-x-0 bottom-0 border-t" style={{ borderColor: C.axis }} />
@@ -275,7 +275,7 @@ export function StackedColumns({ rows, series, tip, fmt = (v) => `${Math.round(v
                 return (
                   <div key={d.date} tabIndex={0} aria-label={`${label(d.date)}: ${fmt(total)}`}
                     onMouseEnter={(ev) => tip.show(ev, lines)} onMouseLeave={tip.hide} onFocus={(ev) => tip.show(ev, lines)} onBlur={tip.hide}
-                    className="group flex h-full min-w-0 flex-1 cursor-default flex-col items-center justify-end outline-none hover:bg-slate-50 focus-visible:bg-slate-100">
+                    className="group flex h-full min-w-0 flex-1 cursor-default flex-col items-center justify-end outline-none hover:bg-slate-50 dark:hover:bg-gray-700 focus-visible:bg-slate-100">
                     {total > 0 && (
                       <div className="flex w-full max-w-[24px] flex-col-reverse overflow-hidden rounded-t-[4px] transition group-hover:brightness-110"
                         style={{ height: `${(total / max) * 100}%`, gap: shown.length > 1 ? 2 : 0 }}>
@@ -290,7 +290,7 @@ export function StackedColumns({ rows, series, tip, fmt = (v) => `${Math.round(v
           <div className="mt-1.5 flex" style={{ gap: many ? 1 : 2 }}>
             {data.map((d, i) => (
               <div key={d.date} className="relative h-4 min-w-0 flex-1">
-                {i % step === 0 && <span className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] tabular-nums text-gray-400">{fmtDay(d.date, { month: 'numeric', day: 'numeric' })}</span>}
+                {i % step === 0 && <span className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] tabular-nums text-gray-400 dark:text-gray-500">{fmtDay(d.date, { month: 'numeric', day: 'numeric' })}</span>}
               </div>
             ))}
           </div>
@@ -331,14 +331,14 @@ export function Heatmap({ activity, tip, unit = 'questions', total, totalLabel =
   return (
     <Card
       title="Your practice activity"
-      subtitle={activity.most_active_weekday ? <>Most active: <span className="font-bold text-blue-700">{activity.most_active_weekday}</span></> : 'All-time, independent of the date range above'}
-      right={<p className="text-right"><span className="text-3xl font-bold text-gray-900">{total ?? activity.all_time_questions}</span> <span className="text-sm text-gray-500">{totalLabel}</span></p>}
+      subtitle={activity.most_active_weekday ? <>Most active: <span className="font-bold text-blue-700 dark:text-blue-300">{activity.most_active_weekday}</span></> : 'All-time, independent of the date range above'}
+      right={<p className="text-right"><span className="text-3xl font-bold text-gray-900 dark:text-gray-100">{total ?? activity.all_time_questions}</span> <span className="text-sm text-gray-500 dark:text-gray-400">{totalLabel}</span></p>}
     >
       <div ref={scroller} className="flex gap-6 overflow-x-auto pb-1">
         {months.map(m => (
           <div key={m.label} className="flex-shrink-0">
-            <p className="mb-1.5 text-sm font-semibold text-gray-800">{m.label}</p>
-            <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[10px] text-gray-400">
+            <p className="mb-1.5 text-sm font-semibold text-gray-800 dark:text-gray-100">{m.label}</p>
+            <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[10px] text-gray-400 dark:text-gray-500">
               {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map(d => <span key={d} className="w-[22px]">{d}</span>)}
             </div>
             <div className="grid grid-cols-7 gap-1">
@@ -356,7 +356,7 @@ export function Heatmap({ activity, tip, unit = 'questions', total, totalLabel =
           </div>
         ))}
       </div>
-      <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-gray-500">
+      <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
         Less {C.heat.map(h => <span key={h} className="h-3.5 w-3.5 rounded-[4px]" style={{ background: h }} />)} More
       </div>
     </Card>

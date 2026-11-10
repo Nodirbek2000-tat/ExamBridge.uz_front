@@ -52,7 +52,7 @@ const EXAMS = {
 const SKILL_NAME = { reading: 'Reading', listening: 'Listening', speaking: 'Speaking', writing: 'Writing' }
 
 // Band (0–9) state for writing / speaking — always shown with a word
-const bandState = (b) => (b == null ? null : b >= 7 ? ['Strong', C.good, 'text-green-700'] : b >= 5.5 ? ['Okay', C.warn, 'text-amber-700'] : ['Needs work', C.bad, 'text-red-700'])
+const bandState = (b) => (b == null ? null : b >= 7 ? ['Strong', C.good, 'text-green-700 dark:text-green-300'] : b >= 5.5 ? ['Okay', C.warn, 'text-amber-700 dark:text-amber-300'] : ['Needs work', C.bad, 'text-red-700 dark:text-red-300'])
 // the same words for CEFR: a 0–75 score or a 0–5 criterion, compared on one scale
 const cefrState = (v, max) => (v == null ? null : bandState((v / max) * 9))
 const CEFR_LEVEL = { C1: 'C1', B2: 'B2', B1: 'B1', BELOW: 'Below B1' }
@@ -72,28 +72,28 @@ function SkillCard({ exam, skill, info, data, index }) {
       : s?.avg_band != null ? [s.avg_band.toFixed(1), `avg band · ${s.count} done`] : s?.count ? [`${s.count}`, 'responses'] : null
   }
   const body = (
-    <div className="group relative flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 transition duration-300 hover:-translate-y-1 hover:border-sky-200 hover:shadow-[0_12px_40px_-12px_rgba(42,120,214,0.35)]">
+    <div className="group relative flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 p-5 transition duration-300 hover:-translate-y-1 hover:border-sky-200 hover:shadow-[0_12px_40px_-12px_rgba(42,120,214,0.35)]">
       <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-sky-100/0 blur-2xl transition duration-500 group-hover:bg-sky-100/80" />
       <div className="relative flex items-start gap-4">
-        <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-sky-50 text-sky-600 transition duration-300 group-hover:scale-110 group-hover:bg-sky-600 group-hover:text-white">
+        <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-sky-50 dark:bg-sky-900/20 text-sky-600 transition duration-300 group-hover:scale-110 group-hover:bg-sky-600 group-hover:text-white">
           <Icon size={22} />
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="text-lg font-bold text-gray-900">{SKILL_NAME[skill]}</h3>
-            {info.soon && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-700">Coming soon</span>}
+            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">{SKILL_NAME[skill]}</h3>
+            {info.soon && <span className="rounded-full bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 text-[11px] font-bold text-amber-700 dark:text-amber-300">Coming soon</span>}
           </div>
-          <p className="mt-0.5 text-xs text-gray-500">{info.desc}</p>
+          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{info.desc}</p>
         </div>
         {metric && (
           <div className="text-right">
-            <p className="text-2xl font-bold text-gray-900">{metric[0]}</p>
-            <p className="text-[11px] text-gray-400">{metric[1]}</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{metric[0]}</p>
+            <p className="text-[11px] text-gray-400 dark:text-gray-500">{metric[1]}</p>
           </div>
         )}
       </div>
       <div className="relative mt-4 flex items-center justify-between">
-        <span className="text-xs text-gray-400">{metric ? 'Your result so far' : info.soon ? 'Being prepared' : 'Not practised yet'}</span>
+        <span className="text-xs text-gray-400 dark:text-gray-500">{metric ? 'Your result so far' : info.soon ? 'Being prepared' : 'Not practised yet'}</span>
         {!info.soon && (
           <span className="btn-glass inline-flex items-center gap-1.5 rounded-xl bg-sky-600 px-3.5 py-1.5 text-xs font-bold text-white transition group-hover:bg-sky-700">
             Practice <ArrowRight size={13} className="transition group-hover:translate-x-0.5" />
@@ -177,8 +177,8 @@ function SkillBreakdown({ skill, s, partLabel, exam }) {
       subtitle="Accuracy by question type and part"
       right={s.attempts > 0 && (
         <p className="text-right">
-          <span className="text-2xl font-bold text-gray-900">{s.accuracy}%</span>
-          <span className="block text-xs text-gray-400">{s.correct}/{s.attempts} correct{s.blank ? ` · ${s.blank} blank` : ''}</span>
+          <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">{s.accuracy}%</span>
+          <span className="block text-xs text-gray-400 dark:text-gray-500">{s.correct}/{s.attempts} correct{s.blank ? ` · ${s.blank} blank` : ''}</span>
         </p>
       )}
     >
@@ -186,16 +186,16 @@ function SkillBreakdown({ skill, s, partLabel, exam }) {
         <Empty>No {SKILL_NAME[skill].toLowerCase()} questions in this period. <Link to={`/app/${exam}/skills?tab=${skill}`} className="font-semibold text-blue-600">Start one →</Link></Empty>
       ) : (
         <>
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">Question types</p>
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">Question types</p>
           <ul className="space-y-0.5">
             {types.map(t => (
               <li key={t.type} className="grid grid-cols-[minmax(0,1fr)_6.5rem_3.2rem] items-center gap-3 py-2">
                 <span className="min-w-0">
-                  <span className="block truncate text-sm font-semibold text-gray-900" title={t.label}>{t.label}</span>
-                  <span className="text-xs text-gray-400">{t.correct}/{t.attempts} correct{t.blank ? ` · ${t.blank} blank` : ''}</span>
+                  <span className="block truncate text-sm font-semibold text-gray-900 dark:text-gray-100" title={t.label}>{t.label}</span>
+                  <span className="text-xs text-gray-400 dark:text-gray-500">{t.correct}/{t.attempts} correct{t.blank ? ` · ${t.blank} blank` : ''}</span>
                 </span>
                 <Meter pct={t.accuracy} />
-                <span className="text-right font-bold tabular-nums text-gray-900">{t.accuracy}%</span>
+                <span className="text-right font-bold tabular-nums text-gray-900 dark:text-gray-100">{t.accuracy}%</span>
               </li>
             ))}
           </ul>
@@ -204,14 +204,14 @@ function SkillBreakdown({ skill, s, partLabel, exam }) {
               {all ? 'Show less' : `Show all ${s.by_type.length}`} <ChevronDown size={13} className={all ? 'rotate-180' : ''} />
             </button>
           )}
-          <p className="mb-2 mt-5 text-xs font-semibold uppercase tracking-wide text-gray-400">By {partLabel.toLowerCase()}</p>
+          <p className="mb-2 mt-5 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">By {partLabel.toLowerCase()}</p>
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
             {s.by_part.map(p => (
-              <div key={p.part} className="rounded-2xl border border-slate-100 bg-slate-50/60 px-2 py-2.5 text-center">
-                <p className="text-[11px] font-semibold text-gray-500">{partLabel} {p.part || '?'}</p>
-                <p className="mt-0.5 text-lg font-bold text-gray-900">{p.accuracy}%</p>
+              <div key={p.part} className="rounded-2xl border border-slate-100 dark:border-gray-700 bg-slate-50/60 dark:bg-gray-900/40 px-2 py-2.5 text-center">
+                <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">{partLabel} {p.part || '?'}</p>
+                <p className="mt-0.5 text-lg font-bold text-gray-900 dark:text-gray-100">{p.accuracy}%</p>
                 <div className="mt-1"><Meter pct={p.accuracy} height={5} /></div>
-                <p className="mt-1 text-[10px] text-gray-400">{p.correct}/{p.attempts}</p>
+                <p className="mt-1 text-[10px] text-gray-400 dark:text-gray-500">{p.correct}/{p.attempts}</p>
               </div>
             ))}
           </div>
@@ -230,7 +230,7 @@ function ScoreTrend({ points, series, score, tip, height = 200 }) {
     <div className="flex gap-3">
       <div className="relative w-8 flex-shrink-0" style={{ height }}>
         {score.ticks.map(t => (
-          <span key={t} className="absolute right-0 -translate-y-1/2 text-[10px] tabular-nums text-gray-400" style={{ top: `${y(t)}%` }}>{score.unit === 'percent' ? `${t}%` : t}</span>
+          <span key={t} className="absolute right-0 -translate-y-1/2 text-[10px] tabular-nums text-gray-400 dark:text-gray-500" style={{ top: `${y(t)}%` }}>{score.unit === 'percent' ? `${t}%` : t}</span>
         ))}
       </div>
       <div className="relative flex-1" style={{ height }}>
@@ -252,7 +252,7 @@ function ScoreTrend({ points, series, score, tip, height = 200 }) {
               onMouseEnter={(e) => tip.show(e, lines)} onMouseLeave={tip.hide} onFocus={(e) => tip.show(e, lines)} onBlur={tip.hide}
               className="absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-gray-900/40"
               style={{ left: `${pos(i)}%`, top: `${y(p.score)}%` }}>
-              <span className="h-2.5 w-2.5 rounded-full ring-2 ring-white" style={{ background: s.color }} />
+              <span className="h-2.5 w-2.5 rounded-full ring-2 ring-white dark:ring-gray-800" style={{ background: s.color }} />
             </span>
           )
         })}
@@ -272,7 +272,7 @@ function ScoredSkill({ name, w, link, tip }) {
       subtitle={cefr ? 'AI score by criterion (0–5) and task' : 'AI band by criterion'}
       right={(cefr ? w?.avg_score != null : w?.avg_band != null) && (
         <p className="text-right">
-          <span className="text-3xl font-bold text-gray-900">{cefr ? <>{w.avg_score}<span className="text-base text-gray-400">/75</span></> : w.avg_band.toFixed(1)}</span>
+          <span className="text-3xl font-bold text-gray-900 dark:text-gray-100">{cefr ? <>{w.avg_score}<span className="text-base text-gray-400">/75</span></> : w.avg_band.toFixed(1)}</span>
           <span className={`block text-xs font-semibold ${st[2]}`}>{cefr ? `${CEFR_LEVEL[w.level] || '—'} · ` : `${st[0]} · `}{w.scored} scored</span>
         </p>
       )}
@@ -287,13 +287,13 @@ function ScoredSkill({ name, w, link, tip }) {
               return (
                 <li key={c.key} className="grid grid-cols-[minmax(0,1fr)_7rem_2.5rem] items-center gap-3">
                   <span className="min-w-0">
-                    <span className="block truncate text-sm font-semibold text-gray-900">{c.label}</span>
+                    <span className="block truncate text-sm font-semibold text-gray-900 dark:text-gray-100">{c.label}</span>
                     {cs && <span className={`text-xs font-semibold ${cs[2]}`}>{cs[0]}</span>}
                   </span>
                   <div className="h-2 w-full rounded-full" style={{ background: cs ? `${cs[1]}26` : '#f1f5f9' }}>
                     {c.avg != null && <div className="h-full rounded-full transition-all duration-700" style={{ width: `${(c.avg / critMax) * 100}%`, background: cs[1] }} />}
                   </div>
-                  <span className="text-right font-bold tabular-nums text-gray-900">{c.avg == null ? '—' : c.avg.toFixed(1)}</span>
+                  <span className="text-right font-bold tabular-nums text-gray-900 dark:text-gray-100">{c.avg == null ? '—' : c.avg.toFixed(1)}</span>
                 </li>
               )
             })}
@@ -301,12 +301,12 @@ function ScoredSkill({ name, w, link, tip }) {
           {w.by_task && w.by_task.some(t => t.count) && (
             <div className={`mt-4 grid gap-2 ${cefr ? 'grid-cols-3' : 'grid-cols-2'}`}>
               {w.by_task.map(t => (
-                <div key={t.task} className="rounded-2xl border border-slate-100 bg-slate-50/60 px-3 py-2">
-                  <p className="text-xs text-gray-500">{cefr ? t.label : `Task ${t.task}`}</p>
-                  <p className="text-lg font-bold text-gray-900">
+                <div key={t.task} className="rounded-2xl border border-slate-100 dark:border-gray-700 bg-slate-50/60 dark:bg-gray-900/40 px-3 py-2">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{cefr ? t.label : `Task ${t.task}`}</p>
+                  <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
                     {cefr
-                      ? <>{t.avg_points == null ? '—' : t.avg_points}<span className="text-xs font-medium text-gray-400">/{t.max}</span></>
-                      : <>{t.avg_band == null ? '—' : t.avg_band.toFixed(1)} <span className="text-xs font-medium text-gray-400">· {t.count} done</span></>}
+                      ? <>{t.avg_points == null ? '—' : t.avg_points}<span className="text-xs font-medium text-gray-400 dark:text-gray-500">/{t.max}</span></>
+                      : <>{t.avg_band == null ? '—' : t.avg_band.toFixed(1)} <span className="text-xs font-medium text-gray-400 dark:text-gray-500">· {t.count} done</span></>}
                   </p>
                 </div>
               ))}
@@ -314,7 +314,7 @@ function ScoredSkill({ name, w, link, tip }) {
           )}
           {w.trend.length > 1 && (
             <div className="mt-5">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">{cefr ? 'Score over time' : 'Band over time'}</p>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{cefr ? 'Score over time' : 'Band over time'}</p>
               <ScoreTrend points={w.trend.map(p => ({ ...p, skill: 'x', score: cefr ? p.score : p.band }))}
                 series={[{ key: 'x', label: cefr ? `${name} score` : `${name} band`, color: C.s1 }]}
                 score={cefr ? CEFR_SCORE : EXAMS.ielts.score} tip={tip} height={120} />
@@ -333,20 +333,20 @@ function Mistakes({ items, partLabel }) {
   const shown = all ? items : items.slice(0, 6)
   return (
     <>
-      <ul className="divide-y divide-slate-100">
+      <ul className="divide-y divide-slate-100 dark:divide-gray-700">
         {shown.map((m, i) => (
           <li key={i} className="grid gap-2 py-3.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-4">
             <div className="min-w-0">
               <p className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold">
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-gray-600">{SKILL_NAME[m.skill]}</span>
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-gray-600">{m.type_label}</span>
-                {m.part ? <span className="rounded-full bg-slate-100 px-2 py-0.5 text-gray-600">{partLabel[m.skill]} {m.part}</span> : null}
-                {m.date && <span className="font-normal text-gray-400">{fmtDay(m.date)}</span>}
+                <span className="rounded-full bg-slate-100 dark:bg-gray-700 px-2 py-0.5 text-gray-600 dark:text-gray-300">{SKILL_NAME[m.skill]}</span>
+                <span className="rounded-full bg-slate-100 dark:bg-gray-700 px-2 py-0.5 text-gray-600 dark:text-gray-300">{m.type_label}</span>
+                {m.part ? <span className="rounded-full bg-slate-100 dark:bg-gray-700 px-2 py-0.5 text-gray-600 dark:text-gray-300">{partLabel[m.skill]} {m.part}</span> : null}
+                {m.date && <span className="font-normal text-gray-400 dark:text-gray-500">{fmtDay(m.date)}</span>}
               </p>
-              {m.question && <p className="mt-1.5 line-clamp-2 text-sm text-gray-700">{m.question}</p>}
+              {m.question && <p className="mt-1.5 line-clamp-2 text-sm text-gray-700 dark:text-gray-200">{m.question}</p>}
               <p className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-                <span className="inline-flex items-center gap-1 text-red-700"><XCircle size={14} /> Your answer: <b className="font-bold">{m.your_answer}</b></span>
-                <span className="inline-flex items-center gap-1 text-green-700"><CheckCircle2 size={14} /> Correct: <b className="font-bold">{m.correct_answer}</b></span>
+                <span className="inline-flex items-center gap-1 text-red-700 dark:text-red-300"><XCircle size={14} /> Your answer: <b className="font-bold">{m.your_answer}</b></span>
+                <span className="inline-flex items-center gap-1 text-green-700 dark:text-green-300"><CheckCircle2 size={14} /> Correct: <b className="font-bold">{m.correct_answer}</b></span>
               </p>
             </div>
             <Link to={m.link} className="inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:text-blue-800">Practise <ArrowRight size={14} /></Link>
@@ -422,13 +422,13 @@ export default function SkillDashboard({ exam }) {
         <Card><Empty>Could not load your analytics. Please refresh the page.</Empty></Card>
       ) : isLoading && !data ? (
         <div className="space-y-5">
-          <div className="h-32 animate-pulse rounded-3xl bg-slate-100" />
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{[...Array(8)].map((_, i) => <div key={i} className="h-28 animate-pulse rounded-2xl bg-slate-100" />)}</div>
+          <div className="h-32 animate-pulse rounded-3xl bg-slate-100 dark:bg-gray-700" />
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{[...Array(8)].map((_, i) => <div key={i} className="h-28 animate-pulse rounded-2xl bg-slate-100 dark:bg-gray-700" />)}</div>
         </div>
       ) : (
         <div className={`space-y-5 transition-opacity ${isPlaceholderData ? 'opacity-60' : ''}`}>
           <div className="flex items-center gap-2 pt-2">
-            <BarChart3 size={20} className="text-gray-400" />
+            <BarChart3 size={20} className="text-gray-400 dark:text-gray-500" />
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Your analysis</h2>
           </div>
 
@@ -470,7 +470,7 @@ export default function SkillDashboard({ exam }) {
           <Reveal>
             <Card title="Test scores over time" subtitle={exam === 'ielts' ? 'Band of each finished reading / listening test' : 'Score of each finished reading / listening test'}
               right={(
-                <div className="flex items-center gap-4 text-xs text-gray-600">
+                <div className="flex items-center gap-4 text-xs text-gray-600 dark:text-gray-300">
                   {['reading', 'listening'].map(k => <span key={k} className="inline-flex items-center gap-1.5"><span className="h-0.5 w-3 rounded-full" style={{ background: SKILL_COLOR[k] }} /> {SKILL_NAME[k]}</span>)}
                 </div>
               )}>

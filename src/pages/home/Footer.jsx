@@ -48,7 +48,7 @@ export default function Footer() {
       <div className="eb-container eb-grid gap-y-12 py-16 lg:py-20">
         <div className="col-span-12 lg:col-span-4">
           <Link to="/" className="inline-flex h-11 items-center rounded-lg">
-            <Logo className="h-8 w-[126px]" alt="ExamBridge — home" />
+            <Logo className="h-9 w-auto" alt="ExamBridge — home" />
           </Link>
           <p className="mt-5 max-w-[280px] text-[15px] leading-relaxed text-(--muted)">
             Modern preparation platform for SAT, IELTS, and CEFR.
