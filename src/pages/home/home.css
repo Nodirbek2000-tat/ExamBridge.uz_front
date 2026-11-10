@@ -1,0 +1,501 @@
+/*
+ * Landing page styles. Everything is scoped to .eb-home so no other page is
+ * affected. Motion rule: only transform and opacity are animated.
+ *
+ * Wrapped in the components layer so Tailwind utilities on the same element win.
+ */
+@layer components {
+
+.eb-home {
+  --ink: #0B0B0F;
+  --ink-soft: #27272A;
+  --muted: #52525B;      /* secondary text — 7.7:1 on white */
+  --subtle: #71717A;     /* tertiary text — 4.8:1 on white */
+  --line: #EAEAEC;       /* hairline */
+  --line-strong: #D9D9DE;
+  --bg: #FFFFFF;
+  --bg-soft: #FAFAFB;
+  --sky: #0EA5E9;        /* brand accent — graphics, fills, focus */
+  --sky-ink: #0369A1;    /* accent for small text — 5.9:1 on white */
+  --sky-wash: #F0F9FF;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-weight: 400;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  color: var(--ink);
+  background: var(--bg);
+  overflow-x: clip;               /* clip (not hidden) keeps position: sticky working */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+.eb-home ::selection { background: #BAE6FD; color: var(--ink); }
+
+.eb-home :focus-visible {
+  outline: 2px solid var(--sky);
+  outline-offset: 3px;
+  border-radius: 10px;
+}
+
+/* ── Layout ─────────────────────────────────────────────────────────────── */
+.eb-container {
+  width: 100%;
+  max-width: calc(1200px + 2 * var(--gutter));
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+  --gutter: 16px;
+}
+@media (min-width: 640px)  { .eb-container { --gutter: 24px; } }
+@media (min-width: 1024px) { .eb-container { --gutter: 32px; } }
+
+.eb-section { padding-block: 88px; }
+@media (min-width: 1024px) { .eb-section { padding-block: 144px; } }
+
+.eb-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: 16px;
+}
+@media (min-width: 1024px) { .eb-grid { column-gap: 24px; } }
+
+/* ── Type ───────────────────────────────────────────────────────────────── */
+.eb-h-hero {
+  font-size: clamp(48px, 8vw, 112px);
+  line-height: 0.96;
+  letter-spacing: -0.04em;
+  font-weight: 600;
+}
+.eb-h2 {
+  font-size: clamp(40px, 5.2vw, 64px);
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+  font-weight: 600;
+}
+.eb-h-giant {
+  font-size: clamp(48px, 9vw, 128px);
+  line-height: 0.95;
+  letter-spacing: -0.045em;
+  font-weight: 600;
+}
+.eb-lead {
+  font-size: 17px;
+  line-height: 1.65;
+  color: var(--muted);
+}
+@media (min-width: 1024px) { .eb-lead { font-size: 18px; } }
+
+.eb-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--muted);
+}
+.eb-eyebrow::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--sky);
+}
+
+.eb-tnum { font-variant-numeric: tabular-nums; }
+.eb-accent { color: #0284C7; } /* sky-600: 4.1:1 — only for large headline text */
+
+/* Line mask: the inner span slides up from behind the line's own box. */
+.eb-line {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.12em;
+  margin-bottom: -0.12em;
+}
+.eb-line-in { display: block; will-change: transform; }
+
+/* ── Hero entrance — plain CSS so it runs before any JS animation library ── */
+.eb-hero-in .eb-line-in {
+  animation: eb-rise 0.9s var(--ease) both;
+  animation-delay: calc(var(--i, 0) * 90ms + 60ms);
+}
+.eb-hero-in .eb-fade {
+  animation: eb-fade-up 0.8s var(--ease) both;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes eb-rise {
+  from { transform: translateY(105%); }
+  to   { transform: translateY(0); }
+}
+@keyframes eb-fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes eb-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.eb-dots {
+  background-image: radial-gradient(rgba(11, 11, 15, 0.1) 1px, transparent 1px);
+  background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(ellipse 75% 65% at 50% 25%, #000 25%, transparent 75%);
+          mask-image: radial-gradient(ellipse 75% 65% at 50% 25%, #000 25%, transparent 75%);
+}
+
+/* ── Buttons & links ────────────────────────────────────────────────────── */
+.eb-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 48px;
+  padding-inline: 22px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  isolation: isolate;
+  transition: transform 0.5s var(--ease);
+}
+.eb-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  transition: opacity 0.3s var(--ease);
+}
+.eb-btn-primary { color: #fff; background: var(--ink); }
+.eb-btn-primary::before { background: #2A2A31; opacity: 0; }
+.eb-btn-primary:hover::before { opacity: 1; }
+.eb-btn-ghost { color: var(--ink); background: #fff; box-shadow: inset 0 0 0 1px var(--line-strong); }
+.eb-btn-ghost::before { background: var(--bg-soft); opacity: 0; }
+.eb-btn-ghost:hover::before { opacity: 1; }
+.eb-btn-light { color: var(--ink); background: #fff; }
+.eb-btn-sm { height: 44px; padding-inline: 18px; font-size: 14px; }
+@media (min-width: 1024px) { .eb-btn-sm { height: 40px; } }
+.eb-btn-lg { height: 56px; padding-inline: 28px; font-size: 16px; }
+
+.eb-arrow { transition: transform 0.45s var(--ease); }
+.eb-btn:hover .eb-arrow,
+.eb-card-link:hover .eb-arrow,
+.eb-card-link:focus-visible .eb-arrow { transform: translateX(4px); }
+
+.eb-ulink { position: relative; }
+.eb-ulink::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -3px;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: right center;
+  transition: transform 0.5s var(--ease);
+}
+.eb-ulink:hover::after,
+.eb-ulink:focus-visible::after,
+.eb-ulink[aria-current='page']::after { transform: scaleX(1); transform-origin: left center; }
+
+.eb-new {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding-inline: 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--sky-ink);
+  background: var(--sky-wash);
+  box-shadow: inset 0 0 0 1px #BAE6FD;
+}
+
+.eb-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding-inline: 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  color: var(--muted);
+  box-shadow: inset 0 0 0 1px var(--line);
+  background: #fff;
+}
+
+/* ── Cards ──────────────────────────────────────────────────────────────── */
+.eb-card {
+  position: relative;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+@media (min-width: 1024px) { .eb-card { border-radius: 28px; } }
+
+/* Hover border lives on a pseudo layer so only opacity changes. */
+.eb-card-link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px #A1A1AA;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s var(--ease);
+}
+.eb-card-link:hover::after,
+.eb-card-link:focus-visible::after { opacity: 1; }
+
+/* ── Navbar ─────────────────────────────────────────────────────────────── */
+.eb-nav {
+  transition: transform 0.6s var(--ease);
+  will-change: transform;
+}
+.eb-nav[data-hidden='true'] { transform: translateY(-100%); }
+.eb-nav-bg {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.82);
+  -webkit-backdrop-filter: saturate(180%) blur(16px);
+          backdrop-filter: saturate(180%) blur(16px);
+  box-shadow: inset 0 -1px 0 var(--line);
+  opacity: 0;
+  transition: opacity 0.4s var(--ease);
+}
+.eb-nav[data-solid='true'] .eb-nav-bg { opacity: 1; }
+
+.eb-burger span {
+  display: block;
+  width: 18px;
+  height: 1.5px;
+  border-radius: 2px;
+  background: var(--ink);
+  transition: transform 0.5s var(--ease);
+}
+.eb-burger span + span { margin-top: 5px; }
+.eb-burger[aria-expanded='true'] span:first-child { transform: translateY(3.25px) rotate(45deg); }
+.eb-burger[aria-expanded='true'] span:last-child  { transform: translateY(-3.25px) rotate(-45deg); }
+
+.eb-menu {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.4s var(--ease), visibility 0s linear 0.4s;
+}
+.eb-menu[data-open='true'] {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.4s var(--ease);
+}
+.eb-menu-item {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.6s var(--ease), transform 0.6s var(--ease);
+}
+.eb-menu[data-open='true'] .eb-menu-item {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: calc(var(--i, 0) * 70ms + 80ms);
+}
+
+/* ── Marquee ────────────────────────────────────────────────────────────── */
+.eb-marquee {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+          mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+}
+.eb-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: eb-marquee 70s linear infinite;
+}
+.eb-marquee:hover .eb-marquee-track { animation-play-state: paused; }
+@keyframes eb-marquee {
+  to { transform: translateX(-50%); }
+}
+
+/* ── Scroll cue ─────────────────────────────────────────────────────────── */
+.eb-scroll-track {
+  position: relative;
+  width: 1px;
+  height: 36px;
+  overflow: hidden;
+  background: var(--line-strong);
+}
+.eb-scroll-track::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--ink);
+  transform: translateY(-100%);
+  animation: eb-scroll 2.2s var(--ease) infinite;
+}
+@keyframes eb-scroll {
+  0%   { transform: translateY(-100%); }
+  55%  { transform: translateY(0); }
+  100% { transform: translateY(100%); }
+}
+
+/* ── Hero preview card ──────────────────────────────────────────────────── */
+.eb-pv-enter {
+  animation: eb-fade-up 0.6s var(--ease) both;
+  animation-delay: var(--d, 0ms);
+}
+.eb-pv-tab-ind {
+  transition: transform 0.7s var(--ease);
+}
+.eb-pv-opt::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--sky-wash);
+  box-shadow: inset 0 0 0 1.5px var(--sky);
+  opacity: 0;
+  transition: opacity 0.45s var(--ease);
+}
+.eb-pv-opt[data-picked='true']::before { opacity: 1; }
+.eb-pv-check {
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 0.4s var(--ease), transform 0.5s var(--ease);
+}
+.eb-pv-opt[data-picked='true'] .eb-pv-check { opacity: 1; transform: scale(1); }
+.eb-pv-score {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.6s var(--ease), transform 0.6s var(--ease);
+}
+.eb-pv-score[data-show='true'] { opacity: 1; transform: translateY(0); }
+.eb-pv-bar {
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 1.3s var(--ease);
+}
+
+/* ── Feature micro-animations (run only while the tile is on screen) ──── */
+.eb-demo * { animation-play-state: paused; }
+.eb-demo[data-play='true'] * { animation-play-state: running; }
+
+.eb-drain {
+  transform-origin: left center;
+  animation: eb-drain 14s linear infinite;
+}
+@keyframes eb-drain {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0.08); }
+}
+.eb-hand {
+  transform-origin: 50% 100%;
+  animation: eb-spin 8s linear infinite;
+}
+@keyframes eb-spin { to { transform: rotate(360deg); } }
+
+.eb-mark {
+  animation: eb-mark 6s var(--ease) infinite;
+  animation-delay: var(--d, 0s);
+}
+@keyframes eb-mark {
+  0%, 10%  { opacity: 0; }
+  22%, 84% { opacity: 1; }
+  96%, 100% { opacity: 0; }
+}
+.eb-pop {
+  animation: eb-pop 6s var(--ease) infinite;
+}
+@keyframes eb-pop {
+  0%, 40%  { opacity: 0; transform: translateY(8px) scale(0.96); }
+  52%, 84% { opacity: 1; transform: translateY(0) scale(1); }
+  96%, 100% { opacity: 0; transform: translateY(0) scale(1); }
+}
+
+.eb-bar {
+  transform-origin: center bottom;
+  animation: eb-bar 5s var(--ease) infinite;
+  animation-delay: var(--d, 0s);
+}
+@keyframes eb-bar {
+  0%       { transform: scaleY(0.12); }
+  35%, 80% { transform: scaleY(var(--h, 0.6)); }
+  100%     { transform: scaleY(0.12); }
+}
+
+.eb-stack-card {
+  animation: eb-stack 7.5s var(--ease) infinite;
+  animation-delay: var(--d, 0s);
+}
+@keyframes eb-stack {
+  0%, 22%   { transform: translateY(-28px) scale(0.9);  opacity: 0.45; z-index: 1; }
+  33%, 55%  { transform: translateY(-14px) scale(0.95); opacity: 0.75; z-index: 2; }
+  66%, 90%  { transform: translateY(0) scale(1);        opacity: 1;    z-index: 4; }
+  95%       { transform: translateY(36px) scale(0.98);  opacity: 0;    z-index: 4; }
+  96%       { transform: translateY(-28px) scale(0.9);  opacity: 0;    z-index: 1; }
+  100%      { transform: translateY(-28px) scale(0.9);  opacity: 0.45; z-index: 1; }
+}
+
+/* ── AI section ─────────────────────────────────────────────────────────── */
+.eb-dark {
+  --line: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  background: var(--ink);
+}
+.eb-dark .eb-eyebrow { color: rgba(255, 255, 255, 0.66); }
+.eb-dark .eb-lead { color: rgba(255, 255, 255, 0.66); }
+
+.eb-board {
+  position: relative;
+  border-radius: 20px;
+  background: #15181D;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.eb-board::before {          /* faint chalk dust */
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 18px 18px;
+  pointer-events: none;
+}
+.eb-chalk {
+  font-family: 'Quicksand', 'Inter', sans-serif;
+  font-weight: 600;
+  color: #EDF2F7;
+}
+.eb-chalk-u { transform-origin: left center; }
+
+.eb-typing span {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.55);
+  animation: eb-typing 1.2s ease-in-out infinite;
+}
+.eb-typing span:nth-child(2) { animation-delay: 0.15s; }
+.eb-typing span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes eb-typing {
+  0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+  30%           { opacity: 1;   transform: translateY(-3px); }
+}
+
+/* ── Reduced motion: everything shows instantly, nothing moves ─────────── */
+@media (prefers-reduced-motion: reduce) {
+  .eb-home *,
+  .eb-home *::before,
+  .eb-home *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  .eb-scroll-track::after { transform: none; }
+  .eb-bar { transform: scaleY(var(--h, 0.6)); }
+  .eb-drain { transform: scaleX(0.62); }
+  .eb-stack-card:nth-child(1) { transform: translateY(0); z-index: 3; }
+  .eb-stack-card:nth-child(2) { transform: translateY(-14px) scale(0.95); opacity: 0.75; z-index: 2; }
+  .eb-stack-card:nth-child(3) { transform: translateY(-28px) scale(0.9); opacity: 0.45; z-index: 1; }
+  .eb-mark, .eb-pop { opacity: 1; }
+}
+}
