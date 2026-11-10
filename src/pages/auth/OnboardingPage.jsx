@@ -1,9 +1,20 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Calculator, Globe, BookOpen, ArrowRight, Check } from 'lucide-react'
+import { Calculator, Globe, BookOpen, ArrowRight, Check, X } from 'lucide-react'
+import { FaTelegramPlane } from 'react-icons/fa'
 import api from '../../api/client'
 import Logo from '../../components/Logo.jsx'
+import { SOCIALS } from '../home/data.js'
+
+// Where the student lands after onboarding: the mocks of the first exam they picked.
+const MOCKS_PATH = {
+  SAT: '/app/sat/tests',
+  IELTS: '/app/ielts/skills?tab=mock',
+  CEFR: '/app/cefr/skills',
+}
+
+const CHANNEL_PERKS = ['New mock tests as soon as they are added', 'Exam tips and study plans', 'Updates and announcements']
 
 const EXAMS = [
   { key: 'SAT', icon: Calculator, label: 'SAT', desc: 'Digital SAT — Math & Reading/Writing', color: 'from-sky-500 to-slate-400' },
@@ -33,8 +44,10 @@ export default function OnboardingPage() {
     try {
       await api.patch('/auth/onboard/', selected)
     } catch {}
-    navigate('/app/sat')
+    setStep(3)
   }
+
+  const goToMocks = () => navigate(MOCKS_PATH[selected.exams[0]] ?? MOCKS_PATH.SAT)
 
   const steps = [
     // Step 0: Choose exams
@@ -123,10 +136,52 @@ export default function OnboardingPage() {
         Start Preparing <ArrowRight size={18} />
       </button>
     </motion.div>,
+
+    // Step 3: Telegram channel, optional
+    <motion.div key="step3" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }}>
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 px-5 py-6 text-white">
+        <div className="pointer-events-none absolute -right-8 -top-10 h-32 w-32 rounded-full bg-white/15 blur-xl" />
+        <span className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20">
+          <FaTelegramPlane size={26} />
+        </span>
+        <h2 className="relative mt-4 text-2xl font-black leading-tight">Join our Telegram channel</h2>
+        <p className="relative mt-1 text-sm text-white/85">Optional — you can start your mocks right away.</p>
+      </div>
+
+      <ul className="mt-5 space-y-2.5">
+        {CHANNEL_PERKS.map((perk) => (
+          <li key={perk} className="flex items-center gap-3 text-sm text-gray-700">
+            <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-sky-50 text-sky-600">
+              <Check size={14} />
+            </span>
+            {perk}
+          </li>
+        ))}
+      </ul>
+
+      <a
+        href={SOCIALS.channel}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={goToMocks}
+        className="w-full mt-6 py-3.5 rounded-xl bg-[#229ED9] hover:bg-[#1C8EC4] text-white font-bold transition-colors flex items-center justify-center gap-2"
+      >
+        <FaTelegramPlane size={17} /> Join @exambridge_uz
+      </a>
+      <button
+        type="button"
+        onClick={goToMocks}
+        className="w-full mt-2 py-3 rounded-xl text-sm font-semibold text-gray-500 hover:text-gray-800 hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5"
+      >
+        Maybe later, go to mocks <ArrowRight size={16} />
+      </button>
+    </motion.div>,
   ]
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center px-4">
+    // The text colour is set here: the app's dark mode turns inherited text white,
+    // and this card stays white, so without it the questions disappeared.
+    <div className="min-h-screen bg-white text-gray-900 flex items-center justify-center px-4">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-sky-200 rounded-full blur-[120px] opacity-25" />
       </div>
@@ -142,7 +197,17 @@ export default function OnboardingPage() {
           ))}
         </div>
 
-        <div className="bg-white rounded-3xl p-8 shadow-glow border border-sky-100">
+        <div className="relative bg-white rounded-3xl p-8 shadow-glow border border-sky-100">
+          {step === 3 && (
+            <button
+              type="button"
+              onClick={goToMocks}
+              aria-label="Close and go to mocks"
+              className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+            >
+              <X size={18} />
+            </button>
+          )}
           {/* Logo */}
           <div className="flex items-center mb-8">
             <Logo className="h-10 w-auto" />

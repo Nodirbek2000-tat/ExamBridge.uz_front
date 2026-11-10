@@ -51,7 +51,7 @@ export default function RegisterPage() {
   )
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center px-4 py-10">
+    <div className="min-h-screen bg-white text-gray-900 flex items-center justify-center px-4 py-10">
       <Seo
         title="Ro'yxatdan o'tish"
         path="/register"

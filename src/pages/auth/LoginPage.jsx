@@ -53,7 +53,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center px-4">
+    <div className="min-h-screen bg-white text-gray-900 flex items-center justify-center px-4">
       <Seo
         title="Kirish"
         path="/login"
