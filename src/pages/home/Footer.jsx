@@ -24,6 +24,8 @@ const COLUMNS = [
     links: [
       { label: 'Sign in', to: '/login' },
       { label: 'Create account', to: '/register' },
+      { label: 'Pricing', to: '/pricing' },
+      { label: 'Refund policy', to: '/refund-policy' },
     ],
   },
   {

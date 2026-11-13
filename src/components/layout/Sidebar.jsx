@@ -70,9 +70,12 @@ const BOTTOM_LINKS = [
   { label: 'Games', to: '/games', icon: Gamepad2, isNew: true },
   { label: 'Study Tools', to: '/study', icon: GraduationCap, isNew: true },
   { label: 'AI Tutor', to: '/app/ai', icon: Sparkles },
-  // Universities, Pricing and the shared Vocabulary link are hidden for now —
+  // Universities and the shared Vocabulary link are hidden for now —
   // the routes still exist. SAT keeps its own Vocabulary item above.
 ]
+
+// Shown to accounts without Premium.
+const PREMIUM_LINK = { label: 'Premium', to: '/app/subscription', icon: Crown, highlight: true }
 
 function examFromPath(pathname) {
   if (pathname.startsWith('/app/sat')) return 'sat'
@@ -292,7 +295,7 @@ function SidebarContent({ onClose, isCenterStudent, pendingCount }) {
         <div className="my-2.5 border-t border-gray-100 dark:border-gray-800" />
 
         {/* Common links */}
-        {BOTTOM_LINKS.map(({ label, to, icon: Icon, highlight, isNew }) => (
+        {(user?.is_premium ? BOTTOM_LINKS : [...BOTTOM_LINKS, PREMIUM_LINK]).map(({ label, to, icon: Icon, highlight, isNew }) => (
           <NavLink
             key={to}
             to={to}

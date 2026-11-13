@@ -23,6 +23,9 @@ import NotFoundPage from './pages/NotFoundPage'
 const HomePage = lazyWithPreload(() => import('./pages/home/HomePage'))
 const RegisterPage = lazyWithPreload(() => import('./pages/auth/RegisterPage'))
 const OnboardingPage = lazyWithPreload(() => import('./pages/auth/OnboardingPage'))
+const TelegramAuthPage = lazyWithPreload(() => import('./pages/auth/TelegramAuthPage'))
+const PricingPage = lazyWithPreload(() => import('./pages/legal/PricingPage'))
+const RefundPolicyPage = lazyWithPreload(() => import('./pages/legal/RefundPolicyPage'))
 
 // SAT
 const SATDashboard = lazyWithPreload(() => import('./pages/sat/SATDashboard'))
@@ -126,6 +129,7 @@ const AdminCEFRSpeaking = lazyWithPreload(() => import('./pages/admin/AdminCEFRS
 const AdminFullMocks = lazyWithPreload(() => import('./pages/admin/AdminFullMocks'))
 const FullMockPage = lazyWithPreload(() => import('./pages/fullmock/FullMockPage'))
 const AdminSystem = lazyWithPreload(() => import('./pages/admin/AdminSystem'))
+const AdminPayments = lazyWithPreload(() => import('./pages/admin/AdminPayments'))
 const AdminAIStructures = lazyWithPreload(() => import('./pages/admin/AdminAIStructures'))
 const AdminAILessons = lazyWithPreload(() => import('./pages/admin/AdminAILessons'))
 const AdminLessonPreview = lazyWithPreload(() => import('./pages/admin/AdminLessonPreview'))
@@ -255,6 +259,9 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/onboarding" element={<PrivateRoute><OnboardingPage /></PrivateRoute>} />
+      <Route path="/auth/telegram" element={<TelegramAuthPage />} />
+      <Route path="/pricing" element={<PricingPage />} />
+      <Route path="/refund-policy" element={<RefundPolicyPage />} />
 
       {/* App — with sidebar */}
       <Route path="/app" element={<PrivateRoute><MainLayout /></PrivateRoute>}>
@@ -428,6 +435,7 @@ export default function App() {
         <Route path="centers" element={<AdminCenters />} />
         <Route path="centers/:centerId" element={<AdminCenterDetail />} />
         <Route path="system" element={<AdminSystem />} />
+        <Route path="payments" element={<AdminPayments />} />
         <Route path="ai-structures" element={<AdminAIStructures />} />
         <Route path="ai-lessons" element={<AdminAILessons />} />
         <Route path="ai-lessons/:id/preview" element={<AdminLessonPreview />} />

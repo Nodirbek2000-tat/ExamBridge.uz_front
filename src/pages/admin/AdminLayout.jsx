@@ -34,6 +34,7 @@ import {
   BarChart3,
   Swords,
   Footprints,
+  CreditCard,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Logo from '../../components/Logo.jsx'
@@ -45,6 +46,7 @@ import { AdminWriteProvider } from './AdminWriteContext'
 const NAV = [
   { to: '/admin-panel', icon: LayoutDashboard, label: 'Dashboard', exact: true },
   { to: '/admin-panel/users', icon: Users, label: 'Users', area: AREA.USERS },
+  { to: '/admin-panel/payments', icon: CreditCard, label: 'Payments', area: AREA.PAYMENTS },
   { to: '/admin-panel/leaderboard', icon: Trophy, label: 'Leaderboard', area: AREA.LEADERBOARD },
   {
     key: 'sat',

@@ -3,6 +3,7 @@ import HowItWorks from './HowItWorks'
 import Features from './Features'
 import AISection from './AISection'
 import GamesStudy from './GamesStudy'
+import Pricing from './Pricing'
 import FinalCTA from './FinalCTA'
 
 export { default as Footer } from './Footer'
@@ -19,6 +20,7 @@ export default function BelowFold() {
       <Features />
       <AISection />
       <GamesStudy />
+      <Pricing />
       <FinalCTA />
     </>
   )

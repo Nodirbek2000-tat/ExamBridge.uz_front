@@ -190,7 +190,15 @@ export default function TopBar({
           <LayoutDashboard size={14} />
           {user?.is_staff ? 'Admin Panel' : `${roleMeta?.label || 'Open'} Panel`}
         </button>
-      ) : null /* Upgrade button hidden while pricing is off */}
+      ) : !user?.is_premium && !isCenterStudent ? (
+        <button
+          onClick={() => navigate('/app/subscription')}
+          className="hidden sm:flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-white text-sm font-semibold shadow-sm hover:opacity-90 transition-opacity"
+        >
+          <Crown size={14} />
+          Get Premium
+        </button>
+      ) : null}
 
       {/* Notification bell — center students only */}
       {isCenterStudent && <NotifBell notifCount={notifCount} />}

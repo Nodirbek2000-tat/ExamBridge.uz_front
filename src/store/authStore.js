@@ -57,6 +57,19 @@ export const useAuthStore = create(
         }
       },
 
+      telegramLogin: async (token) => {
+        set({ loading: true })
+        try {
+          const { data } = await api.post('/auth/telegram/', { token })
+          saveTokens(data.access, data.refresh)
+          set({ user: data.user, loading: false })
+          return { success: true }
+        } catch (err) {
+          set({ loading: false })
+          return { success: false, error: err.response?.data?.detail || 'Could not sign you in. Please try again.' }
+        }
+      },
+
       logout: async () => {
         try {
           const refresh = localStorage.getItem('refresh_token')

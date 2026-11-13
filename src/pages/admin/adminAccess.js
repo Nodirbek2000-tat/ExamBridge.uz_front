@@ -28,6 +28,7 @@ export const AREA = {
   REPORTS: 'reports',
   SYSTEM: 'system',
   AI: 'ai',
+  PAYMENTS: 'payments',   // owner and level 1 only
 }
 
 const LEVEL_2_AREAS = [
@@ -71,6 +72,7 @@ export function canSeeDjangoAdmin(tier) {
  */
 const ROUTE_AREAS = [
   ['/admin-panel/users', AREA.USERS],
+  ['/admin-panel/payments', AREA.PAYMENTS],
   ['/admin-panel/leaderboard', AREA.LEADERBOARD],
   ['/admin-panel/testmakon-users', AREA.TESTMAKON],
   ['/admin-panel/sat', AREA.SAT],
