@@ -14,7 +14,6 @@ export const NAV = [
   { label: 'CEFR', href: '/app/cefr' },
   { label: 'Games', href: '/games', isNew: true },
   { label: 'Study Tools', href: '/study', isNew: true },
-  { label: 'Pricing', href: '/pricing' },
 ]
 
 export const EXAMS = [
