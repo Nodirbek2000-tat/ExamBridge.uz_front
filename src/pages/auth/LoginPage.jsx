@@ -1,15 +1,23 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '../../store/authStore'
 import api from '../../api/client'
-import { Eye, EyeOff, CheckCircle2 } from 'lucide-react'
+import { Eye, EyeOff, CheckCircle2, MonitorSmartphone } from 'lucide-react'
 import { GoogleLogin } from '@react-oauth/google'
 import TelegramAuthButton from '../../components/auth/TelegramAuthButton.jsx'
 import Logo from '../../components/Logo.jsx'
 import Seo from '../../components/Seo.jsx'
 
+// Why this browser was signed out, from api/client.js
+const SIGNED_OUT = {
+  device: 'You were signed out because your account was opened on another device. One account works on 2 devices at a time.',
+  user: 'This device was signed out from your account on another device.',
+}
+
 export default function LoginPage() {
+  const [searchParams] = useSearchParams()
+  const signedOut = SIGNED_OUT[searchParams.get('signed_out')]
   const [form, setForm] = useState({ email: '', password: '' })
   const [showPw, setShowPw] = useState(false)
   const [error, setError] = useState('')
@@ -95,6 +103,13 @@ export default function LoginPage() {
             <h1 className="text-2xl font-black text-gray-900">Welcome back</h1>
             <p className="text-gray-500 text-sm mt-1">Sign in to your account</p>
           </div>
+
+          {signedOut && (
+            <div role="status" className="mb-5 flex gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              <MonitorSmartphone size={18} className="mt-0.5 shrink-0 text-amber-600" />
+              <p>{signedOut}</p>
+            </div>
+          )}
 
           {/* Google button — only on the public site. Google OAuth is registered
               for the main origin, so on the admin subdomain it would always fail

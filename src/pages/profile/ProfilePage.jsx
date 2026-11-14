@@ -9,6 +9,7 @@ import { useAuthStore } from '../../store/authStore'
 import { useThemeStore } from '../../store/themeStore'
 import { useCenterStudent } from '../../hooks/useCenterStudent'
 import ContactEmailForm from '../../components/auth/ContactEmailForm'
+import DevicesCard from '../../components/auth/DevicesCard'
 
 const SIGN_IN_LABEL = { telegram: 'Telegram', google: 'Google', testmakon: 'TestMakon', email: 'E-mail and password' }
 
@@ -436,6 +437,9 @@ export default function ProfilePage() {
                 <Row label="Password" value="Change your password" onClick={() => setModal('password')} />
               )}
             </Card>
+
+            {/* Signed-in devices (two at a time) */}
+            <DevicesCard />
 
             {/* Support */}
             <Card>
