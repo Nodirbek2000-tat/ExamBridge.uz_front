@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import ReactMarkdown from 'react-markdown'
-import { Sparkles, RefreshCw, Loader2 } from 'lucide-react'
+import { Sparkles, RefreshCw, Loader2, PlayCircle } from 'lucide-react'
 import api from '../../api/client'
 
 const T = {
@@ -19,6 +19,10 @@ const T = {
     run: 'Tahlil qilish', again: 'Yangilash', busy: 'Yozmoqda…',
     idle: "Tugmani bosing — AI pastdagi aniq raqamlaringiz va xatolaringizni ko'rib chiqib, kuchli va zaif tomonlaringizni hamda havolali 7 kunlik rejani yozib beradi.",
     few: (n, have) => `Aniq tahlil uchun kamida ${n} ta savol yoki javob kerak — hozir ${have} ta.`,
+    emptyTitle: 'Hali test yechilmagan',
+    empty: "Birinchi testni yeching — AI natijalaringizni ko'rib chiqib, shaxsiy tahlil va 7 kunlik reja yozib beradi.",
+    fewTitle: 'Tahlilgacha oz qoldi',
+    start: 'Testni boshlash', more: 'Yana test yechish',
     foot: "AI faqat shu sahifadagi raqamlardan foydalanadi. Raqamlar o'zgarmaguncha tahlil saqlanib turadi.",
     fail: "AI tahlilni olib bo'lmadi. Birozdan keyin qayta urinib ko'ring.",
   },
@@ -27,11 +31,22 @@ const T = {
     run: 'Analyse', again: 'Refresh', busy: 'Writing…',
     idle: 'Press the button — the AI reads the exact numbers and mistakes below and writes your strengths, weak spots and a 7-day plan with links.',
     few: (n, have) => `Answer at least ${n} questions for a reliable analysis — ${have} so far.`,
+    emptyTitle: 'No tests yet',
+    empty: 'Take your first test — the AI will read your results and write a personal analysis and a 7-day plan.',
+    fewTitle: 'Almost there',
+    start: 'Start a test', more: 'Take another test',
     foot: 'The AI uses only the numbers on this page. The analysis is kept until your numbers change.',
     fail: 'Could not get the AI analysis. Please try again in a moment.',
   },
 }
 const MIN = 10
+
+// Where "Start a test" goes for each exam
+const TESTS_PATH = {
+  sat: '/app/sat/tests',
+  ielts: '/app/ielts/skills',
+  cefr: '/app/cefr/skills',
+}
 
 // Read the SSE stream; a 401 is retried once after an axios call refreshes the token
 async function streamAnalysis(body, signal, onEvent) {
@@ -78,6 +93,30 @@ const md = {
   a: ({ href, children }) => (href && href.startsWith('/app/')
     ? <Link to={href} className="font-semibold text-blue-600 underline decoration-blue-200 underline-offset-2 hover:text-blue-800">{children}</Link>
     : <span className="font-semibold">{children}</span>),
+}
+
+/** Not enough answers for an analysis yet: send the student to a test instead. */
+function StartTest({ t, exam, need, have }) {
+  const empty = !have
+  return (
+    <div className="flex flex-col gap-4 rounded-2xl bg-white/80 px-4 py-4 dark:bg-gray-900/50 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+      <div className="min-w-0">
+        <p className="font-bold text-gray-900 dark:text-gray-100">{empty ? t.emptyTitle : t.fewTitle}</p>
+        <p className="mt-0.5 text-sm text-gray-600 dark:text-gray-300">{empty ? t.empty : t.few(need, have)}</p>
+        {!empty && (
+          <div className="mt-2.5 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-blue-100 dark:bg-blue-900/40">
+            <div className="h-full rounded-full bg-blue-600" style={{ width: `${Math.min(100, (have / need) * 100)}%` }} />
+          </div>
+        )}
+      </div>
+      <Link
+        to={TESTS_PATH[exam] || '/app'}
+        className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-blue-200 transition hover:bg-blue-700 dark:shadow-none"
+      >
+        <PlayCircle size={17} /> {empty ? t.start : t.more}
+      </Link>
+    </div>
+  )
 }
 
 export default function AIAnalysisCard({ exam, range, volume }) {
@@ -172,7 +211,7 @@ export default function AIAnalysisCard({ exam, range, volume }) {
 
       <div className="relative mt-4">
         {tooFew ? (
-          <p className="rounded-2xl bg-white/70 dark:bg-gray-900/50 px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{t.few(insufficient?.needed ?? MIN, insufficient?.have ?? volume)}</p>
+          <StartTest t={t} exam={exam} need={insufficient?.needed ?? MIN} have={insufficient?.have ?? volume} />
         ) : error ? (
           <p className="rounded-2xl bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-700 dark:text-red-300">{error}</p>
         ) : busy && !visible ? (
