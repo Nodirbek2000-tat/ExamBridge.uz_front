@@ -5,6 +5,7 @@ import { useAuthStore } from '../../store/authStore'
 import api from '../../api/client'
 import { Eye, EyeOff, CheckCircle2 } from 'lucide-react'
 import { GoogleLogin } from '@react-oauth/google'
+import TelegramAuthButton from '../../components/auth/TelegramAuthButton.jsx'
 import Logo from '../../components/Logo.jsx'
 import Seo from '../../components/Seo.jsx'
 
@@ -112,6 +113,12 @@ export default function LoginPage() {
                   size="large"
                   width="400"
                   text="signin_with"
+                />
+              </div>
+
+              <div className="mb-5">
+                <TelegramAuthButton
+                  onSuccess={({ user, created }) => (created ? navigate('/onboarding') : handleSuccess(user))}
                 />
               </div>
 

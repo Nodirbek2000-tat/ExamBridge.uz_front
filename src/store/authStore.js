@@ -57,6 +57,12 @@ export const useAuthStore = create(
         }
       },
 
+      // A session that arrived some other way ("Continue with Telegram" polling).
+      applySession: (data) => {
+        saveTokens(data.access, data.refresh)
+        set({ user: data.user, loading: false })
+      },
+
       telegramLogin: async (token) => {
         set({ loading: true })
         try {

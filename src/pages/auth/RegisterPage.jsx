@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { useAuthStore } from '../../store/authStore'
 import { Eye, EyeOff } from 'lucide-react'
 import { GoogleLogin } from '@react-oauth/google'
+import TelegramAuthButton from '../../components/auth/TelegramAuthButton.jsx'
 import Logo from '../../components/Logo.jsx'
 import Seo from '../../components/Seo.jsx'
 
@@ -90,6 +91,13 @@ export default function RegisterPage() {
               size="large"
               width="400"
               text="signup_with"
+            />
+          </div>
+
+          <div className="mb-5">
+            <TelegramAuthButton
+              label="Sign up with Telegram"
+              onSuccess={({ created }) => navigate(created ? '/onboarding' : '/app')}
             />
           </div>
 
