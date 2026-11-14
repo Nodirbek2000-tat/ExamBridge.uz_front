@@ -8,6 +8,9 @@ import {
 import { useAuthStore } from '../../store/authStore'
 import { useThemeStore } from '../../store/themeStore'
 import { useCenterStudent } from '../../hooks/useCenterStudent'
+import ContactEmailForm from '../../components/auth/ContactEmailForm'
+
+const SIGN_IN_LABEL = { telegram: 'Telegram', google: 'Google', testmakon: 'TestMakon', email: 'E-mail and password' }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const BAND_OPTIONS = ['5.0', '5.5', '6.0', '6.5', '7.0', '7.5', '8.0', '8.5', '9.0']
@@ -133,6 +136,18 @@ function NameModal({ user, onClose }) {
           </button>
         </div>
       </div>
+    </Modal>
+  )
+}
+
+// ── Contact e-mail (Telegram accounts) ───────────────────────────────────────
+function ContactEmailModal({ onClose }) {
+  return (
+    <Modal title="Your e-mail" onClose={onClose}>
+      <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+        For results, payments and updates. You keep signing in with Telegram.
+      </p>
+      <ContactEmailForm onDone={onClose} onSkip={onClose} skipLabel="Cancel" />
     </Modal>
   )
 }
@@ -360,6 +375,7 @@ export default function ProfilePage() {
       {modal === 'time' && <StudyTimeModal current={user?.daily_study_minutes} onClose={() => setModal(null)} />}
       {modal === 'date' && <ExamDateModal current={user?.exam_date} onClose={() => setModal(null)} />}
       {modal === 'password' && <ChangePasswordModal onClose={() => setModal(null)} />}
+      {modal === 'email' && <ContactEmailModal onClose={() => setModal(null)} />}
 
       <div className="max-w-4xl mx-auto px-4 py-8">
         {/* Header */}
@@ -397,7 +413,14 @@ export default function ProfilePage() {
               </div>
 
               <Row label="Name" value={user?.full_name || '—'} onClick={() => setModal('name')} />
-              <Row label="Email" value={user?.email || '—'} readOnly />
+              {user?.signup_method === 'telegram' ? (
+                <>
+                  <Row label="Email" value={user?.email || 'Not added — tap to add'} onClick={() => setModal('email')} />
+                  {user?.phone && <Row label="Phone" value={user.phone} readOnly />}
+                </>
+              ) : (
+                <Row label="Email" value={user?.email || '—'} readOnly />
+              )}
               <Row label="Target Band" value={user?.target_band || 'Not set'} onClick={() => setModal('band')} />
               <Row label="Daily Study Time" value={user?.daily_study_minutes ? `${user.daily_study_minutes} min` : '30 min'} onClick={() => setModal('time')} />
               <Row label="Exam Date" value={formatDate(user?.exam_date)} onClick={() => setModal('date')} />
@@ -407,7 +430,11 @@ export default function ProfilePage() {
             {/* Security */}
             <Card>
               <CardTitle icon={Shield} title="Security" color="text-slate-500" />
-              <Row label="Password" value="Change your password" onClick={() => setModal('password')} />
+              {user?.has_password === false ? (
+                <Row label="Sign-in" value={`With ${SIGN_IN_LABEL[user?.signup_method] || 'your account'}`} readOnly />
+              ) : (
+                <Row label="Password" value="Change your password" onClick={() => setModal('password')} />
+              )}
             </Card>
 
             {/* Support */}

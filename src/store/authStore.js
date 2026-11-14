@@ -57,6 +57,9 @@ export const useAuthStore = create(
         }
       },
 
+      // A fresh copy of the user from an API response (profile edits).
+      applyUser: (user) => set({ user }),
+
       // A session that arrived some other way ("Continue with Telegram" polling).
       applySession: (data) => {
         saveTokens(data.access, data.refresh)

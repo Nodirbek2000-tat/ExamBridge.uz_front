@@ -5,6 +5,7 @@ import { Bell, X, Clock, ClipboardList } from 'lucide-react'
 import Sidebar from './Sidebar'
 import OlympiadAlert from '../../pages/olympiad/OlympiadAlert'
 import TopBar from './TopBar'
+import EmailPrompt from '../auth/EmailPrompt'
 import LazyBoundary from '../LazyBoundary'
 import { useCenterStudent } from '../../hooks/useCenterStudent'
 import { useQuery } from '@tanstack/react-query'
@@ -96,6 +97,7 @@ export default function MainLayout() {
     <div className="flex h-screen bg-gray-50 dark:bg-gray-950 overflow-hidden transition-colors">
       {/* Five minutes before an olympiad: a full-screen "Enter" card anywhere on the site */}
       <OlympiadAlert enabled={isCenterStudent} />
+      <EmailPrompt />
       <Sidebar
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}

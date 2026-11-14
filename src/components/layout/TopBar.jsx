@@ -251,7 +251,7 @@ export default function TopBar({
                 </div>
                 <div className="min-w-0 flex-1 pt-0.5">
                   <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{user?.full_name || user?.first_name || 'User'}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">{user?.email}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">{user?.email || user?.phone}</p>
                   {roleMeta ? (
                     <span className={`inline-flex mt-2 text-[10px] font-bold px-2 py-0.5 rounded-full border ${roleMeta.badge}`}>
                       {roleMeta.label}

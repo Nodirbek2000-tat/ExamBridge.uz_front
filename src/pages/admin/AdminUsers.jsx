@@ -11,6 +11,33 @@ import api from '../../api/client'
 import { useAuthStore } from '../../store/authStore'
 import { tierOf, canWrite } from './adminAccess'
 
+const SOURCES = [
+  { id: 'all', label: 'All sources' },
+  { id: 'telegram', label: 'Telegram bot' },
+  { id: 'google', label: 'Google' },
+  { id: 'email', label: 'E-mail' },
+  { id: 'testmakon', label: 'TestMakon' },
+]
+const SOURCE_BADGE = {
+  telegram: { label: 'Telegram', className: 'bg-sky-100 text-sky-700' },
+  google: { label: 'Google', className: 'bg-rose-50 text-rose-600' },
+  email: { label: 'E-mail', className: 'bg-gray-100 text-gray-600' },
+  testmakon: { label: 'TestMakon', className: 'bg-violet-50 text-violet-600' },
+}
+
+/** E-mail, or for Telegram accounts without one: @username / phone. */
+function contactLine(user) {
+  if (user.email) return user.email
+  if (user.telegram_username) return `@${user.telegram_username}`
+  return user.phone || '—'
+}
+
+function SourceBadge({ method }) {
+  const b = SOURCE_BADGE[method]
+  if (!b) return null
+  return <span className={`inline-flex px-2 py-0.5 text-[11px] font-semibold rounded-full w-fit ${b.className}`}>{b.label}</span>
+}
+
 /* ─── Animation variants ─────────────────────────────────────── */
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
@@ -264,9 +291,10 @@ function UserDetailDrawer({ userId, onClose, onDeleted }) {
               <div className="flex-1 min-w-0">
                 <h3 className="font-bold text-gray-900 text-lg leading-tight">{fullName}</h3>
                 <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
-                  <Mail size={13} /> {user.email}
+                  <Mail size={13} /> {contactLine(user)}
                 </p>
                 <div className="flex items-center gap-2 mt-2 flex-wrap">
+                  <SourceBadge method={user.signup_method} />
                   {user.is_premium ? (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-700 text-xs font-semibold rounded-full">
                       <Crown size={9} /> Premium
@@ -583,7 +611,8 @@ function UserCard({ user, isPending, pendingId, onToggle, onSelect }) {
         <UserAvatar name={fullName} email={user.email} />
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-gray-900 text-sm leading-tight truncate">{fullName}</p>
-          <p className="text-xs text-gray-500 truncate mt-0.5">{user.email}</p>
+          <p className="text-xs text-gray-500 truncate mt-0.5">{contactLine(user)}</p>
+          <div className="mt-1"><SourceBadge method={user.signup_method} /></div>
         </div>
         <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
           {user.is_premium
@@ -622,7 +651,8 @@ function UserRow({ user, index, isPending, pendingId, onToggle, onSelect }) {
           <UserAvatar name={fullName} email={user.email} />
           <div className="min-w-0">
             <p className="font-semibold text-gray-900 text-sm leading-tight truncate max-w-[160px]">{fullName}</p>
-            <p className="text-xs text-gray-400 truncate max-w-[160px]">{user.email}</p>
+            <p className="text-xs text-gray-400 truncate max-w-[160px]">{contactLine(user)}</p>
+            <div className="mt-1"><SourceBadge method={user.signup_method} /></div>
           </div>
         </div>
       </td>
@@ -896,6 +926,7 @@ export default function AdminUsers() {
   const [rawSearch, setRawSearch] = useState('')
   const [search, setSearch] = useState('')
   const [planFilter, setPlanFilter] = useState('ALL')   // ALL | premium | free
+  const [sourceFilter, setSourceFilter] = useState('all')   // all | telegram | google | email | testmakon
   const [pendingId, setPendingId] = useState(null)
   const [selectedUserId, setSelectedUserId] = useState(null)
   const debounceRef = useRef(null)
@@ -910,11 +941,11 @@ export default function AdminUsers() {
   }, [rawSearch])
 
   // Server pages + real counts (the API used to cut the list at 100 and the page counted those)
-  const usersKey = ['admin-users', search, planFilter]
+  const usersKey = ['admin-users', search, planFilter, sourceFilter]
   const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: usersKey,
     queryFn: ({ pageParam }) => api.get('/admin/users/', {
-      params: { page: pageParam, page_size: PAGE_SIZE, plan: planFilter === 'ALL' ? 'all' : planFilter, ...(search ? { q: search } : {}) },
+      params: { page: pageParam, page_size: PAGE_SIZE, plan: planFilter === 'ALL' ? 'all' : planFilter, source: sourceFilter, ...(search ? { q: search } : {}) },
     }).then(r => r.data),
     initialPageParam: 1,
     getNextPageParam: (last) => (last.has_more ? last.page + 1 : undefined),
@@ -1058,6 +1089,23 @@ export default function AdminUsers() {
               {f.label}
             </button>
           ))}
+        </div>
+        {/* How they signed up */}
+        <div className="flex flex-wrap items-center gap-1.5 bg-gray-100 rounded-xl p-1">
+          {SOURCES.map(s => {
+            const n = s.id === 'all'
+              ? Object.values(counts.sources || {}).reduce((a, b) => a + b, 0)
+              : counts.sources?.[s.id]
+            return (
+              <button key={s.id} onClick={() => setSourceFilter(s.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                  sourceFilter === s.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {s.label} ({n ?? '…'})
+              </button>
+            )
+          })}
         </div>
       </motion.div>
 
