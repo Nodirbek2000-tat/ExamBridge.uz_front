@@ -50,7 +50,7 @@ const SOURCE_TABS = [
 ]
 const SOURCE_ICON = { TEXT: Type, FILE: FileText, LINK: Link2 }
 const EMPTY_LESSON = {
-  title: '', subject: 'SAT', section: 'general', language: 'uz', duration_minutes: 10, level: '', voice: 'coral', brief: '',
+  title: '', subject: 'SAT', section: 'general', language: 'en', duration_minutes: 10, level: '', voice: 'coral', brief: '',
 }
 
 const JOB_POLL_MS = 3000

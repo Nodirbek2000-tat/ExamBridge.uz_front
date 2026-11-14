@@ -8,7 +8,7 @@
  * mood:  idle · listening · happy · proud · confused · sad · sleep · stir · yawn ·
  *        laugh · love · chew · lick · relax · cry · angry · surprised · sing · shy ·
  *        cool · dizzy · sleepy · wink · sick · blow · breath  (unknown → idle)
- * pose:  rest · up · wave · mouth · brush · face · shrug · read · belly · write ·
+ * pose:  rest · up · wave · mouth · brush · face · shrug · read · belly · write · board ·
  *        throw · kick · ride · comb · lick · give · scrub · sit · dance · clap ·
  *        raise · point · hug · shh · cheer · highfive · stir · think · spin · lie
  *                                                              (unknown → rest)
@@ -62,6 +62,7 @@ const POSES = {
   read: { l: -36, r: 36 },
   belly: { l: -30, r: 30, lw: 8, rw: 8, dur: 0.6 },
   write: { l: -22, r: 30, rw: 5, dur: 0.3 },
+  board: { l: 14, r: -100, rw: 5, dur: 0.28 },   // writing on a board to his right (AI lessons)
   throw: { l: 12, r: 12, rw: [0, -185, -70, 0], dur: 0.9, once: true },
   kick: { l: 52, r: -52 },
   ride: { l: -28, r: 28 },

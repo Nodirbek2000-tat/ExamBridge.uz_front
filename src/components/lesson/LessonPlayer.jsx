@@ -62,7 +62,7 @@ function QuestionGate({ questions, answers, onAnswer, onDone }) {
   return (
     <div ref={cardRef} className="lp-bar lp-question rounded-xl bg-white border border-gray-100 shadow-sm p-4 space-y-3">
       <p className="text-xs font-bold text-sky-600">
-        Savol{questions.length > 1 ? ` ${at + 1} / ${questions.length}` : ''}
+        Question{questions.length > 1 ? ` ${at + 1} / ${questions.length}` : ''}
       </p>
       <QuestionCard key={question.id} question={question} answer={answers[question.id]} onAnswer={onAnswer} />
       <div className="flex justify-end">
@@ -73,7 +73,7 @@ function QuestionGate({ questions, answers, onAnswer, onDone }) {
             ? 'px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold'
             : 'px-3 py-2 text-sm font-semibold text-gray-400 hover:text-gray-600'}
         >
-          {!answered ? "O'tkazib yuborish" : last ? 'Darsni davom ettirish' : 'Keyingi savol'}
+          {!answered ? 'Skip' : last ? 'Continue the lesson' : 'Next question'}
         </button>
       </div>
     </div>
@@ -151,25 +151,26 @@ export default function LessonPlayer({
       <Board
         key={entry.step.id}
         board={entry.step.board}
-        count={state.count}
+        count={state.started ? state.count : 0}
         instantUpTo={state.instantUpTo}
         rate={state.rate}
         paused={!state.playing}
+        talking={state.started && state.playing && !state.ended}
       >
         {!state.started && (
-          <button type="button" className="lp-overlay" onClick={engine.play} aria-label="Darsni boshlash">
+          <button type="button" className="lp-overlay" onClick={engine.play} aria-label="Start the lesson">
             <span className="w-16 h-16 rounded-full bg-sky-500 flex items-center justify-center shadow-lg">
               <Play size={30} className="ml-1" fill="currentColor" />
             </span>
-            <span className="text-sm font-semibold">{startIndex > 0 ? 'Davom ettirish' : 'Darsni boshlash'}</span>
+            <span className="text-sm font-semibold">{startIndex > 0 ? 'Continue' : 'Start the lesson'}</span>
           </button>
         )}
         {state.ended && (
-          <button type="button" className="lp-overlay" onClick={engine.play} aria-label="Qayta ko'rish">
+          <button type="button" className="lp-overlay" onClick={engine.play} aria-label="Watch again">
             <span className="w-16 h-16 rounded-full bg-sky-500 flex items-center justify-center shadow-lg">
               <RotateCcw size={28} />
             </span>
-            <span className="text-sm font-semibold">Dars tugadi. Qayta ko'rish</span>
+            <span className="text-sm font-semibold">Lesson finished. Watch again</span>
           </button>
         )}
       </Board>
@@ -185,7 +186,7 @@ export default function LessonPlayer({
       )}
 
       {captions && (
-        <p className="lp-bar min-h-[3.25rem] px-4 py-2 rounded-xl bg-slate-900 text-white text-sm sm:text-base font-medium leading-snug">
+        <p className="lp-bar lp-captions min-h-[3.25rem] px-5 py-2.5 rounded-xl bg-white border border-gray-100 shadow-sm text-gray-900 text-base sm:text-lg font-medium leading-snug text-center">
           {entry.sentences[state.sentence].text}
         </p>
       )}
@@ -195,7 +196,7 @@ export default function LessonPlayer({
           ref={sliderRef}
           type="range"
           className="lp-slider"
-          aria-label="Dars vaqti"
+          aria-label="Lesson time"
           min={0}
           max={engine.total}
           step={0.1}
@@ -205,23 +206,23 @@ export default function LessonPlayer({
           onChange={(event) => engine.seek(Number(event.target.value))}
         />
         <div className="flex flex-wrap items-center gap-x-1 gap-y-1">
-          <ControlButton label="Oldingi qism" onClick={engine.previous}><SkipBack size={18} /></ControlButton>
-          <ControlButton label={state.playing ? "To'xtatish" : 'Davom ettirish'} onClick={engine.toggle}>
+          <ControlButton label="Previous part" onClick={engine.previous}><SkipBack size={18} /></ControlButton>
+          <ControlButton label={state.playing ? 'Pause' : 'Play'} onClick={engine.toggle}>
             {state.playing ? <Pause size={20} /> : <Play size={20} />}
           </ControlButton>
-          <ControlButton label="Keyingi qism" onClick={engine.next}><SkipForward size={18} /></ControlButton>
+          <ControlButton label="Next part" onClick={engine.next}><SkipForward size={18} /></ControlButton>
 
           <span className="ml-1 text-xs text-gray-500 tabular-nums whitespace-nowrap">
             <span ref={clockRef}>0:00</span> / {formatClock(engine.total)}
           </span>
           <span className="ml-2 text-xs text-gray-400 whitespace-nowrap">
-            {state.index + 1}-qism, {timeline.length} tadan
+            Part {state.index + 1} of {timeline.length}
           </span>
-          {state.buffering && <span className="ml-2 text-xs text-sky-600">Yuklanmoqda…</span>}
+          {state.buffering && <span className="ml-2 text-xs text-sky-600">Loading…</span>}
 
           <div className="ml-auto flex items-center gap-1">
             <label className="text-xs text-gray-500">
-              <span className="sr-only">Tezlik</span>
+              <span className="sr-only">Speed</span>
               <select
                 value={state.rate}
                 onChange={(event) => engine.setRate(Number(event.target.value))}
@@ -230,11 +231,11 @@ export default function LessonPlayer({
                 {RATES.map((rate) => <option key={rate} value={rate}>{rate}x</option>)}
               </select>
             </label>
-            <ControlButton label="Subtitr" active={captions} onClick={() => setCaptions((on) => !on)}>
+            <ControlButton label="Captions" active={captions} onClick={() => setCaptions((on) => !on)}>
               <Captions size={18} />
             </ControlButton>
             {document.fullscreenEnabled && (
-              <ControlButton label={fullscreen ? 'Kichraytirish' : "To'liq ekran"} onClick={toggleFullscreen}>
+              <ControlButton label={fullscreen ? 'Exit full screen' : 'Full screen'} onClick={toggleFullscreen}>
                 {fullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
               </ControlButton>
             )}
@@ -242,7 +243,7 @@ export default function LessonPlayer({
         </div>
         {(state.audioFailed || !voiced) && (
           <p className="text-[11px] text-gray-400">
-            {state.audioFailed ? "Ovoz yuklanmadi, dars matn bilan davom etyapti." : 'Ovoz hali yozilmagan, dars matn bilan ko\'rsatilmoqda.'}
+            {state.audioFailed ? 'The voice did not load, so the lesson goes on with captions.' : 'The voice is not recorded yet, so the lesson plays with captions.'}
           </p>
         )}
       </div>

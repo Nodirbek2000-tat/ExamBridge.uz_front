@@ -19,9 +19,9 @@ function Verdict({ answer }) {
   // Written answers checked by the AI teacher: their own verdict and comment.
   if (answer.verdict) {
     const look = {
-      correct: { icon: <Check size={16} />, label: "To'g'ri!", box: 'border-emerald-200 bg-emerald-50', title: 'text-emerald-700' },
-      partly: { icon: <CircleDot size={16} />, label: "Qisman to'g'ri", box: 'border-amber-200 bg-amber-50', title: 'text-amber-700' },
-      wrong: { icon: <X size={16} />, label: "Noto'g'ri", box: 'border-red-200 bg-red-50', title: 'text-red-600' },
+      correct: { icon: <Check size={16} />, label: 'Correct!', box: 'border-emerald-200 bg-emerald-50', title: 'text-emerald-700' },
+      partly: { icon: <CircleDot size={16} />, label: 'Partly correct', box: 'border-amber-200 bg-amber-50', title: 'text-amber-700' },
+      wrong: { icon: <X size={16} />, label: 'Not quite', box: 'border-red-200 bg-red-50', title: 'text-red-600' },
     }[answer.verdict]
     if (look) {
       return (
@@ -40,14 +40,14 @@ function Verdict({ answer }) {
   if (answer.is_correct === null) {
     return (
       <p className="text-sm font-semibold text-sky-700">
-        Javobingiz qabul qilindi. Quyidagi yechim bilan solishtirib ko'ring.
+        Your answer is saved. Compare it with the explanation below.
       </p>
     )
   }
   return answer.is_correct ? (
-    <p className="flex items-center gap-1.5 text-sm font-bold text-emerald-700"><Check size={16} /> To'g'ri!</p>
+    <p className="flex items-center gap-1.5 text-sm font-bold text-emerald-700"><Check size={16} /> Correct!</p>
   ) : (
-    <p className="flex items-center gap-1.5 text-sm font-bold text-red-600"><X size={16} /> Noto'g'ri</p>
+    <p className="flex items-center gap-1.5 text-sm font-bold text-red-600"><X size={16} /> Not quite</p>
   )
 }
 
@@ -70,7 +70,7 @@ export default function QuestionCard({ question, answer, onAnswer }) {
     try {
       await onAnswer(question, isChoice ? { choice: picked } : { text })
     } catch (e) {
-      setError(e?.response?.data?.error || "Javob yuborilmadi. Yana urinib ko'ring.")
+      setError(e?.response?.data?.error || 'Your answer was not sent. Please try again.')
     } finally {
       setBusy(false)
     }
@@ -104,7 +104,7 @@ export default function QuestionCard({ question, answer, onAnswer }) {
           maxLength={MAX_TEXT}
           rows={3}
           disabled={busy}
-          placeholder="Javobingizni yozing"
+          placeholder="Write your answer"
           className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-sky-400"
         />
       )}
@@ -126,7 +126,7 @@ export default function QuestionCard({ question, answer, onAnswer }) {
             onClick={send}
             className="px-4 py-2 rounded-lg bg-sky-500 hover:bg-sky-600 text-white text-sm font-semibold disabled:opacity-50"
           >
-            {busy ? (isChoice ? 'Yuborilmoqda…' : 'Ustoz tekshirmoqda…') : 'Javob berish'}
+            {busy ? (isChoice ? 'Sending…' : 'Your teacher is checking…') : 'Answer'}
           </button>
           {error && <p className="text-sm text-red-500">{error}</p>}
         </div>

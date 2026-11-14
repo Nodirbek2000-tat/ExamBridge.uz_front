@@ -1,27 +1,28 @@
 /* The lesson player. Loaded with the player only, never with the rest of the site. */
 
-/* ── Board ──────────────────────────────────────────────────────────────── */
+/* ── Board: a whiteboard on dotted paper ─────────────────────────────────── */
 
 .lb-frame {
   container-type: inline-size;
   width: 100%;
-  padding: 10px;
-  border-radius: 14px;
-  background: linear-gradient(145deg, #8a6240, #6a4729);
-  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.25), 0 10px 26px rgb(15 23 42 / 0.22);
+  padding: 7px;
+  border-radius: 18px;
+  background: linear-gradient(160deg, #eef2f7, #cfd8e3);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.7), 0 14px 34px rgb(15 23 42 / 0.16);
 }
 
 .lb-board {
   position: relative;
   aspect-ratio: 16 / 9;
   overflow: hidden;
-  border-radius: 6px;
-  color: #f4f1e8;
-  background:
-    radial-gradient(120% 90% at 20% 10%, rgb(255 255 255 / 0.06), transparent 60%),
-    radial-gradient(90% 80% at 85% 90%, rgb(255 255 255 / 0.035), transparent 60%),
-    #203b34;
-  box-shadow: inset 0 0 26px rgb(0 0 0 / 0.4);
+  border-radius: 12px;
+  color: #1e293b;
+  background-color: #fffefa;
+  background-image:
+    radial-gradient(120% 80% at 15% 0%, rgb(255 255 255 / 0.9), transparent 55%),
+    radial-gradient(circle, rgb(30 41 59 / 0.13) 1px, transparent 1.4px);
+  background-size: auto, 1.7cqw 1.7cqw;
+  box-shadow: inset 0 0 0 1px rgb(15 23 42 / 0.06), inset 0 -18px 40px rgb(15 23 42 / 0.03);
   font-family: 'Caveat', 'Segoe Print', 'Bradley Hand', cursive;
 }
 
@@ -31,15 +32,16 @@
   gap: 0.42em;
   height: 100%;
   overflow: hidden;
-  padding: 4.2cqw 5cqw;
-  font-size: calc(3.5cqw * var(--fit, 1));
-  line-height: 1.25;
+  /* the right side stays clear for Toby when he rests in his corner */
+  padding: 4cqw 15cqw 4cqw 5cqw;
+  font-size: calc(3.6cqw * var(--fit, 1));
+  line-height: 1.22;
 }
 
 /* A phone is too narrow for 16:9 at a readable size. */
 @container (max-width: 560px) {
   .lb-board { aspect-ratio: 4 / 3; }
-  .lb-content { font-size: calc(5.2cqw * var(--fit, 1)); padding: 5cqw 5.5cqw; }
+  .lb-content { font-size: calc(5.2cqw * var(--fit, 1)); padding: 5cqw 18cqw 5cqw 5.5cqw; }
 }
 
 /* ── Elements ───────────────────────────────────────────────────────────── */
@@ -51,51 +53,77 @@
   position: relative;
   width: fit-content;
   padding-bottom: 0.12em;
-  font-size: 1.5em;
+  font-size: 1.55em;
   font-weight: 700;
-  color: #ffe08a;
+  color: #0f172a;
 }
 
 .lb-heading::after {
   content: '';
   position: absolute;
-  inset: auto 0 0;
-  height: 0.07em;
+  inset: auto -0.1em 0 -0.05em;
+  height: 0.09em;
   border-radius: 1em;
-  background: currentColor;
+  background: #22c55e;
   transform-origin: left;
-  transform: scaleX(0);
+  transform: scaleX(0) rotate(-0.6deg);
 }
 
 .lb-heading.lb-shown::after { animation: lb-underline 0.6s ease-out 0.45s forwards; }
-.lb-heading.lb-instant::after { animation: none; transform: scaleX(1); }
+.lb-heading.lb-instant::after { animation: none; transform: scaleX(1) rotate(-0.6deg); }
 
-.lb-text { font-weight: 500; }
+.lb-text { font-weight: 600; }
 
-.lb-list ul { display: flex; flex-direction: column; gap: 0.2em; padding-left: 1.05em; list-style: none; }
-.lb-list li { position: relative; font-weight: 500; }
-.lb-list li::before { content: '–'; position: absolute; left: -0.85em; opacity: 0.7; }
+.lb-list ul { display: flex; flex-direction: column; gap: 0.18em; padding-left: 1.05em; list-style: none; }
+.lb-list li { position: relative; font-weight: 600; }
+.lb-list li::before { content: '•'; position: absolute; left: -0.8em; color: #22c55e; font-weight: 700; }
 
 .lb-math { display: block; font-family: inherit; font-size: 1.05em; }
-.lb-math .katex-display { margin: 0.1em 0; }
+.lb-math .katex-display { margin: 0.1em 0; text-align: left; }
 .lb-math .katex { color: inherit; }
 
 .lb-note {
   width: fit-content;
   max-width: 100%;
-  padding: 0.3em 0.65em;
-  border: 0.06em dashed #ffe08a;
-  border-radius: 0.3em;
-  font-weight: 600;
-  color: #fff4cf;
+  padding: 0.25em 0.6em;
+  border-left: 0.14em solid #f59e0b;
+  border-radius: 0.2em 0.5em 0.5em 0.2em;
+  background: rgb(253 224 71 / 0.42);
+  font-weight: 700;
+  color: #1e293b;
 }
 
-.lb-bold { font-weight: 700; color: #ffe08a; }
+.lb-bold { font-weight: 700; color: #2563eb; }
 
-.lb-c-yellow { color: #ffe08a; }
-.lb-c-sky { color: #9edcf5; }
-.lb-c-pink { color: #f7b4c8; }
-.lb-c-green { color: #b4e6a8; }
+.lb-c-chalk { color: #1e293b; }
+.lb-c-yellow { color: #d97706; }
+.lb-c-sky { color: #2563eb; }
+.lb-c-pink { color: #db2777; }
+.lb-c-green { color: #16a34a; }
+
+/* ── Icon ───────────────────────────────────────────────────────────────── */
+
+.lb-icon { align-self: center; }
+
+.lb-figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1em;
+  margin: 0;
+}
+
+.lb-icon-disc {
+  display: grid;
+  place-items: center;
+  width: 2.4em;
+  height: 2.4em;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 11%, transparent);
+}
+
+.lb-icon-disc svg { width: 1.55em; height: 1.55em; }
+.lb-icon-label { font-size: 0.8em; font-weight: 700; color: #1e293b; }
 
 /* ── Diagram ────────────────────────────────────────────────────────────── */
 
@@ -133,13 +161,22 @@
   animation-delay: var(--at);
 }
 
+/* an icon's own strokes are drawn in, like the diagrams */
+.lb-shown .lb-icon-disc svg > * {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: lb-icon-draw var(--d) ease-in-out forwards;
+}
+
 .lb-instant .lb-w,
 .lb-instant .lb-stroke,
 .lb-instant .lb-fade { animation: none; }
+.lb-instant .lb-icon-disc svg > * { animation: none; stroke-dashoffset: 0; }
 
 .lb-paused .lb-w,
 .lb-paused .lb-stroke,
 .lb-paused .lb-fade,
+.lb-paused .lb-icon-disc svg > *,
 .lb-paused .lb-heading::after { animation-play-state: paused; }
 
 @keyframes lb-write {
@@ -152,20 +189,52 @@
   to { stroke-dashoffset: 0; }
 }
 
+@keyframes lb-icon-draw {
+  to { stroke-dashoffset: 0; }
+}
+
 @keyframes lb-appear {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 
 @keyframes lb-underline {
-  to { transform: scaleX(1); }
+  to { transform: scaleX(1) rotate(-0.6deg); }
+}
+
+/* ── Toby, the teacher ──────────────────────────────────────────────────── */
+
+/* Placed by useTeacher (Board.jsx) with an inline transform: his corner, or the pen. */
+.lb-teacher {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  width: 13cqw;
+  pointer-events: none;
+  will-change: transform;
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* following the pen: short, even steps */
+.lb-teacher.lb-teacher-writing { transition: transform 0.12s linear; }
+
+/* mirrored: he faces left, towards the board and what he has just written */
+.lb-teacher-body { transform: scaleX(-1); filter: drop-shadow(0 6px 8px rgb(15 23 42 / 0.18)); }
+
+.lb-teacher-svg { display: block; width: 100%; height: auto; }
+
+@container (max-width: 560px) {
+  .lb-teacher { width: 17cqw; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .lb-shown .lb-w,
   .lb-shown .lb-stroke,
-  .lb-shown .lb-fade { animation: none; }
+  .lb-shown .lb-fade,
+  .lb-shown .lb-icon-disc svg > * { animation: none; stroke-dashoffset: 0; }
   .lb-heading.lb-shown::after { animation: none; transform: scaleX(1); }
+  .lb-teacher { transition: none; }
 }
 
 /* ── Player ─────────────────────────────────────────────────────────────── */
@@ -181,7 +250,7 @@
   justify-content: center;
   gap: 0.6rem;
   border: 0;
-  background: rgb(10 24 20 / 0.55);
+  background: rgb(15 23 42 / 0.38);
   color: #fff;
   font-family: var(--font-sans);
   cursor: pointer;

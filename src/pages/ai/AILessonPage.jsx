@@ -17,7 +17,7 @@ function Homework({ lesson, answers, onAnswer }) {
     return (
       <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-3 text-gray-500">
         <Lock size={18} className="flex-shrink-0" />
-        <p className="text-sm">Uy vazifasi ({total} ta savol) dars oxirigacha ko'rilgandan keyin ochiladi.</p>
+        <p className="text-sm">Homework ({total} {total === 1 ? 'question' : 'questions'}) opens when you finish the lesson.</p>
       </section>
     )
   }
@@ -29,14 +29,14 @@ function Homework({ lesson, answers, onAnswer }) {
     <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
       <div className="px-5 py-4 border-b border-gray-50 flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-bold text-gray-900 flex items-center gap-2">
-          <BookOpenCheck size={18} className="text-sky-500" /> Uy vazifasi
+          <BookOpenCheck size={18} className="text-sky-500" /> Homework
         </h2>
-        <p className="text-xs text-gray-500">Bajarildi: {done} / {total} · To'g'ri: {right}</p>
+        <p className="text-xs text-gray-500">Done: {done} / {total} · Correct: {right}</p>
       </div>
       <ol className="divide-y divide-gray-50">
         {homework.map((question, i) => (
           <li key={question.id} className="p-5 space-y-1.5">
-            <p className="text-xs font-semibold text-gray-400">{i + 1}-savol</p>
+            <p className="text-xs font-semibold text-gray-400">Question {i + 1}</p>
             <QuestionCard question={question} answer={answers[question.id]} onAnswer={onAnswer} />
           </li>
         ))}
@@ -89,24 +89,24 @@ export default function AILessonPage() {
   }, [id, queryClient])
 
   if (isLoading) {
-    return <div className="max-w-5xl mx-auto aspect-video bg-gray-100 rounded-2xl animate-pulse" />
+    return <div className="max-w-6xl mx-auto aspect-video bg-gray-100 rounded-2xl animate-pulse" />
   }
   if (error) {
     return (
-      <div className="max-w-5xl mx-auto py-16 text-center">
-        <p className="text-gray-500">Dars topilmadi.</p>
-        <Link to="/app/ai?tab=lessons" className="text-sm font-semibold text-sky-600 hover:underline">Darslarga qaytish</Link>
+      <div className="max-w-6xl mx-auto py-16 text-center">
+        <p className="text-gray-500">Lesson not found.</p>
+        <Link to="/app/ai?tab=lessons" className="text-sm font-semibold text-sky-600 hover:underline">Back to lessons</Link>
       </div>
     )
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-4">
+    <div className="max-w-6xl mx-auto space-y-4">
       <Link
         to={`/app/ai?subject=${lesson.subject}&tab=lessons`}
         className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-500 hover:text-sky-600"
       >
-        <ArrowLeft size={16} /> Darslar
+        <ArrowLeft size={16} /> Lessons
       </Link>
       <h1 className="text-xl font-bold text-gray-900">{lesson.title}</h1>
 
