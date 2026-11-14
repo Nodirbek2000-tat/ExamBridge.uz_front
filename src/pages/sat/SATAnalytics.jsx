@@ -10,6 +10,7 @@ import {
   StackedColumns, Heatmap,
 } from '../../components/analytics/kit'
 import AIAnalysisCard from '../../components/analytics/AIAnalysisCard'
+import RecommendedLessons from '../../components/lesson/RecommendedLessons'
 
 /*
  * Every number on this page comes from /api/sat/analytics/ — nothing is
@@ -296,6 +297,7 @@ export default function SATAnalytics() {
       ) : (
         <div className={`space-y-5 transition-opacity ${isPlaceholderData ? 'opacity-60' : ''}`}>
           <Reveal><AIAnalysisCard key={range} exam="sat" range={range} volume={data.totals.attempted} /></Reveal>
+          <Reveal><RecommendedLessons exam="sat" /></Reveal>
 
           <Reveal className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Stat icon={Target} label="Questions attempted" value={data.totals.attempted} hint={`${data.totals.active_days} active day${data.totals.active_days === 1 ? '' : 's'}`} />

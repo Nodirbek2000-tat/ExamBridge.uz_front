@@ -1,9 +1,12 @@
 import { useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ArrowRight, CheckCircle2, Clock, Play, RotateCcw, Sparkles } from 'lucide-react'
+import { Play, Sparkles } from 'lucide-react'
 import api from '../../api/client'
 import { loadBoardFont } from '../../components/lesson/boardFont'
+import { BoardThumb, LessonCard, Meta } from '../../components/lesson/LessonCards'
+import { LOOK, inProgress } from '../../components/lesson/lessonLook'
+import RecommendedLessons from '../../components/lesson/RecommendedLessons'
 import { TobyAvatar } from '../games/tobys-day/Toby'
 
 const FILTERS = [
@@ -13,100 +16,7 @@ const FILTERS = [
   { key: 'CEFR', label: 'CEFR' },
 ]
 
-// The same colours as each exam's workspace in the sidebar.
-const LOOK = {
-  SAT: { chip: 'bg-sky-100 text-sky-800', ink: '#2563eb', active: 'bg-sky-600 text-white' },
-  IELTS: { chip: 'bg-violet-100 text-violet-800', ink: '#7c3aed', active: 'bg-violet-600 text-white' },
-  CEFR: { chip: 'bg-rose-100 text-rose-800', ink: '#e11d48', active: 'bg-rose-600 text-white' },
-  GENERAL: { chip: 'bg-emerald-100 text-emerald-800', ink: '#16a34a', active: 'bg-emerald-600 text-white' },
-}
 const ALL_ACTIVE = 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
-
-const SECTIONS = {
-  general: '', math: 'Math', reading_writing: 'Reading & Writing', reading: 'Reading',
-  listening: 'Listening', writing: 'Writing', speaking: 'Speaking', grammar: 'Grammar',
-}
-
-const inProgress = (lesson) => !lesson.progress.completed && lesson.progress.percent > 0
-
-/** A lesson as a little whiteboard: its title handwritten, the exam's colour underlining it. */
-function BoardThumb({ lesson, large = false }) {
-  const look = LOOK[lesson.subject] || LOOK.GENERAL
-  const { progress } = lesson
-  return (
-    <div
-      className="relative aspect-video overflow-hidden rounded-xl bg-[#fffefa] ring-1 ring-slate-900/5"
-      style={{
-        backgroundImage: 'radial-gradient(circle, rgb(30 41 59 / 0.13) 1px, transparent 1.4px)',
-        backgroundSize: large ? '14px 14px' : '11px 11px',
-      }}
-    >
-      <div className="absolute inset-0 flex flex-col justify-center px-[7%] pb-[6%]">
-        <p
-          className={`font-bold leading-[1.05] text-slate-800 line-clamp-3 ${large ? 'text-[2.1rem] sm:text-[2.6rem]' : 'text-[1.7rem]'}`}
-          style={{ fontFamily: "'Caveat', 'Segoe Print', cursive" }}
-        >
-          {lesson.title}
-        </p>
-        <span className="mt-1.5 block h-[3px] w-16 rounded-full -rotate-1" style={{ background: look.ink }} />
-      </div>
-
-      <span className={`absolute left-3 top-3 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${look.chip}`}>
-        {lesson.subject === 'GENERAL' ? 'General' : lesson.subject}
-      </span>
-      {progress.completed && (
-        <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2 py-0.5 text-[11px] font-bold text-white">
-          <CheckCircle2 size={12} /> Completed
-        </span>
-      )}
-
-      <span className="absolute bottom-3 right-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-md ring-1 ring-slate-900/5 transition group-hover:scale-110 group-hover:bg-slate-900 group-hover:text-white">
-        <Play size={17} className="ml-0.5" fill="currentColor" />
-      </span>
-
-      {inProgress(lesson) && (
-        <div className="absolute inset-x-0 bottom-0 h-1.5 bg-slate-900/10">
-          <div className="h-full bg-sky-500" style={{ width: `${progress.percent}%` }} />
-        </div>
-      )}
-    </div>
-  )
-}
-
-function Meta({ lesson }) {
-  const section = SECTIONS[lesson.section]
-  return (
-    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
-      <span className="inline-flex items-center gap-1"><Clock size={13} /> {lesson.duration_minutes} min</span>
-      {section && <span>· {section}</span>}
-      {lesson.level && <span>· {lesson.level}</span>}
-    </div>
-  )
-}
-
-function action(lesson) {
-  if (lesson.progress.completed) return { label: 'Watch again', icon: RotateCcw }
-  if (lesson.progress.percent > 0) return { label: `Continue · ${lesson.progress.percent}%`, icon: Play }
-  return { label: 'Start lesson', icon: Play }
-}
-
-function LessonCard({ lesson }) {
-  const { label } = action(lesson)
-  return (
-    <Link
-      to={`/app/lessons/${lesson.id}`}
-      className="group flex flex-col gap-3 rounded-2xl bg-white p-3 ring-1 ring-gray-100 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg hover:ring-gray-200 dark:bg-gray-800 dark:ring-gray-700"
-    >
-      <BoardThumb lesson={lesson} />
-      <div className="flex items-end justify-between gap-3 px-1 pb-1">
-        <Meta lesson={lesson} />
-        <span className="inline-flex shrink-0 items-center gap-1 text-xs font-bold text-sky-600 dark:text-sky-400">
-          {label} <ArrowRight size={13} className="transition group-hover:translate-x-0.5" />
-        </span>
-      </div>
-    </Link>
-  )
-}
 
 /** The lesson left half-way, in front of everything else. */
 function ContinueCard({ lesson }) {
@@ -188,6 +98,8 @@ export default function AILessonsPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-6 pb-10">
       <Hero total={lessons.length} done={done} />
+
+      <RecommendedLessons />
 
       <div className="flex flex-wrap gap-2" role="tablist" aria-label="Exam">
         {FILTERS.map(({ key, label }) => {

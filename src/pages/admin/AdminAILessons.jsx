@@ -71,6 +71,11 @@ function Field({ label, children }) {
   )
 }
 
+/** The skills a lesson trains, as typed (comma separated) or as saved. */
+function topicsOf(form) {
+  return (form.topicsText ?? (form.topics || []).join(', ')).split(',').map((t) => t.trim()).filter(Boolean)
+}
+
 function LessonFields({ form, onChange }) {
   const set = (key) => (e) => onChange({ ...form, [key]: e.target.value })
   return (
@@ -113,6 +118,14 @@ function LessonFields({ form, onChange }) {
       <Field label="What the lesson must cover">
         <textarea value={form.brief} onChange={set('brief')} rows={5} className={inputCls} placeholder="Key points, how to explain them, what to practise" />
       </Field>
+      <Field label="Skills it trains — students weak in these are sent here (comma separated)">
+        <input
+          value={form.topicsText ?? (form.topics || []).join(', ')}
+          onChange={set('topicsText')}
+          className={inputCls}
+          placeholder="The AI fills this in when it writes the lesson, e.g. Linear equations in one variable"
+        />
+      </Field>
     </div>
   )
 }
@@ -120,7 +133,7 @@ function LessonFields({ form, onChange }) {
 function NewLessonModal({ onClose, onCreated }) {
   const [form, setForm] = useState(EMPTY_LESSON)
   const create = useMutation({
-    mutationFn: () => api.post('/admin/ai-lessons/', form).then((r) => r.data),
+    mutationFn: () => api.post('/admin/ai-lessons/', { ...form, topics: topicsOf(form) }).then((r) => r.data),
     onSuccess: onCreated,
   })
 
@@ -301,7 +314,7 @@ function LessonForm({ lesson, onBack }) {
     mutationFn: () => {
       const { title, subject, section, language, duration_minutes, level, voice, brief } = form
       return api.patch(`/admin/ai-lessons/${lessonId}/`, {
-        title, subject, section, language, duration_minutes, level, voice, brief,
+        title, subject, section, language, duration_minutes, level, voice, brief, topics: topicsOf(form),
       })
     },
     onSuccess: refresh,

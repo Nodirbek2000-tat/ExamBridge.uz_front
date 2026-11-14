@@ -18,6 +18,7 @@ import {
   C, fmtDay, Card, Empty, RangePicker, Reveal, useTooltip, Meter, BandLegend, Stat, WeakList, StackedColumns, Heatmap,
 } from '../../components/analytics/kit'
 import AIAnalysisCard from '../../components/analytics/AIAnalysisCard'
+import RecommendedLessons from '../../components/lesson/RecommendedLessons'
 
 const SKILL_COLOR = { reading: C.s1, listening: C.s2 }
 
@@ -433,6 +434,7 @@ export default function SkillDashboard({ exam }) {
           </div>
 
           <Reveal><AIAnalysisCard key={range} exam={exam} range={range} volume={volume} /></Reveal>
+          <Reveal><RecommendedLessons exam={exam} /></Reveal>
 
           <Reveal className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Stat icon={Target} label="Questions answered" value={t.answered} hint={`${t.active_days} active day${t.active_days === 1 ? '' : 's'}`} />
