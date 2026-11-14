@@ -95,7 +95,7 @@ export default function AILessonPage() {
     return (
       <div className="max-w-6xl mx-auto py-16 text-center">
         <p className="text-gray-500">Lesson not found.</p>
-        <Link to="/app/ai?tab=lessons" className="text-sm font-semibold text-sky-600 hover:underline">Back to lessons</Link>
+        <Link to="/app/lessons" className="text-sm font-semibold text-sky-600 hover:underline">Back to lessons</Link>
       </div>
     )
   }
@@ -103,7 +103,7 @@ export default function AILessonPage() {
   return (
     <div className="max-w-6xl mx-auto space-y-4">
       <Link
-        to={`/app/ai?subject=${lesson.subject}&tab=lessons`}
+        to="/app/lessons"
         className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-500 hover:text-sky-600"
       >
         <ArrowLeft size={16} /> Lessons

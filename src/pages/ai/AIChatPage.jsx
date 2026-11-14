@@ -1,12 +1,11 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Send, Image as ImageIcon, X, Bot, User, Trash2,
   ChevronDown, Plus, MessageSquare, Sparkles, Mic, ArrowUp, PanelLeft,
 } from 'lucide-react'
 import api from '../../api/client'
-import LessonsTab from './LessonsTab'
 import ReactMarkdown from 'react-markdown'
 import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
@@ -149,7 +148,7 @@ function TypingBubble({ streamText }) {
 }
 
 // ── Main page ────────────────────────────────────────────────────────────────
-export default function AIChatPage() {
+function AIChatPage() {
   const [searchParams] = useSearchParams()
   const initSubject = (searchParams.get('subject') || 'SAT').toUpperCase()
   const initSection = searchParams.get('section') || 'general'
@@ -166,7 +165,6 @@ export default function AIChatPage() {
   const [conversations, setConversations] = useState([])
   const [showHistory, setShowHistory] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [activeTab, setActiveTab] = useState(searchParams.get('tab') === 'lessons' ? 'video' : 'chat')
 
   const messagesEndRef = useRef(null)
   const fileInputRef = useRef(null)
@@ -395,30 +393,21 @@ export default function AIChatPage() {
             <PanelLeft size={18} />
           </button>
           <div className="inline-flex items-center bg-gray-200 rounded-2xl p-1 gap-1">
-            <button
-              onClick={() => setActiveTab('chat')}
-              className={`px-16 py-1.5 rounded-xl text-[15px] font-semibold transition ${
-                activeTab === 'chat' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-700'
-              }`}
-            >
+            <span className="px-16 py-1.5 rounded-xl text-[15px] font-semibold bg-white text-gray-800 shadow-sm">
               Chat
-            </button>
-            <button
-              onClick={() => setActiveTab('video')}
-              className={`px-10 py-1.5 rounded-xl text-[15px] font-semibold transition ${
-                activeTab === 'video' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-700'
-              }`}
+            </span>
+            {/* The lessons have a page of their own */}
+            <Link
+              to="/app/lessons"
+              className="px-10 py-1.5 rounded-xl text-[15px] font-semibold text-gray-700 hover:bg-white/60 transition"
             >
               AI video explanation
-            </button>
+            </Link>
           </div>
         </div>
 
         {/* Messages area */}
         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5 bg-white">
-          {activeTab === 'video' && <LessonsTab subject={subject} />}
-          {activeTab === 'chat' && (
-            <>
           {messages.length === 0 && !streaming && (
             <div className="flex flex-col items-center justify-center h-full text-center gap-4 pb-20">
               <div className={`w-16 h-16 rounded-2xl ${colorCls.bg} flex items-center justify-center shadow-lg`}>
@@ -479,12 +468,9 @@ export default function AIChatPage() {
           )}
 
           <div ref={messagesEndRef} />
-            </>
-          )}
         </div>
 
         {/* Input area */}
-        {activeTab === 'chat' && (
         <div className="flex-shrink-0 bg-white p-4 pb-6">
           {/* Image preview */}
           {imagePreview && (
@@ -555,8 +541,14 @@ export default function AIChatPage() {
             </button>
           </div>
         </div>
-        )}
       </div>
     </div>
   )
+}
+
+/** Old links to the lessons tab (/app/ai?tab=lessons) open the lessons page. */
+export default function AIChatRoute() {
+  const [searchParams] = useSearchParams()
+  if (searchParams.get('tab') === 'lessons') return <Navigate to="/app/lessons" replace />
+  return <AIChatPage />
 }

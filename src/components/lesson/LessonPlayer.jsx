@@ -3,24 +3,13 @@ import {
   Captions, Maximize, Minimize, Pause, Play, RotateCcw, SkipBack, SkipForward, Star, Trophy,
 } from 'lucide-react'
 import Board from './Board'
+import { loadBoardFont } from './boardFont'
 import { LessonEngine } from './LessonEngine'
 import QuestionCard from './QuestionCard'
 import { formatClock } from './timeline'
 import './lesson.css'
 
 const RATES = [0.75, 1, 1.25, 1.5]
-const FONT_ID = 'lesson-board-font'
-const FONT_URL = 'https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&display=swap'
-
-/** The board's handwriting font, fetched only by people who open a lesson. */
-function loadBoardFont() {
-  if (document.getElementById(FONT_ID)) return
-  const link = document.createElement('link')
-  link.id = FONT_ID
-  link.rel = 'stylesheet'
-  link.href = FONT_URL
-  document.head.appendChild(link)
-}
 
 function ControlButton({ label, active, onClick, children }) {
   return (

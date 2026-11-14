@@ -99,6 +99,7 @@ const StudyShadowingPage = lazyWithPreload(() => import('./pages/study/StudyShad
 // AI
 const AIChatPage = lazyWithPreload(() => import('./pages/ai/AIChatPage'))
 const AILessonPage = lazyWithPreload(() => import('./pages/ai/AILessonPage'))
+const AILessonsPage = lazyWithPreload(() => import('./pages/ai/AILessonsPage'))
 
 // Other
 const ProfilePage = lazyWithPreload(() => import('./pages/profile/ProfilePage'))
@@ -310,6 +311,7 @@ export default function App() {
         <Route path="ai/sat" element={<AIChatPage />} />
         <Route path="ai/ielts" element={<AIChatPage />} />
         <Route path="ai/cefr" element={<AIChatPage />} />
+        <Route path="lessons" element={<AILessonsPage />} />
         <Route path="lessons/:id" element={<AILessonPage />} />
 
         {/* Other */}

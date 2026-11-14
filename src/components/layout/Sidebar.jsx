@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   GraduationCap, BookOpen, Globe, Home,
   Library, X, ChevronRight, ChevronsUpDown, Calculator, Sparkles,
-  ClipboardList, Bell, Crown, FileText, Layers, History, Check, Gamepad2, BarChart3, ListChecks,
+  ClipboardList, Bell, Crown, FileText, Layers, History, Check, Gamepad2, BarChart3, ListChecks, MonitorPlay,
 } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { useAuthStore } from '../../store/authStore'
@@ -70,6 +70,7 @@ const BOTTOM_LINKS = [
   { label: 'Games', to: '/games', icon: Gamepad2, isNew: true },
   { label: 'Study Tools', to: '/study', icon: GraduationCap, isNew: true },
   { label: 'AI Tutor', to: '/app/ai', icon: Sparkles },
+  { label: 'AI Lessons', to: '/app/lessons', icon: MonitorPlay, isNew: true },
   // Universities and the shared Vocabulary link are hidden for now —
   // the routes still exist. SAT keeps its own Vocabulary item above.
 ]
