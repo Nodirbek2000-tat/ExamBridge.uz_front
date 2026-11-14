@@ -14,6 +14,9 @@ const MIN_WORD_SECONDS = 0.08
 const MATH_SECONDS = 0.7
 const STROKE_SECONDS = 0.45
 const ICON_SECONDS = 1.1
+const TAG_SECONDS = 0.5            // "Exam secret" written above a secret
+const STRIKE_SECONDS = 0.4         // crossing a mistake out
+const ARROW_SECONDS = 0.25
 const ARROW_SIZE = 12
 const MIN_FIT = 0.5
 const FIT_STEP = 0.08
@@ -177,7 +180,50 @@ function MathElement({ element, rate }) {
   return <div className="lb-w lb-math" {...penProps(0, MATH_SECONDS / rate)} dangerouslySetInnerHTML={{ __html: html }} />
 }
 
+/** An exam secret: a tag, then the secret written on a card. */
+function SecretElement({ element, rate }) {
+  const tag = TAG_SECONDS / rate
+  const tokens = useMemo(() => writeOut(element.text, { at: tag }, rate), [element, rate, tag])
+  return (
+    <>
+      <span className="lb-w lb-secret-tag" {...penProps(0, tag)}>
+        <KeyRound aria-hidden="true" /> Exam secret
+      </span>
+      <span className="lb-secret-text"><Written tokens={tokens} /></span>
+    </>
+  )
+}
+
+/** A typical mistake: written, crossed out, then the right version after an arrow. */
+function FixElement({ element, rate }) {
+  const parts = useMemo(() => {
+    const clock = { at: 0 }
+    const wrong = writeOut(element.wrong, clock, rate)
+    const strike = { at: clock.at, seconds: STRIKE_SECONDS / rate }
+    const arrow = { at: strike.at + strike.seconds, seconds: ARROW_SECONDS / rate }
+    clock.at = arrow.at + arrow.seconds
+    const right = writeOut(element.right, clock, rate)
+    return { wrong, strike, arrow, right }
+  }, [element, rate])
+  return (
+    <div className="lb-fix-row">
+      <span className="lb-fix-wrong">
+        <span className="sr-only">Wrong: </span>
+        <Written tokens={parts.wrong} />
+        <span className="lb-fix-strike" {...penProps(parts.strike.at, parts.strike.seconds)} />
+      </span>
+      <span className="lb-w lb-fix-arrow" aria-hidden="true" {...penProps(parts.arrow.at, parts.arrow.seconds)}>→</span>
+      <span className="lb-fix-right">
+        <span className="sr-only">Right: </span>
+        <Written tokens={parts.right} />
+      </span>
+    </div>
+  )
+}
+
 function Content({ element, rate }) {
+  if (element.type === 'secret') return <SecretElement element={element} rate={rate} />
+  if (element.type === 'fix') return <FixElement element={element} rate={rate} />
   if (element.type === 'list') return <ListElement element={element} rate={rate} />
   if (element.type === 'math') return <MathElement element={element} rate={rate} />
   if (element.type === 'diagram') return <Diagram element={element} rate={rate} />
@@ -335,7 +381,17 @@ function useTeacher({ boardRef, contentRef, tobyRef, count, instantUpTo, paused 
  * hidden, so nothing shifts as Toby writes. `key` it by step: a new step starts
  * on a clean board.
  */
-export default function Board({ board, count, instantUpTo, rate, paused, talking, children }) {
+/** The quiet after a question to the student: "Think!" and the seconds left. */
+function ThinkBubble({ seconds }) {
+  return (
+    <div className="lb-think" role="status" aria-live="polite">
+      <span className="lb-think-label">Think!</span>
+      <span key={seconds} className="lb-think-count">{seconds}</span>
+    </div>
+  )
+}
+
+export default function Board({ board, count, instantUpTo, rate, paused, talking, thinking = null, children }) {
   const frameRef = useRef(null)
   const boardRef = useRef(null)
   const contentRef = useRef(null)
@@ -383,7 +439,7 @@ export default function Board({ board, count, instantUpTo, rate, paused, talking
           <div className="lb-teacher-body">
             <TobyAvatar
               className="lb-teacher-svg"
-              mood={writing ? 'proud' : 'happy'}
+              mood={writing ? 'proud' : thinking !== null ? 'listening' : 'happy'}
               pose={writing ? 'board' : talking ? 'point' : 'rest'}
               right={writing ? 'pencil' : null}
               talking={talking && !paused}
@@ -392,6 +448,7 @@ export default function Board({ board, count, instantUpTo, rate, paused, talking
             />
           </div>
         </div>
+        {thinking !== null && !writing && <ThinkBubble seconds={thinking} />}
         {children}
       </div>
     </div>

@@ -95,6 +95,60 @@
 
 .lb-bold { font-weight: 700; color: #2563eb; }
 
+/* an exam secret: a card the teacher pins up */
+.lb-secret {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05em;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.2em 0.65em 0.3em;
+  border: 0.06em dashed #d97706;
+  border-radius: 0.45em;
+  background: #fef3c7;
+  box-shadow: 0.1em 0.12em 0 rgb(217 119 6 / 0.18);
+  transform: rotate(-0.5deg);
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.lb-secret-tag {
+  align-items: center;
+  gap: 0.25em;
+  font-size: 0.72em;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #b45309;
+}
+
+.lb-secret-tag svg { width: 1.05em; height: 1.05em; }
+.lb-w.lb-secret-tag { display: inline-flex; }
+
+/* a typical mistake: crossed out in red, then the right version in green */
+.lb-fix-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.15em 0.45em; font-weight: 700; }
+.lb-fix-wrong { position: relative; color: #dc2626; opacity: 0.85; }
+.lb-fix-right { color: #16a34a; }
+.lb-fix-arrow { color: #64748b; }
+
+.lb-fix-strike {
+  position: absolute;
+  left: -0.12em;
+  right: -0.12em;
+  top: 52%;
+  height: 0.11em;
+  border-radius: 1em;
+  background: #dc2626;
+  transform-origin: left;
+  transform: scaleX(0) rotate(-2deg);
+}
+
+.lb-shown .lb-fix-strike {
+  animation: lb-strike var(--d) ease-out forwards;
+  animation-delay: var(--at);
+}
+
+.lb-instant .lb-fix-strike { animation: none; transform: scaleX(1) rotate(-2deg); }
+
 .lb-c-chalk { color: #1e293b; }
 .lb-c-yellow { color: #d97706; }
 .lb-c-sky { color: #2563eb; }
@@ -177,7 +231,12 @@
 .lb-paused .lb-stroke,
 .lb-paused .lb-fade,
 .lb-paused .lb-icon-disc svg > *,
+.lb-paused .lb-fix-strike,
 .lb-paused .lb-heading::after { animation-play-state: paused; }
+
+@keyframes lb-strike {
+  to { transform: scaleX(1) rotate(-2deg); }
+}
 
 @keyframes lb-write {
   from { clip-path: inset(-25% 100% -25% 0); }
@@ -224,8 +283,58 @@
 
 .lb-teacher-svg { display: block; width: 100%; height: auto; }
 
+/* "Think!" above Toby while the student answers in their head */
+.lb-think {
+  position: absolute;
+  right: 3cqw;
+  bottom: 17.5cqw;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.25em 0.75em 0.25em 0.9em;
+  border: 2px solid #f9a8d4;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 8px 20px rgb(15 23 42 / 0.14);
+  font-size: 3.2cqw;
+  font-weight: 700;
+  color: #db2777;
+  animation: lb-pop 0.3s ease-out;
+}
+
+/* the bubble's tail, like a thought */
+.lb-think::before,
+.lb-think::after {
+  content: '';
+  position: absolute;
+  border: 2px solid #f9a8d4;
+  border-radius: 999px;
+  background: #fff;
+}
+.lb-think::before { right: 2.2em; bottom: -0.55em; width: 0.5em; height: 0.5em; }
+.lb-think::after { right: 1.7em; bottom: -1em; width: 0.3em; height: 0.3em; }
+
+.lb-think-count {
+  display: grid;
+  place-items: center;
+  min-width: 1.35em;
+  height: 1.35em;
+  border-radius: 999px;
+  background: #db2777;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  animation: lb-pop 0.35s ease-out;
+}
+
+@keyframes lb-pop {
+  from { transform: scale(0.6); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
 @container (max-width: 560px) {
   .lb-teacher { width: 17cqw; }
+  .lb-think { font-size: 4.4cqw; bottom: 22cqw; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -233,8 +342,10 @@
   .lb-shown .lb-stroke,
   .lb-shown .lb-fade,
   .lb-shown .lb-icon-disc svg > * { animation: none; stroke-dashoffset: 0; }
+  .lb-shown .lb-fix-strike { animation: none; transform: scaleX(1) rotate(-2deg); }
   .lb-heading.lb-shown::after { animation: none; transform: scaleX(1); }
   .lb-teacher { transition: none; }
+  .lb-think, .lb-think-count { animation: none; }
 }
 
 /* ── Player ─────────────────────────────────────────────────────────────── */

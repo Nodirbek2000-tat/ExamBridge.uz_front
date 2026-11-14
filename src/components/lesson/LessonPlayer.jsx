@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import {
-  Captions, Maximize, Minimize, Pause, Play, RotateCcw, SkipBack, SkipForward,
+  Captions, Maximize, Minimize, Pause, Play, RotateCcw, SkipBack, SkipForward, Star, Trophy,
 } from 'lucide-react'
 import Board from './Board'
 import { LessonEngine } from './LessonEngine'
@@ -45,37 +45,91 @@ function stopsFor(steps, questions, answers) {
   return steps.flatMap((step, index) => (open.has(step.id) ? [index] : []))
 }
 
-/** The questions a step ends with, one at a time, under the board they are about. */
+const STAR_LEVELS = [0.9, 0.6, 0.01]          // share of right answers for 3, 2 and 1 stars
+const RESULT_WORDS = [
+  'Keep going! Watch the lesson again, then try the homework.',
+  'Good start! Look at the explanations of the ones you missed.',
+  'Great work! Review the ones you missed and you will have it.',
+  'Outstanding! You have really got this topic.',
+]
+
+/** How the final test went: the score, stars and a word from the teacher. */
+function TestResult({ quiz, answers, onDone }) {
+  const right = quiz.filter((q) => answers[q.id]?.is_correct).length
+  const share = right / quiz.length
+  const stars = STAR_LEVELS.filter((level) => share >= level).length
+  return (
+    <div className="text-center space-y-2 py-2">
+      <Trophy size={34} className="mx-auto text-amber-500" />
+      <p className="text-xs font-bold uppercase tracking-wide text-sky-600">Final test</p>
+      <p className="text-2xl font-extrabold text-gray-900">{right} / {quiz.length} correct</p>
+      <div className="flex justify-center gap-1" aria-label={`${stars} of 3 stars`}>
+        {[0, 1, 2].map((i) => (
+          <Star key={i} size={26} className={i < stars ? 'text-amber-400' : 'text-gray-200'} fill="currentColor" />
+        ))}
+      </div>
+      <p className="text-sm text-gray-600">{RESULT_WORDS[stars]}</p>
+      <button
+        type="button"
+        onClick={onDone}
+        className="mt-1 px-5 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold"
+      >
+        Finish the lesson
+      </button>
+    </div>
+  )
+}
+
+/**
+ * The questions a step ends with, one at a time, under the board they are about.
+ * After the last step this includes the final test, which ends with its score.
+ */
 function QuestionGate({ questions, answers, onAnswer, onDone }) {
   const [at, setAt] = useState(() => Math.max(0, questions.findIndex((q) => !answers[q.id])))
+  const [scoring, setScoring] = useState(false)
   const cardRef = useRef(null)
 
   useEffect(() => {
     cardRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
-  }, [at])
+  }, [at, scoring])
 
+  const quiz = questions.filter((q) => q.quiz)
+  const checks = questions.length - quiz.length
   const question = questions[at]
   const last = at === questions.length - 1
   const answered = Boolean(answers[question.id])
-  const proceed = () => (last ? onDone() : setAt(at + 1))
+  const finish = () => (quiz.some((q) => answers[q.id]) ? setScoring(true) : onDone())
+  const proceed = () => (last ? finish() : setAt(at + 1))
+
+  let label = `Question${checks > 1 ? ` ${at + 1} / ${checks}` : ''}`
+  if (question.quiz) label = `Final test · ${at - checks + 1} / ${quiz.length}`
 
   return (
     <div ref={cardRef} className="lp-bar lp-question rounded-xl bg-white border border-gray-100 shadow-sm p-4 space-y-3">
-      <p className="text-xs font-bold text-sky-600">
-        Question{questions.length > 1 ? ` ${at + 1} / ${questions.length}` : ''}
-      </p>
-      <QuestionCard key={question.id} question={question} answer={answers[question.id]} onAnswer={onAnswer} />
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={proceed}
-          className={answered
-            ? 'px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold'
-            : 'px-3 py-2 text-sm font-semibold text-gray-400 hover:text-gray-600'}
-        >
-          {!answered ? 'Skip' : last ? 'Continue the lesson' : 'Next question'}
-        </button>
-      </div>
+      {scoring ? (
+        <TestResult quiz={quiz} answers={answers} onDone={onDone} />
+      ) : (
+        <>
+          {question.quiz && at === checks && !answered && (
+            <p className="text-sm font-semibold text-gray-700">
+              Time for the final test: {quiz.length} quick questions on everything in this lesson.
+            </p>
+          )}
+          <p className={`text-xs font-bold ${question.quiz ? 'text-violet-600' : 'text-sky-600'}`}>{label}</p>
+          <QuestionCard key={question.id} question={question} answer={answers[question.id]} onAnswer={onAnswer} />
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={proceed}
+              className={answered
+                ? 'px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold'
+                : 'px-3 py-2 text-sm font-semibold text-gray-400 hover:text-gray-600'}
+            >
+              {!answered ? 'Skip' : !last ? 'Next question' : quiz.length ? 'See my score' : 'Continue the lesson'}
+            </button>
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -155,7 +209,8 @@ export default function LessonPlayer({
         instantUpTo={state.instantUpTo}
         rate={state.rate}
         paused={!state.playing}
-        talking={state.started && state.playing && !state.ended}
+        talking={state.started && state.playing && !state.ended && state.thinking === null}
+        thinking={state.thinking}
       >
         {!state.started && (
           <button type="button" className="lp-overlay" onClick={engine.play} aria-label="Start the lesson">

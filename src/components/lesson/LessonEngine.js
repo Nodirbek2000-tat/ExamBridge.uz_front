@@ -21,6 +21,9 @@ const clamp = (value, low, high) => Math.min(high, Math.max(low, value))
  *
  * `stops` are the steps that end in a question: the lesson waits there once (the
  * `gate` state) until continueLesson() is called.
+ *
+ * A step with `think` seconds asked the student something: once it has been said,
+ * the lesson keeps quiet that long (the `thinking` state counts down) before going on.
  */
 export class LessonEngine {
   constructor(steps, { startIndex = 0, stops = [] } = {}) {
@@ -38,6 +41,7 @@ export class LessonEngine {
     this.lastTick = 0
     this.audio = null
     this.nextAudio = null
+    this.thinkLeft = null
     this.dom = {}
     this.listeners = new Set()
     this.state = {
@@ -52,6 +56,7 @@ export class LessonEngine {
       rate: 1,
       buffering: false,
       audioFailed: false,
+      thinking: null,
     }
   }
 
@@ -105,7 +110,7 @@ export class LessonEngine {
 
   // ── Audio events ──────────────────────────────────────────────────────────
 
-  handleEnded = () => this.advance()
+  handleEnded = () => this.finishStep()
 
   handleAudioError = () => {
     if (this.audio?.getAttribute('src')) this.goSilent()
@@ -160,7 +165,8 @@ export class LessonEngine {
   toggle = () => (this.playing ? this.pause() : this.play())
 
   startAudio() {
-    if (!this.isVoiced() || !this.playing) return
+    // while thinking the step has already been said: playing it again would start it over
+    if (!this.isVoiced() || !this.playing || this.thinkLeft !== null) return
     this.audio.playbackRate = this.rate
     this.audio.play().catch((error) => {
       if (error.name === 'AbortError') return          // the step changed while starting
@@ -174,24 +180,54 @@ export class LessonEngine {
     const elapsed = Math.min((now - this.lastTick) / 1000, MAX_TICK_SECONDS)
     this.lastTick = now
 
+    if (this.thinkLeft !== null) {
+      this.thinkLeft -= elapsed                     // real seconds, whatever the speed
+      if (this.thinkLeft > 0) {
+        this.update({ thinking: Math.ceil(this.thinkLeft) })
+        return
+      }
+      this.stopThinking()
+      this.advance()
+      return
+    }
+
     if (this.isVoiced()) {
       this.local = this.audio.currentTime
     } else {
       this.local += elapsed * this.rate
       if (this.local >= this.entry().seconds) {
-        this.advance()
+        this.finishStep()
         return
       }
     }
     this.paint()
   }
 
+  /** The step has been said: quiet to think if it asked the student something, then on. */
+  finishStep() {
+    const { step, seconds } = this.entry()
+    if (step.think > 0 && this.playing) {
+      this.local = seconds
+      this.paint()
+      this.thinkLeft = step.think
+      this.update({ thinking: step.think })
+      return
+    }
+    this.advance()
+  }
+
+  stopThinking() {
+    this.thinkLeft = null
+    this.update({ thinking: null })
+  }
+
   advance() {
+    // Stopping for questions or at the end: the whole board is up at once, not frozen mid-word.
     if (this.stops.delete(this.index)) {
       this.pause()
       this.local = this.entry().seconds
       this.paint()
-      this.update({ gate: this.index })
+      this.update({ gate: this.index, instantUpTo: this.state.count })
       return
     }
     if (this.index < this.timeline.length - 1) {
@@ -201,7 +237,7 @@ export class LessonEngine {
     this.pause()
     this.local = this.entry().seconds
     this.paint()
-    this.update({ ended: true })
+    this.update({ ended: true, instantUpTo: this.state.count })
   }
 
   continueLesson = () => {
@@ -213,6 +249,7 @@ export class LessonEngine {
   /** Go to a step. `instant` shows what is already up without writing it again. */
   jump(index, local, instant) {
     if (this.state.gate !== null) this.stops.add(this.state.gate)    // left unanswered: ask again
+    this.stopThinking()
     const changed = index !== this.index
     this.index = index
     this.local = local
@@ -258,6 +295,11 @@ export class LessonEngine {
   }
 
   next = () => {
+    if (this.thinkLeft !== null) {
+      this.stopThinking()
+      this.advance()
+      return
+    }
     if (this.stops.has(this.index) || this.index < this.timeline.length - 1) this.advance()
   }
 

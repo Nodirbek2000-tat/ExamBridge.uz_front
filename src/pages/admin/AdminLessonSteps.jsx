@@ -1,19 +1,21 @@
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { AnimatePresence, motion as Motion } from 'framer-motion'
-import { Mic, Pencil, X } from 'lucide-react'
+import { Hourglass, Mic, Pencil, X } from 'lucide-react'
 import api from '../../api/client'
 
 const inputCls = 'w-full px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 rounded-lg border border-gray-200 focus:outline-none focus:border-sky-400'
 const errorOf = (e) => e?.response?.data?.error || e?.response?.data?.detail || e.message
+const MAX_THINK = 8
 
 function StepModal({ step, onClose, onSaved }) {
   const [say, setSay] = useState(step.say)
   const [board, setBoard] = useState(() => JSON.stringify(step.board, null, 2))
+  const [think, setThink] = useState(step.think || 0)
   const [jsonError, setJsonError] = useState('')
 
   const save = useMutation({
-    mutationFn: (parsed) => api.put(`/admin/ai-lessons/steps/${step.id}/`, { say, board: parsed }),
+    mutationFn: (parsed) => api.put(`/admin/ai-lessons/steps/${step.id}/`, { say, board: parsed, think }),
     onSuccess: onSaved,
   })
 
@@ -55,6 +57,19 @@ function StepModal({ step, onClose, onSaved }) {
             <textarea value={say} onChange={(e) => setSay(e.target.value)} maxLength={4000} rows={6} className={inputCls} />
             {dropsVoice && <p className="text-[11px] text-amber-700 mt-1">Changing the words removes this step's recording. Record it again afterwards.</p>}
           </div>
+          <label className="flex flex-wrap items-center gap-2 text-xs font-semibold text-gray-500">
+            Time to think after this step
+            <input
+              type="number"
+              min={0}
+              max={MAX_THINK}
+              value={think}
+              onChange={(e) => setThink(Math.min(MAX_THINK, Math.max(0, Math.round(Number(e.target.value) || 0))))}
+              className="w-16 px-2 py-1 text-sm text-gray-800 rounded-lg border border-gray-200 focus:outline-none focus:border-sky-400"
+            />
+            seconds
+            <span className="font-normal text-gray-400">(only when the step ends with a question to the student)</span>
+          </label>
           <div>
             <p className="text-xs font-semibold text-gray-500 mb-1">Board (JSON)</p>
             <textarea value={board} onChange={(e) => setBoard(e.target.value)} rows={10} spellCheck={false} className={`${inputCls} font-mono text-xs`} />
@@ -95,6 +110,11 @@ export default function LessonSteps({ lesson, busy, onChanged }) {
           <li key={step.id} className="py-2.5 flex items-start gap-3">
             <span className="w-6 text-xs font-bold text-gray-400 tabular-nums flex-shrink-0 pt-0.5">{step.order + 1}</span>
             <p className="min-w-0 flex-1 text-sm text-gray-700 line-clamp-2">{step.say}</p>
+            {step.think > 0 && (
+              <span className="flex items-center gap-0.5 text-[11px] font-semibold text-pink-600 flex-shrink-0 mt-0.5" title="Time to think">
+                <Hourglass size={12} /> {step.think}s
+              </span>
+            )}
             {step.voiced && <Mic size={14} className="text-emerald-500 flex-shrink-0 mt-0.5" aria-label="Recorded" />}
             {!busy && (
               <button type="button" aria-label={`Edit step ${step.order + 1}`} onClick={() => setEditing(step)} className="p-1 text-gray-300 hover:text-sky-600 transition-colors">
