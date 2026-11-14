@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Check, X } from 'lucide-react'
+import { Check, X, CircleDot, GraduationCap } from 'lucide-react'
 import RichText from './RichText'
 
 const MAX_TEXT = 2000
@@ -16,6 +16,27 @@ function optionClass(index, picked, answer) {
 }
 
 function Verdict({ answer }) {
+  // Written answers checked by the AI teacher: their own verdict and comment.
+  if (answer.verdict) {
+    const look = {
+      correct: { icon: <Check size={16} />, label: "To'g'ri!", box: 'border-emerald-200 bg-emerald-50', title: 'text-emerald-700' },
+      partly: { icon: <CircleDot size={16} />, label: "Qisman to'g'ri", box: 'border-amber-200 bg-amber-50', title: 'text-amber-700' },
+      wrong: { icon: <X size={16} />, label: "Noto'g'ri", box: 'border-red-200 bg-red-50', title: 'text-red-600' },
+    }[answer.verdict]
+    if (look) {
+      return (
+        <div className={`rounded-xl border px-3 py-2.5 ${look.box}`}>
+          <p className={`flex items-center gap-1.5 text-sm font-bold ${look.title}`}>{look.icon} {look.label}</p>
+          {answer.feedback && (
+            <p className="mt-1 flex gap-1.5 text-sm leading-relaxed text-gray-700">
+              <GraduationCap size={15} className="mt-0.5 shrink-0 text-gray-500" />
+              <span><RichText text={answer.feedback} /></span>
+            </p>
+          )}
+        </div>
+      )
+    }
+  }
   if (answer.is_correct === null) {
     return (
       <p className="text-sm font-semibold text-sky-700">
@@ -105,7 +126,7 @@ export default function QuestionCard({ question, answer, onAnswer }) {
             onClick={send}
             className="px-4 py-2 rounded-lg bg-sky-500 hover:bg-sky-600 text-white text-sm font-semibold disabled:opacity-50"
           >
-            {busy ? 'Yuborilmoqda…' : 'Javob berish'}
+            {busy ? (isChoice ? 'Yuborilmoqda…' : 'Ustoz tekshirmoqda…') : 'Javob berish'}
           </button>
           {error && <p className="text-sm text-red-500">{error}</p>}
         </div>

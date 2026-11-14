@@ -24,10 +24,14 @@ const SECTIONS = [
 ]
 const DURATIONS = [10, 15, 20]
 const LANGUAGES = [{ key: 'uz', label: "O'zbekcha" }, { key: 'en', label: 'English' }]
+// With the Azure engine the gender decides: female → Madina, male → Sardor (native Uzbek).
 const VOICES = [
+  { key: 'coral', label: 'Coral (female, warm)' },
   { key: 'nova', label: 'Nova (female)' },
+  { key: 'sage', label: 'Sage (female, calm)' },
   { key: 'shimmer', label: 'Shimmer (female)' },
-  { key: 'onyx', label: 'Onyx (male)' },
+  { key: 'ash', label: 'Ash (male)' },
+  { key: 'onyx', label: 'Onyx (male, deep)' },
   { key: 'echo', label: 'Echo (male)' },
 ]
 const STATUS = {
@@ -46,7 +50,7 @@ const SOURCE_TABS = [
 ]
 const SOURCE_ICON = { TEXT: Type, FILE: FileText, LINK: Link2 }
 const EMPTY_LESSON = {
-  title: '', subject: 'SAT', section: 'general', language: 'uz', duration_minutes: 10, level: '', voice: 'nova', brief: '',
+  title: '', subject: 'SAT', section: 'general', language: 'uz', duration_minutes: 10, level: '', voice: 'coral', brief: '',
 }
 
 const JOB_POLL_MS = 3000
