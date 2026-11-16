@@ -73,6 +73,7 @@ export default function AILessonPage() {
   const handleAnswer = useCallback(async (question, body) => {
     const { data } = await api.post(`/ai-lessons/questions/${question.id}/answer/`, body)
     setGiven((current) => ({ ...current, [question.id]: data }))
+    return data
   }, [])
 
   const handleProgress = useCallback(({ step, ended }) => {
@@ -118,6 +119,8 @@ export default function AILessonPage() {
         answers={answers}
         onAnswer={handleAnswer}
         onProgress={handleProgress}
+        praise={lesson.praise}
+        xp={lesson.xp}
       />
 
       <Homework lesson={lesson} answers={answers} onAnswer={handleAnswer} />

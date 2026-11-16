@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Check, X, CircleDot, GraduationCap } from 'lucide-react'
+import { Check, X, CircleDot, GraduationCap, Lightbulb, Volume2, Zap } from 'lucide-react'
 import RichText from './RichText'
 
 const MAX_TEXT = 2000
@@ -32,6 +32,38 @@ function partClass(index, picked, answer) {
     : 'border-dashed border-gray-300 text-gray-800 hover:border-sky-300 hover:bg-sky-50/50'
 }
 
+/** "+10 XP", or "+5 XP · hint used". */
+function XpBadge({ answer }) {
+  if (!answer.xp) return null
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">
+      <Zap size={11} fill="currentColor" /> +{answer.xp} XP{answer.hint_used ? ' · hint used' : ''}
+    </span>
+  )
+}
+
+/** What the teacher says to a wrong answer, with the recording to hear it again. */
+function TeacherSays({ answer, onReplay }) {
+  if (!answer.wrong_say) return null
+  return (
+    <div className="flex gap-2.5 rounded-xl border border-violet-100 bg-violet-50 px-3 py-2.5 text-sm text-violet-950">
+      <GraduationCap size={17} className="mt-0.5 shrink-0 text-violet-500" />
+      <p className="min-w-0 flex-1 leading-relaxed">{answer.wrong_say}</p>
+      {answer.wrong_audio && onReplay && (
+        <button
+          type="button"
+          onClick={() => onReplay(answer)}
+          aria-label="Hear it again"
+          title="Hear it again"
+          className="shrink-0 self-start rounded-lg p-1 text-violet-500 hover:bg-violet-100 hover:text-violet-700"
+        >
+          <Volume2 size={16} />
+        </button>
+      )}
+    </div>
+  )
+}
+
 function Verdict({ answer, kind }) {
   // Written answers checked by the AI teacher: their own verdict and comment.
   if (answer.verdict) {
@@ -43,7 +75,7 @@ function Verdict({ answer, kind }) {
     if (look) {
       return (
         <div className={`rounded-xl border px-3 py-2.5 ${look.box}`}>
-          <p className={`flex items-center gap-1.5 text-sm font-bold ${look.title}`}>{look.icon} {look.label}</p>
+          <p className={`flex flex-wrap items-center gap-1.5 text-sm font-bold ${look.title}`}>{look.icon} {look.label} <XpBadge answer={answer} /></p>
           {answer.feedback && (
             <p className="mt-1 flex gap-1.5 text-sm leading-relaxed text-gray-700">
               <GraduationCap size={15} className="mt-0.5 shrink-0 text-gray-500" />
@@ -62,7 +94,11 @@ function Verdict({ answer, kind }) {
     )
   }
   if (answer.is_correct) {
-    return <p className="flex items-center gap-1.5 text-sm font-bold text-emerald-700"><Check size={16} /> Correct!</p>
+    return (
+      <p className="flex flex-wrap items-center gap-1.5 text-sm font-bold text-emerald-700">
+        <Check size={16} /> Correct! <XpBadge answer={answer} />
+      </p>
+    )
   }
   return (
     <div className="space-y-0.5">
@@ -108,13 +144,15 @@ function GapPrompt({ prompt, value, onChange, onEnter, answer, disabled }) {
 
 /**
  * One question: choose, type or write, send, see the result. The result comes from
- * the server only after answering. `onAnswer(question, { choice } | { text })` saves it.
+ * the server only after answering. `onAnswer(question, { choice | text, hint_used })`
+ * saves it; `onReplay(answer)` plays the teacher's words about a wrong answer again.
  */
-export default function QuestionCard({ question, answer, onAnswer }) {
+export default function QuestionCard({ question, answer, onAnswer, onReplay }) {
   const [picked, setPicked] = useState(null)
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [hintOpen, setHintOpen] = useState(false)
 
   const { kind } = question
   const isPick = PICKED.has(kind)
@@ -125,7 +163,7 @@ export default function QuestionCard({ question, answer, onAnswer }) {
     setBusy(true)
     setError('')
     try {
-      await onAnswer(question, isPick ? { choice: picked } : { text })
+      await onAnswer(question, { ...(isPick ? { choice: picked } : { text }), hint_used: hintOpen })
     } catch (e) {
       setError(e?.response?.data?.error || 'Your answer was not sent. Please try again.')
     } finally {
@@ -206,9 +244,27 @@ export default function QuestionCard({ question, answer, onAnswer }) {
 
       {body}
 
+      {question.hint && !answer && (
+        hintOpen ? (
+          <p className="flex gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            <Lightbulb size={16} className="mt-0.5 shrink-0 text-amber-500" />
+            <span><RichText text={question.hint} /></span>
+          </p>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setHintOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-50"
+          >
+            <Lightbulb size={14} /> Show a hint <span className="font-normal text-amber-600/80">(half the XP)</span>
+          </button>
+        )
+      )}
+
       {answer ? (
         <div className="space-y-2">
           <Verdict answer={answer} kind={kind} />
+          <TeacherSays answer={answer} onReplay={onReplay} />
           {answer.explanation && (
             <p className="px-3 py-2.5 rounded-xl bg-sky-50 text-sm text-sky-900 leading-relaxed">
               <RichText text={answer.explanation} />

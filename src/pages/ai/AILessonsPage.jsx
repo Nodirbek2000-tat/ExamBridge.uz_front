@@ -41,7 +41,7 @@ function ContinueCard({ lesson }) {
   )
 }
 
-function Hero({ total, done }) {
+function Hero({ total, done, earned }) {
   return (
     <section
       className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-sky-500 via-blue-600 to-indigo-700 px-6 py-8 text-white sm:px-10 sm:py-10"
@@ -62,7 +62,7 @@ function Hero({ total, done }) {
           </p>
           {total > 0 && (
             <p className="text-sm font-semibold text-white/90">
-              {total} {total === 1 ? 'lesson' : 'lessons'} · {done} completed
+              {total} {total === 1 ? 'lesson' : 'lessons'} · {done} completed{earned > 0 ? ` · ⚡ ${earned} XP earned` : ''}
             </p>
           )}
         </div>
@@ -97,7 +97,7 @@ export default function AILessonsPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 pb-10">
-      <Hero total={lessons.length} done={done} />
+      <Hero total={lessons.length} done={done} earned={lessons.reduce((sum, l) => sum + (l.xp || 0), 0)} />
 
       <RecommendedLessons />
 

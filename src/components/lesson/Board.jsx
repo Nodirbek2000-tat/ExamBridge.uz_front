@@ -391,7 +391,10 @@ function ThinkBubble({ seconds }) {
   )
 }
 
-export default function Board({ board, count, instantUpTo, rate, paused, talking, thinking = null, children }) {
+// How Toby looks while he answers the student: delighted, or explaining.
+const REACTION_MOOD = { praise: 'happy', explain: 'idle' }
+
+export default function Board({ board, count, instantUpTo, rate, paused, talking, thinking = null, reaction = null, children }) {
   const frameRef = useRef(null)
   const boardRef = useRef(null)
   const contentRef = useRef(null)
@@ -439,10 +442,10 @@ export default function Board({ board, count, instantUpTo, rate, paused, talking
           <div className="lb-teacher-body">
             <TobyAvatar
               className="lb-teacher-svg"
-              mood={writing ? 'proud' : thinking !== null ? 'listening' : 'happy'}
+              mood={writing ? 'proud' : REACTION_MOOD[reaction] || (thinking !== null ? 'listening' : 'happy')}
               pose={writing ? 'board' : talking ? 'point' : 'rest'}
               right={writing ? 'pencil' : null}
-              talking={talking && !paused}
+              talking={talking && (!paused || reaction !== null)}
               pokes={false}
               acc="glasses"
             />

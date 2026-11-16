@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, CheckCircle2, Clock, Play, RotateCcw, Target } from 'lucide-react'
+import { ArrowRight, CheckCircle2, Clock, Play, RotateCcw, Target, Zap } from 'lucide-react'
 import { LOOK, inProgress } from './lessonLook'
 
 /*
@@ -65,6 +65,11 @@ export function Meta({ lesson }) {
       <span className="inline-flex items-center gap-1"><Clock size={13} /> {lesson.duration_minutes} min</span>
       {section && <span>· {section}</span>}
       {lesson.level && <span>· {lesson.level}</span>}
+      {lesson.xp > 0 && (
+        <span className="inline-flex items-center gap-0.5 font-semibold text-amber-700 dark:text-amber-400">
+          · <Zap size={12} fill="currentColor" /> {lesson.xp} XP
+        </span>
+      )}
     </div>
   )
 }

@@ -31,6 +31,8 @@ function emptyForm(lesson) {
     accepted: [''],
     rubric: '',
     explanation: '',
+    hint: '',
+    wrong_say: '',
   }
 }
 
@@ -51,6 +53,8 @@ function formOf(question) {
     accepted: question.accepted?.length ? question.accepted : [''],
     rubric: question.rubric,
     explanation: question.explanation,
+    hint: question.hint || '',
+    wrong_say: question.wrong_say || '',
   }
 }
 
@@ -195,10 +199,10 @@ function QuestionModal({ lesson, question, onClose, onSaved }) {
 
   const save = useMutation({
     mutationFn: () => {
-      const { place, kind, prompt, options, correct, accepted, rubric, explanation } = form
+      const { place, kind, prompt, options, correct, accepted, rubric, explanation, hint, wrong_say } = form
       const inLesson = place !== HOMEWORK && place !== QUIZ
       const body = {
-        kind, prompt, options, correct, rubric, explanation,
+        kind, prompt, options, correct, rubric, explanation, hint, wrong_say,
         accepted: accepted.map((a) => a.trim()).filter(Boolean),
         is_homework: place === HOMEWORK,
         is_quiz: place === QUIZ,
@@ -267,6 +271,19 @@ function QuestionModal({ lesson, question, onClose, onSaved }) {
           <Field label="Explanation" hint="Shown to the student after they answer.">
             <textarea value={form.explanation} onChange={set('explanation')} maxLength={2000} rows={2} className={inputCls} />
           </Field>
+
+          <Field label="Hint" hint="A nudge towards the answer, never the answer. Opening it halves the XP.">
+            <input value={form.hint} onChange={set('hint')} maxLength={300} className={inputCls} />
+          </Field>
+
+          {form.place !== HOMEWORK && (
+            <Field
+              label="What the teacher says to a wrong answer"
+              hint="Toby says it aloud: plain spoken words, maths in words, no symbols. Recorded with the lesson's voice; new words need a new recording."
+            >
+              <textarea value={form.wrong_say} onChange={set('wrong_say')} maxLength={700} rows={3} className={inputCls} />
+            </Field>
+          )}
         </div>
 
         <div className="px-5 py-4 border-t border-gray-100 flex items-center justify-end gap-3">
@@ -305,6 +322,7 @@ function QuestionRow({ question, lesson, busy, onEdit, onDelete, deleting }) {
           {question.answers > 0 && ` · ${question.answers} answers`}
           {marked && `, ${Math.round((question.right_answers / question.answers) * 100)}% right`}
           {question.origin === 'AI' && ' · Written by AI'}
+          {question.wrong_say && (question.wrong_voiced ? ' · 🔊 teacher voiced' : ' · teacher line not recorded yet')}
         </p>
         {question.ai_verdict === 'BAD' && (
           <p className="flex items-start gap-1 text-xs text-amber-700 mt-1">

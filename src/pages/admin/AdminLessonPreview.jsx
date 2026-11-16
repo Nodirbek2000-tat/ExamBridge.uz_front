@@ -20,6 +20,7 @@ export default function AdminLessonPreview() {
   const handleAnswer = useCallback(async (question, body) => {
     const { data } = await api.post(`/admin/ai-lessons/questions/${question.id}/try/`, body)
     setAnswers((current) => ({ ...current, [question.id]: data }))
+    return data
   }, [])
 
   return (
@@ -46,6 +47,7 @@ export default function AdminLessonPreview() {
           questions={lesson.questions}
           answers={answers}
           onAnswer={handleAnswer}
+          praise={lesson.praise}
         />
       )}
     </div>

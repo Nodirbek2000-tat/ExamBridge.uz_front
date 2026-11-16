@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import {
-  Captions, Maximize, Minimize, Pause, Play, RotateCcw, SkipBack, SkipForward, Star, Trophy,
+  Captions, Maximize, Minimize, Pause, Play, RotateCcw, SkipBack, SkipForward, Star, Trophy, Zap,
 } from 'lucide-react'
 import Board from './Board'
 import { loadBoardFont } from './boardFont'
@@ -45,6 +45,7 @@ const RESULT_WORDS = [
 /** How the final test went: the score, stars and a word from the teacher. */
 function TestResult({ quiz, answers, onDone }) {
   const right = quiz.filter((q) => answers[q.id]?.is_correct).length
+  const earned = quiz.reduce((sum, q) => sum + (answers[q.id]?.xp || 0), 0)
   const share = right / quiz.length
   const stars = STAR_LEVELS.filter((level) => share >= level).length
   return (
@@ -58,6 +59,11 @@ function TestResult({ quiz, answers, onDone }) {
         ))}
       </div>
       <p className="text-sm text-gray-600">{RESULT_WORDS[stars]}</p>
+      {earned > 0 && (
+        <p className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-sm font-bold text-amber-800">
+          <Zap size={14} fill="currentColor" /> +{earned} XP
+        </p>
+      )}
       <button
         type="button"
         onClick={onDone}
@@ -70,17 +76,66 @@ function TestResult({ quiz, answers, onDone }) {
 }
 
 /**
+ * Toby answers the student: a short "Great job!" for a right answer, the
+ * teacher's explanation for a wrong one. `onReaction('praise' | 'explain' | null)`
+ * tells the board, so Toby talks while it plays.
+ */
+function useTeacherVoice(praise, onReaction) {
+  const audioRef = useRef(null)
+
+  const stop = useCallback(() => {
+    const audio = audioRef.current
+    if (audio) {
+      audio.onended = null
+      audio.onerror = null
+      audio.pause()
+    }
+    audioRef.current = null
+    onReaction(null)
+  }, [onReaction])
+
+  const say = useCallback((url, kind) => {
+    stop()
+    if (!url) return
+    const audio = new Audio(url)
+    audioRef.current = audio
+    onReaction(kind)
+    audio.onended = () => onReaction(null)
+    audio.onerror = () => onReaction(null)
+    audio.play().catch(() => onReaction(null))
+  }, [onReaction, stop])
+
+  useEffect(() => stop, [stop])
+
+  const react = useCallback((answer) => {
+    if (!answer) return
+    if (answer.is_correct) {
+      say(praise.length ? praise[Math.floor(Math.random() * praise.length)] : null, 'praise')
+    } else if (answer.wrong_audio) {
+      say(answer.wrong_audio, 'explain')
+    }
+  }, [praise, say])
+
+  return { react, replay: (answer) => say(answer.wrong_audio, 'explain'), stop }
+}
+
+/**
  * The questions a step ends with, one at a time, under the board they are about.
  * After the last step this includes the final test, which ends with its score.
  */
-function QuestionGate({ questions, answers, onAnswer, onDone }) {
+function QuestionGate({ questions, answers, onAnswer, onDone, praise, onReaction }) {
   const [at, setAt] = useState(() => Math.max(0, questions.findIndex((q) => !answers[q.id])))
   const [scoring, setScoring] = useState(false)
   const cardRef = useRef(null)
+  const voice = useTeacherVoice(praise, onReaction)
 
   useEffect(() => {
     cardRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   }, [at, scoring])
+
+  const answerAndReact = async (question, body) => {
+    voice.react(await onAnswer(question, body))
+  }
 
   const quiz = questions.filter((q) => q.quiz)
   const checks = questions.length - quiz.length
@@ -88,7 +143,11 @@ function QuestionGate({ questions, answers, onAnswer, onDone }) {
   const last = at === questions.length - 1
   const answered = Boolean(answers[question.id])
   const finish = () => (quiz.some((q) => answers[q.id]) ? setScoring(true) : onDone())
-  const proceed = () => (last ? finish() : setAt(at + 1))
+  const proceed = () => {
+    voice.stop()
+    if (last) finish()
+    else setAt(at + 1)
+  }
 
   let label = `Question${checks > 1 ? ` ${at + 1} / ${checks}` : ''}`
   if (question.quiz) label = `Final test · ${at - checks + 1} / ${quiz.length}`
@@ -105,7 +164,13 @@ function QuestionGate({ questions, answers, onAnswer, onDone }) {
             </p>
           )}
           <p className={`text-xs font-bold ${question.quiz ? 'text-violet-600' : 'text-sky-600'}`}>{label}</p>
-          <QuestionCard key={question.id} question={question} answer={answers[question.id]} onAnswer={onAnswer} />
+          <QuestionCard
+            key={question.id}
+            question={question}
+            answer={answers[question.id]}
+            onAnswer={answerAndReact}
+            onReplay={voice.replay}
+          />
           <div className="flex justify-end">
             <button
               type="button"
@@ -141,14 +206,18 @@ function useFullscreen(rootRef) {
 
 const NO_QUESTIONS = []
 const NO_ANSWERS = {}
+const NO_PRAISE = []
 
 /**
  * Plays one lesson on the board. Render with a `key` of the lesson id: a new
  * lesson needs a new engine, and `steps`, `startIndex` and the questions already
  * answered are read once. `onProgress({ step, ended })` follows the student.
+ * `onAnswer` returns the saved answer, so Toby can react to it; `praise` are his
+ * recorded "Great job!" lines; `xp` is what the lesson has earned the student.
  */
 export default function LessonPlayer({
   steps, startIndex = 0, questions = NO_QUESTIONS, answers = NO_ANSWERS, onAnswer, onProgress,
+  praise = NO_PRAISE, xp = 0,
 }) {
   const [engine] = useState(() => new LessonEngine(steps, {
     startIndex,
@@ -156,6 +225,7 @@ export default function LessonPlayer({
   }))
   const state = useSyncExternalStore(engine.subscribe, engine.getSnapshot)
   const [captions, setCaptions] = useState(true)
+  const [reaction, setReaction] = useState(null)
 
   const rootRef = useRef(null)
   const sliderRef = useRef(null)
@@ -198,8 +268,9 @@ export default function LessonPlayer({
         instantUpTo={state.instantUpTo}
         rate={state.rate}
         paused={!state.playing}
-        talking={state.started && state.playing && !state.ended && state.thinking === null}
+        talking={(state.started && state.playing && !state.ended && state.thinking === null) || reaction !== null}
         thinking={state.thinking}
+        reaction={reaction}
       >
         {!state.started && (
           <button type="button" className="lp-overlay" onClick={engine.play} aria-label="Start the lesson">
@@ -215,6 +286,11 @@ export default function LessonPlayer({
               <RotateCcw size={28} />
             </span>
             <span className="text-sm font-semibold">Lesson finished. Watch again</span>
+            {xp > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-400 px-3 py-1 text-sm font-bold text-amber-950">
+                <Zap size={14} fill="currentColor" /> {xp} XP earned in this lesson
+              </span>
+            )}
           </button>
         )}
       </Board>
@@ -226,6 +302,8 @@ export default function LessonPlayer({
           answers={answers}
           onAnswer={onAnswer}
           onDone={engine.continueLesson}
+          praise={praise}
+          onReaction={setReaction}
         />
       )}
 
