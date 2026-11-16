@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   GraduationCap, BookOpen, Globe, Home,
   Library, X, ChevronRight, ChevronsUpDown, Calculator, Sparkles,
-  ClipboardList, Bell, Crown, FileText, Layers, History, Check, Gamepad2, BarChart3, ListChecks, MonitorPlay,
+  ClipboardList, Bell, Crown, FileText, Layers, History, Check, Gamepad2, BarChart3, ListChecks,
 } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { useAuthStore } from '../../store/authStore'
@@ -69,8 +69,8 @@ const ACCENTS = {
 const BOTTOM_LINKS = [
   { label: 'Games', to: '/games', icon: Gamepad2, isNew: true },
   { label: 'Study Tools', to: '/study', icon: GraduationCap, isNew: true },
-  { label: 'AI Tutor', to: '/app/ai', icon: Sparkles },
-  { label: 'AI Lessons', to: '/app/lessons', icon: MonitorPlay, isNew: true },
+  // the AI lessons (/app/lessons) open from AI Tutor's "AI video explanation"
+  { label: 'AI Tutor', to: '/app/ai', icon: Sparkles, alsoActive: '/app/lessons' },
   // Universities and the shared Vocabulary link are hidden for now —
   // the routes still exist. SAT keeps its own Vocabulary item above.
 ]
@@ -296,20 +296,21 @@ function SidebarContent({ onClose, isCenterStudent, pendingCount }) {
         <div className="my-2.5 border-t border-gray-100 dark:border-gray-800" />
 
         {/* Common links */}
-        {(user?.is_premium ? BOTTOM_LINKS : [...BOTTOM_LINKS, PREMIUM_LINK]).map(({ label, to, icon: Icon, highlight, isNew }) => (
+        {(user?.is_premium ? BOTTOM_LINKS : [...BOTTOM_LINKS, PREMIUM_LINK]).map(({ label, to, icon: Icon, highlight, isNew, alsoActive }) => (
           <NavLink
             key={to}
             to={to}
             onClick={onClose}
-            className={({ isActive }) =>
-              highlight
+            className={({ isActive: exact }) => {
+              const isActive = exact || Boolean(alsoActive && location.pathname.startsWith(alsoActive))
+              return highlight
                 ? `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[15px] font-semibold transition-colors ${
                     isActive ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300' : 'text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20'
                   }`
                 : `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[15px] font-medium transition-colors ${
                     isActive ? 'bg-sky-50 dark:bg-sky-900/20 text-sky-600 dark:text-sky-400 font-semibold' : 'text-gray-600 dark:text-gray-400 hover:bg-sky-50 dark:hover:bg-sky-900/20 hover:text-sky-700 dark:hover:text-sky-400'
                   }`
-            }
+            }}
           >
             <Icon size={17} className={highlight ? 'text-amber-500' : isNew ? 'text-indigo-500' : ''} />
             <span className="flex-1">{label}</span>

@@ -394,7 +394,13 @@ function ThinkBubble({ seconds }) {
 // How Toby looks while he answers the student: delighted, or explaining.
 const REACTION_MOOD = { praise: 'happy', explain: 'idle' }
 
-export default function Board({ board, count, instantUpTo, rate, paused, talking, thinking = null, reaction = null, children }) {
+/**
+ * `asking`: a question is open. It takes the board (the writing steps aside) and
+ * the board grows to fit it, with Toby in his corner beside it.
+ */
+export default function Board({
+  board, count, instantUpTo, rate, paused, talking, thinking = null, reaction = null, asking = false, children,
+}) {
   const frameRef = useRef(null)
   const boardRef = useRef(null)
   const contentRef = useRef(null)
@@ -426,7 +432,7 @@ export default function Board({ board, count, instantUpTo, rate, paused, talking
 
   return (
     <div ref={frameRef} className={`lb-frame${paused ? ' lb-paused' : ''}`}>
-      <div ref={boardRef} className="lb-board">
+      <div ref={boardRef} className={`lb-board${asking ? ' lb-asking' : ''}`}>
         <div ref={contentRef} className="lb-content">
           {board.map((element, i) => (
             <Element

@@ -123,7 +123,8 @@ export default function MainLayout() {
           managerCenterId={managerCenterId}
           managerCenterName={managerCenterName}
         />
-        <main className="flex-1 overflow-y-auto">
+        {/* relative: absolutely placed bits (KaTeX's hidden MathML) stay inside, not below the app */}
+        <main className="relative flex-1 overflow-y-auto">
           {/* Pending tasks banner — only for center students with pending tasks */}
           {isCenterStudent && pendingCount > 0 && location.pathname !== '/app/my-tasks' && (
             <motion.div

@@ -97,6 +97,18 @@ export default function AILessonsPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 pb-10">
+      {/* AI Tutor's two halves */}
+      <div className="flex justify-center">
+        <div className="inline-flex items-center gap-1 rounded-2xl bg-gray-200 p-1 dark:bg-gray-800">
+          <Link to="/app/ai" className="rounded-xl px-8 py-1.5 text-[15px] font-semibold text-gray-700 transition hover:bg-white/60 sm:px-14 dark:text-gray-300 dark:hover:bg-gray-700">
+            Chat
+          </Link>
+          <span className="rounded-xl bg-white px-6 py-1.5 text-[15px] font-semibold text-gray-800 shadow-sm sm:px-10 dark:bg-gray-700 dark:text-white">
+            AI video explanation
+          </span>
+        </div>
+      </div>
+
       <Hero total={lessons.length} done={done} earned={lessons.reduce((sum, l) => sum + (l.xp || 0), 0)} />
 
       <RecommendedLessons />

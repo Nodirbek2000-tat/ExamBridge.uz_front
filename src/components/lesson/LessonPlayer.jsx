@@ -153,7 +153,7 @@ function QuestionGate({ questions, answers, onAnswer, onDone, praise, onReaction
   if (question.quiz) label = `Final test · ${at - checks + 1} / ${quiz.length}`
 
   return (
-    <div ref={cardRef} className="lp-bar lp-question rounded-xl bg-white border border-gray-100 shadow-sm p-4 space-y-3">
+    <div ref={cardRef} className="lp-question lb-panel space-y-3">
       {scoring ? (
         <TestResult quiz={quiz} answers={answers} onDone={onDone} />
       ) : (
@@ -271,6 +271,7 @@ export default function LessonPlayer({
         talking={(state.started && state.playing && !state.ended && state.thinking === null) || reaction !== null}
         thinking={state.thinking}
         reaction={reaction}
+        asking={state.gate !== null}
       >
         {!state.started && (
           <button type="button" className="lp-overlay" onClick={engine.play} aria-label="Start the lesson">
@@ -293,19 +294,19 @@ export default function LessonPlayer({
             )}
           </button>
         )}
+        {/* the questions are asked on the board itself */}
+        {state.gate !== null && (
+          <QuestionGate
+            key={state.gate}
+            questions={questions.filter((q) => q.step === timeline[state.gate].step.id)}
+            answers={answers}
+            onAnswer={onAnswer}
+            onDone={engine.continueLesson}
+            praise={praise}
+            onReaction={setReaction}
+          />
+        )}
       </Board>
-
-      {state.gate !== null && (
-        <QuestionGate
-          key={state.gate}
-          questions={questions.filter((q) => q.step === timeline[state.gate].step.id)}
-          answers={answers}
-          onAnswer={onAnswer}
-          onDone={engine.continueLesson}
-          praise={praise}
-          onReaction={setReaction}
-        />
-      )}
 
       {captions && (
         <p className="lp-bar lp-captions min-h-[3.25rem] px-5 py-2.5 rounded-xl bg-white border border-gray-100 shadow-sm text-gray-900 text-base sm:text-lg font-medium leading-snug text-center">

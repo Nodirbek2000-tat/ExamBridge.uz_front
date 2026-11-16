@@ -38,9 +38,31 @@
   line-height: 1.22;
 }
 
+/* A question on the board: the board grows to fit it, Toby keeps his corner on the right. */
+.lb-board.lb-asking { display: flex; align-items: center; aspect-ratio: auto; min-height: 56.25cqw; }
+.lb-asking .lb-content { display: none; }
+
+.lb-panel {
+  flex: 1;
+  min-width: 0;
+  margin: 2.5cqw 15cqw 2.5cqw 2.5cqw;
+  padding: 1rem 1.1rem;
+  border: 1px solid rgb(15 23 42 / 0.07);
+  border-radius: 16px;
+  background: rgb(255 255 255 / 0.97);
+  box-shadow: 0 10px 30px rgb(15 23 42 / 0.12);
+  color: #111827;
+  font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
 /* A phone is too narrow for 16:9 at a readable size. */
 @container (max-width: 560px) {
   .lb-board { aspect-ratio: 4 / 3; }
+  .lb-board.lb-asking { min-height: 75cqw; align-items: flex-start; }
+  /* Toby stands below the question on a narrow board */
+  .lb-panel { margin: 3cqw 3cqw 23cqw; padding: 0.85rem; }
   .lb-content { font-size: calc(5.2cqw * var(--fit, 1)); padding: 5cqw 18cqw 5cqw 5.5cqw; }
 }
 
