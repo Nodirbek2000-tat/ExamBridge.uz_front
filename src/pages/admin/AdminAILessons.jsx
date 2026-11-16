@@ -402,9 +402,10 @@ function LessonForm({ lesson, onBack }) {
               type="button"
               disabled={removeLesson.isPending || busy}
               onClick={confirmDelete}
-              className="ml-auto flex items-center gap-1.5 text-sm font-semibold text-gray-400 hover:text-red-500 disabled:opacity-50"
+              title={busy ? 'Wait for the running job to finish' : 'Delete this lesson'}
+              className="ml-auto flex items-center gap-1.5 px-3 py-2 rounded-lg border border-red-200 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
             >
-              <Trash2 size={15} /> Delete
+              <Trash2 size={15} /> {removeLesson.isPending ? 'Deleting…' : 'Delete lesson'}
             </button>
           </div>
         </section>
@@ -455,6 +456,17 @@ function LessonList({ onOpen, onNew }) {
     queryFn: () => api.get('/admin/ai-lessons/', { params: { subject, q } }).then((r) => r.data),
     placeholderData: keepPreviousData,
   })
+  const qc = useQueryClient()
+  const remove = useMutation({
+    mutationFn: (id) => api.delete(`/admin/ai-lessons/${id}/`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-ai-lessons'] }),
+  })
+  const confirmRemove = (lesson) => {
+    const started = lesson.students
+      ? `\n\n${lesson.students} ${lesson.students === 1 ? 'student has' : 'students have'} started it: their progress and answers go too.`
+      : ''
+    if (window.confirm(`Delete "${lesson.title}"? This cannot be undone.${started}`)) remove.mutate(lesson.id)
+  }
 
   return (
     <div className="space-y-5">
@@ -486,6 +498,8 @@ function LessonList({ onOpen, onNew }) {
           <div className="p-5 space-y-3">{[...Array(4)].map((_, i) => <div key={i} className="h-10 bg-gray-50 rounded-lg animate-pulse" />)}</div>
         ) : error ? (
           <p className="p-5 text-sm text-red-500">Failed to load lessons: {errorOf(error)}</p>
+        ) : remove.error ? (
+          <p className="p-5 text-sm text-red-500">The lesson was not deleted: {errorOf(remove.error)}</p>
         ) : !lessons.length ? (
           <div className="py-14 text-center">
             <GraduationCap size={32} className="text-gray-200 mx-auto mb-2" />
@@ -496,7 +510,7 @@ function LessonList({ onOpen, onNew }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50/70">
-                  {['Topic', 'Subject', 'Length', 'Sources', 'Students', 'Finished', 'Status'].map((h) => (
+                  {['Topic', 'Subject', 'Length', 'Sources', 'Students', 'Finished', 'Status', ''].map((h) => (
                     <th key={h} className="px-5 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
@@ -517,6 +531,19 @@ function LessonList({ onOpen, onNew }) {
                     <td className="px-5 py-3 text-gray-600 tabular-nums">{l.students}</td>
                     <td className="px-5 py-3 text-gray-600 tabular-nums">{l.finished}</td>
                     <td className="px-5 py-3"><StatusBadge status={l.status} /></td>
+                    <td className="px-3 py-3 text-right">
+                      <button
+                        type="button"
+                        aria-label={`Delete ${l.title}`}
+                        title={isLessonBusy(l) ? 'Wait for the running job to finish' : 'Delete'}
+                        disabled={isLessonBusy(l) || remove.isPending}
+                        onClick={(e) => { e.stopPropagation(); confirmRemove(l) }}
+                        onKeyDown={(e) => e.stopPropagation()}
+                        className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
