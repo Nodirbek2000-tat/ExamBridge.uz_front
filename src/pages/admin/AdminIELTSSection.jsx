@@ -749,7 +749,8 @@ function ContentTab({ section, config, colors, items, isLoading, error,
   if (config.hasDifficulty && diffFilter !== 'ALL') {
     filtered = filtered.filter(it => it.difficulty === diffFilter)
   }
-  if (part != null) filtered = filtered.filter(it => partOf(it) === part)
+  // a chosen part shows the separate practice parts only: full mock tests stay whole
+  if (part != null) filtered = filtered.filter(it => !it.test_id && partOf(it) === part)
 
   // Group items: mock sections → group by test_id, standalone → keep flat
   const { mockGroups, standalones } = (() => {
@@ -783,7 +784,7 @@ function ContentTab({ section, config, colors, items, isLoading, error,
             placeholder="Sarlavha bo'yicha qidirish..."
             className="w-full pl-8 pr-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-sky-400 transition" />
         </div>
-        <PartFilter items={items} value={part} onChange={setPart} label={section === 'reading' ? 'Passage' : 'Part'} />
+        <PartFilter items={items.filter(it => !it.test_id)} value={part} onChange={setPart} label={section === 'reading' ? 'Passage' : 'Part'} />
         {config.hasDifficulty && (
           <div className="flex gap-0.5 bg-white rounded-xl p-1 border border-gray-100 shadow-sm">
             {['ALL', 'EASY', 'MEDIUM', 'HARD'].map(d => (

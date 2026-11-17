@@ -641,7 +641,8 @@ function ContentTab({ items, section, config, colors, levelFilter, setLevelFilte
   }
   if (typeFilter === 'PRACTICE') filtered = filtered.filter(it => it.is_standalone)
   if (typeFilter === 'MOCK')     filtered = filtered.filter(it => it.is_mock || !it.is_standalone)
-  if (part != null)             filtered = filtered.filter(it => partOf(it) === part)
+  // a chosen part shows the separate practice parts only: full mock tests stay whole under "Mock"
+  if (part != null)             filtered = filtered.filter(it => !it.test_id && partOf(it) === part)
 
   // Group: items with test_id → mock groups; others → standalone
   const { mockGroups, standalones } = (() => {
@@ -682,13 +683,15 @@ function ContentTab({ items, section, config, colors, levelFilter, setLevelFilte
         </div>
         <div className="flex gap-0.5 bg-white rounded-xl p-1 border border-gray-100 shadow-sm">
           {[['ALL', 'Hammasi'], ['PRACTICE', 'Practice'], ['MOCK', 'Mock']].map(([val, lbl]) => (
-            <button key={val} onClick={() => setTypeFilter(val)}
+            <button key={val} onClick={() => { setTypeFilter(val); if (val === 'MOCK') setPart(null) }}
               className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${typeFilter === val ? 'bg-sky-500 text-white' : 'text-gray-500 hover:bg-sky-50 hover:text-sky-600'}`}>
               {lbl}
             </button>
           ))}
         </div>
-        <PartFilter items={items} value={part} onChange={setPart} />
+        {typeFilter !== 'MOCK' && (
+          <PartFilter items={items.filter(it => !it.test_id)} value={part} onChange={setPart} />
+        )}
         {config.hasLevelFilter && (
           <div className="flex gap-0.5 bg-white rounded-xl p-1 border border-gray-100 shadow-sm">
             {LEVELS.map(lv => (
