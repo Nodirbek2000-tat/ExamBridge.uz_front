@@ -1,4 +1,6 @@
 ﻿import { useState, useRef } from 'react'
+import PartFilter from './PartFilter'
+import { partOf } from './partOf'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -575,6 +577,9 @@ function StandaloneRow({ item, index, section, colors, onAudio, onDelete }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <p className="font-semibold text-gray-800 text-sm truncate">{item.title}</p>
+          {partOf(item) != null && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-semibold">Part {partOf(item)}</span>
+          )}
           {item.is_premium && (
             <span className="text-xs px-2 py-0.5 rounded-full bg-slate-50 text-slate-600 flex items-center gap-1">
               <Crown size={9} /> Premium
@@ -625,6 +630,7 @@ function StandaloneRow({ item, index, section, colors, onAudio, onDelete }) {
 function ContentTab({ items, section, config, colors, levelFilter, setLevelFilter, onAudio, onDelete, isLoading, error }) {
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('ALL')
+  const [part, setPart] = useState(null)
 
   let filtered = items
   if (search.trim()) {
@@ -635,6 +641,7 @@ function ContentTab({ items, section, config, colors, levelFilter, setLevelFilte
   }
   if (typeFilter === 'PRACTICE') filtered = filtered.filter(it => it.is_standalone)
   if (typeFilter === 'MOCK')     filtered = filtered.filter(it => it.is_mock || !it.is_standalone)
+  if (part != null)             filtered = filtered.filter(it => partOf(it) === part)
 
   // Group: items with test_id → mock groups; others → standalone
   const { mockGroups, standalones } = (() => {
@@ -681,6 +688,7 @@ function ContentTab({ items, section, config, colors, levelFilter, setLevelFilte
             </button>
           ))}
         </div>
+        <PartFilter items={items} value={part} onChange={setPart} />
         {config.hasLevelFilter && (
           <div className="flex gap-0.5 bg-white rounded-xl p-1 border border-gray-100 shadow-sm">
             {LEVELS.map(lv => (

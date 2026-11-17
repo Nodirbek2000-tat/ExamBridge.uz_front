@@ -1,4 +1,6 @@
 ﻿import { useState, useRef } from 'react'
+import PartFilter from './PartFilter'
+import { partOf } from './partOf'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -737,6 +739,7 @@ function ContentTab({ section, config, colors, items, isLoading, error,
   onEdit, onAudio, onImage, onDelete, onTestAudio, onTestPremium, onTogglePremium, onTestCambridge, onToggleCambridge }) {
   const [search, setSearch] = useState('')
   const [diffFilter, setDiffFilter] = useState('ALL')
+  const [part, setPart] = useState(null)
 
   let filtered = items
   if (search.trim()) filtered = filtered.filter(it =>
@@ -746,6 +749,7 @@ function ContentTab({ section, config, colors, items, isLoading, error,
   if (config.hasDifficulty && diffFilter !== 'ALL') {
     filtered = filtered.filter(it => it.difficulty === diffFilter)
   }
+  if (part != null) filtered = filtered.filter(it => partOf(it) === part)
 
   // Group items: mock sections → group by test_id, standalone → keep flat
   const { mockGroups, standalones } = (() => {
@@ -779,6 +783,7 @@ function ContentTab({ section, config, colors, items, isLoading, error,
             placeholder="Sarlavha bo'yicha qidirish..."
             className="w-full pl-8 pr-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-sky-400 transition" />
         </div>
+        <PartFilter items={items} value={part} onChange={setPart} label={section === 'reading' ? 'Passage' : 'Part'} />
         {config.hasDifficulty && (
           <div className="flex gap-0.5 bg-white rounded-xl p-1 border border-gray-100 shadow-sm">
             {['ALL', 'EASY', 'MEDIUM', 'HARD'].map(d => (
