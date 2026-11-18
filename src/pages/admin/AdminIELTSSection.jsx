@@ -1,5 +1,6 @@
 ﻿import { useState, useRef } from 'react'
 import PartFilter from './PartFilter'
+import DoneBadge from './DoneBadge'
 import { partOf } from './partOf'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -513,6 +514,8 @@ function SectionRow({ item, index, section, config, colors, onEdit, onAudio, onI
           )}
         </div>
         <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+          {/* a part inside a mock is counted with its mock, in the mock's row */}
+          {!indent && <DoneBadge done={item.done} />}
           {metas.map((m, mi) => (
             <span key={mi} className={`text-xs px-2 py-0.5 rounded-full font-medium ${
               m === 'EASY' ? 'bg-green-100 text-green-700' :
@@ -641,6 +644,7 @@ function MockGroupRow({ testId, testTitle, parts, testIsPremium, testIsCambridge
             <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
               <span>{parts.length} section{parts.length !== 1 ? 's' : ''}</span>
               {totalQ > 0 && <span>{totalQ} questions</span>}
+              <DoneBadge done={parts[0]?.test_done} />
               {section === 'listening' && (
                 testAudioUrl
                   ? <span className="flex items-center gap-1 text-purple-600 font-semibold"><Music2 size={10} />Unified audio</span>

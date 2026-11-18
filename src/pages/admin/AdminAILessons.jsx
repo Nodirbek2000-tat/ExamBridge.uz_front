@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import api from '../../api/client'
 import LessonJob from './AdminLessonJob'
+import LessonStats from './AdminLessonStats'
 import LessonQuestions from './AdminLessonQuestions'
 import LessonSteps from './AdminLessonSteps'
 import { isLessonBusy } from './lessonStatus'
@@ -383,6 +384,8 @@ function LessonForm({ lesson, onBack }) {
 
       <LessonJob lesson={lesson} onChanged={refresh} />
 
+      <LessonStats stats={lesson.stats} />
+
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-start">
         <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-4">
           <h3 className="font-bold text-gray-900 text-sm">Lesson</h3>
@@ -510,7 +513,7 @@ function LessonList({ onOpen, onNew }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50/70">
-                  {['Topic', 'Subject', 'Length', 'Sources', 'Students', 'Finished', 'Status', ''].map((h) => (
+                  {['Topic', 'Subject', 'Length', 'Sources', 'Views', 'Students', 'Finished', 'Status', ''].map((h) => (
                     <th key={h} className="px-5 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
@@ -528,6 +531,7 @@ function LessonList({ onOpen, onNew }) {
                     <td className="px-5 py-3 text-gray-600 whitespace-nowrap">{l.subject}</td>
                     <td className="px-5 py-3 text-gray-600 whitespace-nowrap">{l.duration_minutes} min</td>
                     <td className="px-5 py-3 text-gray-600 tabular-nums">{l.sources_count}</td>
+                    <td className="px-5 py-3 text-gray-600 tabular-nums">{l.views}</td>
                     <td className="px-5 py-3 text-gray-600 tabular-nums">{l.students}</td>
                     <td className="px-5 py-3 text-gray-600 tabular-nums">{l.finished}</td>
                     <td className="px-5 py-3"><StatusBadge status={l.status} /></td>

@@ -1,5 +1,6 @@
 ﻿import { useState, useRef } from 'react'
 import PartFilter from './PartFilter'
+import DoneBadge from './DoneBadge'
 import { partOf } from './partOf'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -466,7 +467,10 @@ function MockGroupRow({ testId, testTitle, testIsPremium, parts, section, colors
                 </span>
               )}
             </div>
-            <p className="text-xs text-gray-400 mt-0.5">{parts.length} {partWord}  ·  {totalQ} questions</p>
+            <div className="flex items-center gap-2 flex-wrap mt-0.5">
+              <p className="text-xs text-gray-400">{parts.length} {partWord}  ·  {totalQ} questions</p>
+              <DoneBadge done={parts[0]?.test_done} />
+            </div>
           </div>
           <span className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}>
             <ChevronDown size={16} />
@@ -588,6 +592,7 @@ function StandaloneRow({ item, index, section, colors, onAudio, onDelete }) {
         </div>
         <div className="flex items-center gap-2 mt-1.5 flex-wrap">
           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${colors.badge}`}>{qCount} savol</span>
+          <DoneBadge done={item.done} />
           {item.test_type && <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">{item.test_type}</span>}
           {item.time_limit && <span className="flex items-center gap-1 text-xs text-gray-400"><Clock size={10} />{item.time_limit}m</span>}
           {item.is_mock && <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">Mock</span>}
