@@ -1,15 +1,17 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import {
-  Send, Image as ImageIcon, X, Bot, User, Trash2,
-  ChevronDown, Plus, MessageSquare, Sparkles, Mic, ArrowUp, PanelLeft,
+  Image as ImageIcon, X, Trash2, Plus, Sparkles, Mic, ArrowUp, PanelLeft,
 } from 'lucide-react'
-import api from '../../api/client'
+import api, { deviceId } from '../../api/client'
 import ReactMarkdown from 'react-markdown'
 import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
 import 'katex/dist/katex.min.css'
+import useSmoothText from './useSmoothText'
+import { FreeLeft, LimitReached, PremiumLock } from './ChatPremium'
+import './chat.css'
 
 // ── Subject / section config ────────────────────────────────────────────────
 const SUBJECTS = {
@@ -52,7 +54,7 @@ const COLOR = {
 }
 
 // ── Markdown message renderer ────────────────────────────────────────────────
-function MessageContent({ content }) {
+const MessageContent = memo(function MessageContent({ content }) {
   const normalizedContent = useMemo(() => {
     if (!content) return ''
     return content
@@ -89,14 +91,16 @@ function MessageContent({ content }) {
       {normalizedContent}
     </ReactMarkdown>
   )
-}
+})
 
 // ── Single message bubble ────────────────────────────────────────────────────
-function MessageBubble({ msg }) {
+// `streaming`: the answer being written right now. It has the same box as a finished answer,
+// and the finished answer appears without an animation, so nothing jumps when it ends.
+const MessageBubble = memo(function MessageBubble({ msg, streaming = false }) {
   const isUser = msg.role === 'user'
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
+      initial={msg.fromStream ? false : { opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       className={`w-full flex ${isUser ? 'justify-end' : 'justify-start'}`}
     >
@@ -116,36 +120,24 @@ function MessageBubble({ msg }) {
         >
           {isUser
             ? <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{msg.content}</p>
-            : <div className="break-words [overflow-wrap:anywhere]"><MessageContent content={msg.content} /></div>
+            : streaming && !msg.content
+              ? <span className="ai-dots" aria-label="AI is writing"><span /><span /><span /></span>
+              : (
+                <div className={`break-words [overflow-wrap:anywhere] ${streaming ? 'ai-stream' : ''}`}>
+                  <MessageContent content={msg.content} />
+                </div>
+              )
           }
         </div>
-        <span className="text-[10px] text-gray-400 px-1">
-          {new Date(msg.created_at || Date.now()).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+        <span className={`text-[10px] text-gray-400 px-1 ${streaming ? 'invisible' : ''}`}>
+          {msg.created_at
+            ? new Date(msg.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+            : '00:00'}
         </span>
       </div>
     </motion.div>
   )
-}
-
-// ── Typing indicator ────────────────────────────────────────────────────────
-function TypingBubble({ streamText }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="flex justify-start"
-    >
-      <div className="max-w-[80%] px-0 py-0 text-[17px] text-gray-900">
-        {streamText
-          ? <MessageContent content={streamText + '▋'} />
-          : (
-            <p className="text-gray-500">...</p>
-          )
-        }
-      </div>
-    </motion.div>
-  )
-}
+})
 
 // ── Main page ────────────────────────────────────────────────────────────────
 function AIChatPage() {
@@ -160,32 +152,50 @@ function AIChatPage() {
   const [image, setImage] = useState(null)
   const [imagePreview, setImagePreview] = useState(null)
   const [streaming, setStreaming] = useState(false)
-  const [streamText, setStreamText] = useState('')
+  const { text: streamText, push: pushStream, finish: finishStream, reset: resetStream } = useSmoothText()
   const [conversationId, setConversationId] = useState(null)
   const [conversations, setConversations] = useState([])
-  const [showHistory, setShowHistory] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  // Free messages: undefined while loading, null if it could not be read (the server still checks)
+  const [quota, setQuota] = useState(undefined)
 
-  const messagesEndRef = useRef(null)
+  const scrollRef = useRef(null)
+  const stickToBottom = useRef(true)
   const fileInputRef = useRef(null)
   const textareaRef = useRef(null)
 
   const colorCls = COLOR[SUBJECTS[subject]?.color || 'sky']
+  const free = quota && !quota.unlimited
+  const locked = free && quota.left <= 0
 
-  // Auto-scroll
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, streamText])
+    api.get('/ai/quota/').then((res) => setQuota(res.data)).catch(() => setQuota(null))
+  }, [])
+
+  // Follow the answer as it is written, unless the student scrolled up to read
+  const onScroll = () => {
+    const el = scrollRef.current
+    if (el) stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80
+  }
+  useEffect(() => {
+    const el = scrollRef.current
+    if (el && stickToBottom.current) el.scrollTop = el.scrollHeight
+  }, [messages, streamText, streaming])
 
   // Load conversation history list
-  const loadConversations = useCallback(async () => {
-    try {
-      const res = await api.get(`/ai/conversations/?subject=${subject}`)
-      setConversations(res.data)
-    } catch {}
-  }, [subject])
+  const loadConversations = useCallback(() => (
+    api.get(`/ai/conversations/?subject=${subject}`)
+      .then((res) => setConversations(res.data))
+      .catch(() => { /* the list just stays as it was */ })
+  ), [subject])
 
-  useEffect(() => { loadConversations() }, [loadConversations])
+  useEffect(() => {
+    let live = true
+    api.get(`/ai/conversations/?subject=${subject}`)
+      .then((res) => { if (live) setConversations(res.data) })
+      .catch(() => { /* no list yet */ })
+    return () => { live = false }
+  }, [subject])
 
   // Load specific conversation
   const loadConversation = async (id) => {
@@ -194,9 +204,9 @@ function AIChatPage() {
       setConversationId(res.data.id)
       setSubject(res.data.subject)
       setSection(res.data.section)
+      stickToBottom.current = true
       setMessages(res.data.messages)
-      setShowHistory(false)
-    } catch {}
+    } catch { /* the chat stays as it was */ }
   }
 
   // New chat
@@ -215,7 +225,7 @@ function AIChatPage() {
       await api.delete(`/ai/conversations/${id}/`)
       setConversations(prev => prev.filter(c => c.id !== id))
       if (conversationId === id) newChat()
-    } catch {}
+    } catch { /* the chat stays in the list */ }
   }
 
   // Handle image selection
@@ -244,25 +254,49 @@ function AIChatPage() {
     }
   }
 
+  // The answer is fully on screen: it becomes a normal message in the same place.
+  const endAnswer = (content) => {
+    setMessages(prev => [...prev, {
+      id: `a-${Date.now()}`,
+      role: 'assistant',
+      content,
+      fromStream: true,
+      created_at: new Date().toISOString(),
+    }])
+    resetStream()
+    setStreaming(false)
+  }
+
+  const postChat = (formData) => fetch('/api/ai/chat/', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+      'X-Device-Id': deviceId(),
+    },
+    body: formData,
+  })
+
   // Send message
   const sendMessage = async () => {
-    if ((!input.trim() && !image) || streaming) return
+    if ((!input.trim() && !image) || streaming || locked) return
 
     const userContent = input.trim()
     const userMsg = {
-      id: Date.now(),
+      id: `u-${Date.now()}`,
       role: 'user',
       content: userContent,
       image: imagePreview,
       created_at: new Date().toISOString(),
     }
+    stickToBottom.current = true
     setMessages(prev => [...prev, userMsg])
     setInput('')
     setImage(null)
     setImagePreview(null)
+    resetStream()
     setStreaming(true)
-    setStreamText('')
 
+    let fullText = ''
     try {
       const formData = new FormData()
       formData.append('subject', subject)
@@ -271,14 +305,22 @@ function AIChatPage() {
       if (conversationId) formData.append('conversation_id', conversationId)
       if (image) formData.append('image', image)
 
-      const response = await fetch('/api/ai/chat/', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-        },
-        body: formData,
-      })
+      let response = await postChat(formData)
+      if (response.status === 401) {
+        // The sign-in expired: this request renews it, then the message is sent again
+        await api.get('/ai/quota/').then((res) => setQuota(res.data))
+        response = await postChat(formData)
+      }
 
+      if (response.status === 403) {
+        const body = await response.json().catch(() => ({}))
+        if (body.code === 'premium_required') {
+          setQuota(body.quota || { unlimited: false, limit: 5, used: 5, left: 0 })
+          setMessages(prev => prev.filter(m => m.id !== userMsg.id))
+          setStreaming(false)
+          return
+        }
+      }
       if (!response.ok) {
         const errText = await response.text()
         throw new Error(`Server error ${response.status}: ${errText.slice(0, 200)}`)
@@ -287,9 +329,9 @@ function AIChatPage() {
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
-      let fullText = ''
+      let finished = false
 
-      while (true) {
+      while (!finished) {
         const { done, value } = await reader.read()
         if (done) break
         buffer += decoder.decode(value, { stream: true })
@@ -303,34 +345,28 @@ function AIChatPage() {
 
           if (event.type === 'conversation_id') {
             setConversationId(event.id)
+          } else if (event.type === 'quota') {
+            const { unlimited, limit, used, left } = event
+            setQuota({ unlimited, limit, used, left })
           } else if (event.type === 'delta') {
             fullText += event.text
-            setStreamText(fullText)
+            pushStream(event.text)
           } else if (event.type === 'done') {
-            const aiMsg = {
-              id: Date.now() + 1,
-              role: 'assistant',
-              content: fullText,
-              created_at: new Date().toISOString(),
-            }
-            setMessages(prev => [...prev, aiMsg])
-            setStreamText('')
-            setStreaming(false)
+            finished = true
+            const answer = fullText
+            finishStream(() => endAnswer(answer))
             loadConversations()
           } else if (event.type === 'error') {
             throw new Error(event.message || 'AI error')
           }
         }
       }
+      if (!finished) throw new Error('the connection was interrupted')
     } catch (err) {
-      setMessages(prev => [...prev, {
-        id: Date.now() + 1,
-        role: 'assistant',
-        content: `Sorry, an error occurred: ${err.message}. Please try again.`,
-        created_at: new Date().toISOString(),
-      }])
-      setStreamText('')
-      setStreaming(false)
+      const note = `Sorry, an error occurred: ${err.message}. Please try again.`
+      const content = fullText ? `${fullText}\n\n*${note}*` : note
+      finishStream(() => endAnswer(content))
+      api.get('/ai/quota/').then((res) => setQuota(res.data)).catch(() => {})
     }
   }
 
@@ -341,14 +377,13 @@ function AIChatPage() {
     }
   }
 
-  const subjectInfo = SUBJECTS[subject]
-  const sectionInfo = subjectInfo?.sections.find(s => s.key === section)
+  const lockPage = locked && messages.length === 0 && !streaming
 
   return (
     <div className="flex h-[calc(100vh-64px)] bg-white overflow-hidden">
 
       {/* ── Sidebar: History ── */}
-      <div className={`flex flex-col border-r border-gray-200 bg-white transition-all duration-300 ${sidebarOpen ? 'w-60' : 'w-0 overflow-hidden border-r-0'}`}>
+      <div className={`flex flex-col border-r border-gray-200 bg-white ${lockPage ? 'w-0 overflow-hidden border-r-0' : `transition-all duration-300 ${sidebarOpen ? 'w-60' : 'w-0 overflow-hidden border-r-0'}`}`}>
         <div className="p-4">
           <button
             onClick={newChat}
@@ -385,30 +420,32 @@ function AIChatPage() {
 
         {/* Top bar */}
         <div className="flex-shrink-0 border-b border-gray-200 bg-white py-4 px-4 flex items-center justify-center relative">
-          <button
+          {!lockPage && <button
             onClick={() => setSidebarOpen(v => !v)}
             className="absolute left-4 w-11 h-11 rounded-xl bg-[#2f2f2f] text-white flex items-center justify-center hover:bg-[#3a3a3a] transition"
             title={sidebarOpen ? 'Hide chats' : 'Show chats'}
           >
             <PanelLeft size={18} />
-          </button>
+          </button>}
           <div className="inline-flex items-center bg-gray-200 rounded-2xl p-1 gap-1">
-            <span className="px-16 py-1.5 rounded-xl text-[15px] font-semibold bg-white text-gray-800 shadow-sm">
+            <span className="px-6 sm:px-16 py-1.5 rounded-xl text-[15px] font-semibold bg-white text-gray-800 shadow-sm">
               Chat
             </span>
             {/* The lessons have a page of their own */}
             <Link
               to="/app/lessons"
-              className="px-10 py-1.5 rounded-xl text-[15px] font-semibold text-gray-700 hover:bg-white/60 transition"
+              className="px-4 sm:px-10 py-1.5 rounded-xl text-[15px] font-semibold text-gray-700 hover:bg-white/60 transition whitespace-nowrap"
             >
               AI video explanation
             </Link>
           </div>
         </div>
 
+        {lockPage && <PremiumLock limit={quota.limit} />}
+
         {/* Messages area */}
-        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5 bg-white">
-          {messages.length === 0 && !streaming && (
+        {!lockPage && <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto px-6 py-6 space-y-5 bg-white">
+          {messages.length === 0 && !streaming && quota !== undefined && (
             <div className="flex flex-col items-center justify-center h-full text-center gap-4 pb-20">
               <div className={`w-16 h-16 rounded-2xl ${colorCls.bg} flex items-center justify-center shadow-lg`}>
                 <Sparkles size={28} className="text-white" />
@@ -464,14 +501,20 @@ function AIChatPage() {
           ))}
 
           {streaming && (
-            <TypingBubble streamText={streamText} />
+            <MessageBubble streaming msg={{ role: 'assistant', content: streamText }} />
           )}
+        </div>}
 
-          <div ref={messagesEndRef} />
-        </div>
+        {/* After the last free answer the message box gives way to Premium */}
+        {!lockPage && locked && (
+          <div className="flex-shrink-0 bg-white p-4 pb-6">
+            <LimitReached limit={quota.limit} />
+          </div>
+        )}
 
         {/* Input area */}
-        <div className="flex-shrink-0 bg-white p-4 pb-6">
+        {!lockPage && !locked && quota !== undefined && <div className="flex-shrink-0 bg-white p-4 pb-6">
+          {free && <FreeLeft left={quota.left} limit={quota.limit} />}
           {/* Image preview */}
           {imagePreview && (
             <div className="mb-3 flex items-start gap-2">
@@ -540,7 +583,7 @@ function AIChatPage() {
               <ArrowUp size={14} />
             </button>
           </div>
-        </div>
+        </div>}
       </div>
     </div>
   )
